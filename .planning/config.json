@@ -1,0 +1,10 @@
+{
+  "mode": "yolo",
+  "depth": "comprehensive",
+  "parallelization": {
+    "enabled": true,
+    "strategy": "smart",
+    "notes": "Parallel for independent components, sequential for leakage-sensitive data paths"
+  },
+  "created": "2025-01-18"
+}
