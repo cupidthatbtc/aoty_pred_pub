@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+
+# Data and outputs (top-level only)
+/data/
+/runs/
+/reports/
+/logs/
+
+# Env and local config
+.env
+configs/local.yaml
+
+# IDE
+.vscode/
+.idea/
