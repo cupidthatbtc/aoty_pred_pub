@@ -181,11 +181,16 @@ def validate_temporal_split(
     Verify temporal ordering is correct for within-artist splits.
 
     For each artist, checks that:
-    - Test albums are chronologically after validation albums
-    - Validation albums are chronologically after training albums
+    - Test albums are chronologically after or equal to validation albums
+    - Validation albums are chronologically after or equal to training albums
+
+    Note:
+        Same-date albums are allowed since the split function uses groupby.tail()
+        which provides consistent ordering. Only strictly backwards ordering
+        (training data after test data) is flagged as a violation.
 
     Raises:
-        ValueError: If temporal ordering is violated
+        ValueError: If temporal ordering is violated (train after test)
     """
     # Get artists that appear in all splits (expected for temporal split)
     train_artists = set(train_df[artist_col])
@@ -199,10 +204,12 @@ def validate_temporal_split(
         train_max = train_df[train_df[artist_col] == artist][date_col].max()
         test_min = test_df[test_df[artist_col] == artist][date_col].min()
 
-        if train_max >= test_min:
+        # Strict check: training data must not come AFTER test data
+        # Same-date albums are OK (tail() provides consistent ordering)
+        if train_max > test_min:
             raise ValueError(
                 f"Temporal violation for {artist}: "
-                f"train max date {train_max} >= test min date {test_min}"
+                f"train max date {train_max} > test min date {test_min}"
             )
 
         # Check validation if artist present
@@ -211,15 +218,15 @@ def validate_temporal_split(
             val_min = val_dates.min()
             val_max = val_dates.max()
 
-            if train_max >= val_min:
+            if train_max > val_min:
                 raise ValueError(
                     f"Temporal violation for {artist}: "
-                    f"train max {train_max} >= val min {val_min}"
+                    f"train max {train_max} > val min {val_min}"
                 )
-            if val_max >= test_min:
+            if val_max > test_min:
                 raise ValueError(
                     f"Temporal violation for {artist}: "
-                    f"val max {val_max} >= test min {test_min}"
+                    f"val max {val_max} > test min {test_min}"
                 )
 
 
