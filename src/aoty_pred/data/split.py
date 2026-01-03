@@ -137,6 +137,92 @@ def artist_disjoint_split(
     return train_df, val_df, test_df
 
 
+def assert_no_artist_overlap(
+    train_df: pd.DataFrame,
+    val_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    artist_col: str = "Artist",
+) -> None:
+    """
+    Verify no artist appears in multiple splits (artist-disjoint property).
+
+    Raises:
+        ValueError: If any artist overlap is detected
+
+    Note:
+        This should ONLY be called for artist-disjoint splits.
+        Within-artist temporal splits intentionally have artist overlap.
+    """
+    train_artists = set(train_df[artist_col])
+    val_artists = set(val_df[artist_col])
+    test_artists = set(test_df[artist_col])
+
+    overlap_train_val = train_artists & val_artists
+    overlap_train_test = train_artists & test_artists
+    overlap_val_test = val_artists & test_artists
+
+    if overlap_train_val or overlap_train_test or overlap_val_test:
+        raise ValueError(
+            f"Artist overlap detected: "
+            f"train-val={len(overlap_train_val)}, "
+            f"train-test={len(overlap_train_test)}, "
+            f"val-test={len(overlap_val_test)}"
+        )
+
+
+def validate_temporal_split(
+    train_df: pd.DataFrame,
+    val_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    artist_col: str = "Artist",
+    date_col: str = "Release_Date_Parsed",
+) -> None:
+    """
+    Verify temporal ordering is correct for within-artist splits.
+
+    For each artist, checks that:
+    - Test albums are chronologically after validation albums
+    - Validation albums are chronologically after training albums
+
+    Raises:
+        ValueError: If temporal ordering is violated
+    """
+    # Get artists that appear in all splits (expected for temporal split)
+    train_artists = set(train_df[artist_col])
+    test_artists = set(test_df[artist_col])
+    val_artists = set(val_df[artist_col])
+
+    # Only validate artists present in both train and test
+    common_artists = train_artists & test_artists
+
+    for artist in common_artists:
+        train_max = train_df[train_df[artist_col] == artist][date_col].max()
+        test_min = test_df[test_df[artist_col] == artist][date_col].min()
+
+        if train_max >= test_min:
+            raise ValueError(
+                f"Temporal violation for {artist}: "
+                f"train max date {train_max} >= test min date {test_min}"
+            )
+
+        # Check validation if artist present
+        if artist in val_artists:
+            val_dates = val_df[val_df[artist_col] == artist][date_col]
+            val_min = val_dates.min()
+            val_max = val_dates.max()
+
+            if train_max >= val_min:
+                raise ValueError(
+                    f"Temporal violation for {artist}: "
+                    f"train max {train_max} >= val min {val_min}"
+                )
+            if val_max >= test_min:
+                raise ValueError(
+                    f"Temporal violation for {artist}: "
+                    f"val max {val_max} >= test min {test_min}"
+                )
+
+
 def group_split(df, group_col: str, seed: int):
     """
     DEPRECATED: Use within_artist_temporal_split or artist_disjoint_split instead.
