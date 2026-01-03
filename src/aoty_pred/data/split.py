@@ -4,6 +4,7 @@ from typing import Tuple
 import warnings
 
 import pandas as pd
+from sklearn.model_selection import GroupShuffleSplit
 
 
 def within_artist_temporal_split(
@@ -62,6 +63,76 @@ def within_artist_temporal_split(
     # Extract second-to-last N per artist for validation
     val_df = remaining.groupby(artist_col).tail(val_albums)
     train_df = remaining.drop(val_df.index)
+
+    return train_df, val_df, test_df
+
+
+def artist_disjoint_split(
+    df: pd.DataFrame,
+    artist_col: str = "Artist",
+    test_size: float = 0.15,
+    val_size: float = 0.15,
+    random_state: int = 42,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Split data ensuring no artist appears in multiple splits.
+
+    This is the SECONDARY evaluation strategy: tests model's ability to
+    generalize to unseen artists (cold-start evaluation).
+
+    Uses two-stage GroupShuffleSplit:
+    1. Split test set (artist-disjoint)
+    2. Split validation from remaining (artist-disjoint)
+
+    Args:
+        df: Cleaned album DataFrame
+        artist_col: Column name for artist grouping
+        test_size: Proportion of data for test set (by artist groups)
+        val_size: Proportion of data for validation set
+        random_state: Random seed for reproducibility
+
+    Returns:
+        Tuple of (train_df, val_df, test_df)
+
+    Example:
+        >>> import pandas as pd
+        >>> df = pd.DataFrame({
+        ...     "Artist": [f"Artist_{i//3}" for i in range(60)],
+        ...     "Album": list(range(60)),
+        ...     "Score": [70]*60,
+        ... })
+        >>> train, val, test = artist_disjoint_split(df, random_state=42)
+        >>> # No artist overlap between splits
+        >>> train_a = set(train["Artist"])
+        >>> test_a = set(test["Artist"])
+        >>> len(train_a & test_a)
+        0
+    """
+    groups = df[artist_col].values
+
+    # Stage 1: Separate test set
+    gss_test = GroupShuffleSplit(
+        n_splits=1,
+        test_size=test_size,
+        random_state=random_state,
+    )
+    train_val_idx, test_idx = next(gss_test.split(df, groups=groups))
+
+    test_df = df.iloc[test_idx].copy()
+    train_val_df = df.iloc[train_val_idx]
+
+    # Stage 2: Separate validation from train
+    val_proportion = val_size / (1 - test_size)
+    gss_val = GroupShuffleSplit(
+        n_splits=1,
+        test_size=val_proportion,
+        random_state=random_state + 1,  # Different seed for second split
+    )
+    train_val_groups = train_val_df[artist_col].values
+    train_idx, val_idx = next(gss_val.split(train_val_df, groups=train_val_groups))
+
+    train_df = train_val_df.iloc[train_idx].copy()
+    val_df = train_val_df.iloc[val_idx].copy()
 
     return train_df, val_df, test_df
 
