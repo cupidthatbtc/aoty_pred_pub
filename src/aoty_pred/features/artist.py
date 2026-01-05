@@ -134,8 +134,9 @@ class ArtistHistoryBlock(BaseFeatureBlock):
                 lambda x: x.shift(1).expanding().apply(_compute_trajectory_slope, raw=False)
             )
 
-        # Mark debuts BEFORE imputation (using user_prior_count to detect)
-        df_sorted["is_debut"] = df_sorted["user_prior_count"].isna().astype(int)
+        # Mark debuts BEFORE imputation (using user_prior_mean NaN to detect)
+        # Note: count() returns 0 for debuts, but mean() returns NaN
+        df_sorted["is_debut"] = df_sorted["user_prior_mean"].isna().astype(int)
 
         # Impute debut NaN values with global statistics from fit()
         df_sorted["user_prior_mean"] = df_sorted["user_prior_mean"].fillna(self._global_user_mean_)
