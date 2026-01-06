@@ -20,6 +20,12 @@ from aoty_pred.models.bayes.model import (
     make_score_model,
     user_score_model,
 )
+from aoty_pred.models.bayes.predict import (
+    PredictionResult,
+    generate_posterior_predictive,
+    predict_new_artist,
+    predict_out_of_sample,
+)
 from aoty_pred.models.bayes.priors import PriorConfig, get_default_priors
 
 __all__ = [
@@ -36,6 +42,11 @@ __all__ = [
     "MCMCConfig",
     "FitResult",
     "get_gpu_info",
+    # Prediction
+    "PredictionResult",
+    "generate_posterior_predictive",
+    "predict_out_of_sample",
+    "predict_new_artist",
     # I/O
     "ModelManifest",
     "ModelsManifest",
