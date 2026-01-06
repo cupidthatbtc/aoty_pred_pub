@@ -242,10 +242,8 @@ def fit_model(
     # Convert to ArviZ InferenceData
     idata = az.from_numpyro(mcmc)
 
-    # Add observed data group (required for ArviZ PPC plots)
+    # Prepare data groups for InferenceData
     observed_data = {"y": model_args["y"]}
-
-    # Add constant data group (for reproducibility)
     constant_data = {
         "X": model_args["X"],
         "artist_idx": model_args["artist_idx"],
@@ -253,10 +251,16 @@ def fit_model(
         "prev_score": model_args["prev_score"],
     }
 
-    idata.add_groups(
-        observed_data=observed_data,
-        constant_data=constant_data,
-    )
+    # Add groups only if they don't already exist (az.from_numpyro may create observed_data)
+    existing_groups = set(idata.groups())
+    groups_to_add = {}
+    if "observed_data" not in existing_groups:
+        groups_to_add["observed_data"] = observed_data
+    if "constant_data" not in existing_groups:
+        groups_to_add["constant_data"] = constant_data
+
+    if groups_to_add:
+        idata.add_groups(**groups_to_add)
 
     logger.info(f"InferenceData groups: {list(idata.groups())}")
 
