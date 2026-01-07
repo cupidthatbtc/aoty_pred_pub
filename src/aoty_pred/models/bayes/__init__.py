@@ -1,5 +1,10 @@
 """Bayesian hierarchical models for album score prediction."""
 
+from aoty_pred.models.bayes.diagnostics import (
+    ConvergenceDiagnostics,
+    check_convergence,
+    get_divergence_info,
+)
 from aoty_pred.models.bayes.fit import (
     FitResult,
     MCMCConfig,
@@ -42,6 +47,10 @@ __all__ = [
     "MCMCConfig",
     "FitResult",
     "get_gpu_info",
+    # Diagnostics
+    "ConvergenceDiagnostics",
+    "check_convergence",
+    "get_divergence_info",
     # Prediction
     "PredictionResult",
     "generate_posterior_predictive",
