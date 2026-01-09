@@ -138,8 +138,8 @@ def check_convergence(
     if "sample_stats" not in idata.groups():
         raise ValueError("InferenceData must have 'sample_stats' group for divergence extraction")
 
-    # Detect number of chains from posterior
-    num_chains = idata.posterior.dims.get("chain", 1)
+    # Detect number of chains from posterior (use .sizes for dict-like access)
+    num_chains = idata.posterior.sizes.get("chain", 1)
 
     # Get diagnostic summary (R-hat, ESS-bulk, ESS-tail, MCSE)
     # kind="diagnostics" is more efficient than "all"
@@ -245,9 +245,9 @@ def get_divergence_info(idata: az.InferenceData) -> dict:
     # Per-chain counts
     per_chain = [int(diverging.sel(chain=c).sum().values) for c in diverging.coords["chain"].values]
 
-    # Total samples for rate calculation
-    num_chains = diverging.dims["chain"]
-    num_draws = diverging.dims["draw"]
+    # Total samples for rate calculation (use .sizes for dict-like access on DataArray)
+    num_chains = diverging.sizes["chain"]
+    num_draws = diverging.sizes["draw"]
     total_samples = num_chains * num_draws
     rate = total / total_samples if total_samples > 0 else 0.0
 
