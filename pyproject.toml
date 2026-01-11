@@ -23,7 +23,8 @@ dependencies = [
   "typer>=0.12",
   "rich>=13.7",
   "matplotlib>=3.8",
-  "seaborn>=0.13"
+  "seaborn>=0.13",
+  "uncertainties>=3.1"
 ]
 
 [project.optional-dependencies]
