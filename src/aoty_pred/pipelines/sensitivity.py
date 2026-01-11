@@ -643,6 +643,11 @@ def aggregate_sensitivity_results(
         rows.append(row)
 
     df = pd.DataFrame(rows)
+
+    # Handle empty results
+    if df.empty:
+        return df
+
     df = df.set_index("name")
 
     # Sort by ELPD (descending) if available
