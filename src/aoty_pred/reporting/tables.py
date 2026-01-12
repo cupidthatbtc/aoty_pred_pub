@@ -199,13 +199,15 @@ def create_coefficient_table(
         round_to="none",  # We handle precision ourselves
     )
 
-    # Calculate HDI column names based on probability
-    lower_pct = (1 - hdi_prob) / 2 * 100
-    upper_pct = (1 - (1 - hdi_prob) / 2) * 100
+    # Find HDI column names from summary - ArviZ uses varying decimal precision
+    # e.g., "hdi_3%" for 94% HDI but "hdi_5.5%" for 89% HDI
+    hdi_cols = [c for c in summary.columns if c.startswith("hdi_")]
+    if len(hdi_cols) != 2:
+        raise ValueError(f"Expected 2 HDI columns, found: {hdi_cols}")
 
-    # ArviZ formats as hdi_3% and hdi_97% for 94% HDI
-    lower_col = f"hdi_{lower_pct:.0f}%"
-    upper_col = f"hdi_{upper_pct:.0f}%"
+    # Sort to get lower and upper bounds
+    hdi_cols_sorted = sorted(hdi_cols, key=lambda c: float(c.replace("hdi_", "").replace("%", "")))
+    lower_col, upper_col = hdi_cols_sorted
 
     # Rename columns for publication
     column_mapping = {
@@ -220,10 +222,13 @@ def create_coefficient_table(
     result = result.rename(columns=column_mapping)
 
     if apply_precision:
+        # Convert to object dtype first to avoid FutureWarning
+        result = result.astype(object)
+
         # Apply adaptive precision based on SE
         for idx in result.index:
-            est = result.loc[idx, "Estimate"]
-            se = result.loc[idx, "SE"]
+            est = float(result.loc[idx, "Estimate"])
+            se = float(result.loc[idx, "SE"])
 
             # Format estimate and SE
             est_formatted = _format_with_precision(est, se)
@@ -236,8 +241,8 @@ def create_coefficient_table(
                 n_decimals = 2
 
             # Apply same precision to CI bounds
-            ci_lower = result.loc[idx, "CI Lower"]
-            ci_upper = result.loc[idx, "CI Upper"]
+            ci_lower = float(result.loc[idx, "CI Lower"])
+            ci_upper = float(result.loc[idx, "CI Upper"])
 
             result.loc[idx, "Estimate"] = est_formatted
             result.loc[idx, "SE"] = se_formatted
@@ -440,7 +445,7 @@ def create_comparison_table(
 
     result["ELPD"] = comparison[elpd_col].apply(lambda x: f"{x:.1f}")
     result["SE"] = comparison["se"].apply(lambda x: f"{x:.1f}")
-    result["p_eff"] = comparison[p_col].apply(lambda x: f"{p_eff:.1f}")
+    result["p_eff"] = comparison[p_col].apply(lambda x: f"{x:.1f}")
 
     # Delta: difference from best model
     best_elpd = comparison[elpd_col].iloc[0]  # Already sorted by ArviZ
