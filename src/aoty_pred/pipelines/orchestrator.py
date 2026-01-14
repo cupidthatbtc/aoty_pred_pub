@@ -31,7 +31,12 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from aoty_pred.pipelines.errors import EnvironmentError, PipelineError, StageSkipped
+from aoty_pred.pipelines.errors import (
+    ConvergenceError,
+    EnvironmentError,
+    PipelineError,
+    StageSkipped,
+)
 from aoty_pred.pipelines.manifest import (
     GitStateModel,
     RunManifest,
@@ -40,7 +45,7 @@ from aoty_pred.pipelines.manifest import (
     load_run_manifest,
     save_run_manifest,
 )
-from aoty_pred.pipelines.stages import PipelineStage, get_execution_order
+from aoty_pred.pipelines.stages import PipelineStage, StageContext, get_execution_order
 from aoty_pred.utils.environment import ensure_environment_locked, verify_environment
 from aoty_pred.utils.git_state import capture_git_state
 from aoty_pred.utils.logging import is_interactive, setup_pipeline_logging
@@ -371,6 +376,20 @@ class PipelineOrchestrator:
                 self._execute_stage(stage)
                 progress.advance(task_id)
 
+    def _create_stage_context(self) -> StageContext:
+        """Create StageContext for stage execution.
+
+        Returns:
+            StageContext with current configuration.
+        """
+        return StageContext(
+            run_dir=self.run_dir or Path("outputs"),
+            seed=self.config.seed,
+            strict=self.config.strict,
+            verbose=self.config.verbose,
+            manifest=self.manifest,
+        )
+
     def _execute_stage(self, stage: PipelineStage) -> None:
         """Execute a single pipeline stage.
 
@@ -387,6 +406,9 @@ class PipelineOrchestrator:
                 save_run_manifest(self.manifest, self.run_dir)
             return
 
+        # Create stage context
+        ctx = self._create_stage_context()
+
         # Execute the stage's run function
         if stage.run_fn is None:
             log.warning(
@@ -396,13 +418,23 @@ class PipelineOrchestrator:
             )
         else:
             try:
-                stage.run_fn()
+                stage.run_fn(ctx)
             except StageSkipped as e:
                 log.info("stage_skipped", stage=stage.name, reason=e.message)
                 if self.manifest:
                     self.manifest.stages_skipped.append(stage.name)
                     save_run_manifest(self.manifest, self.run_dir)
                 return
+            except ConvergenceError as e:
+                # Handle convergence errors: fail in strict mode, warn otherwise
+                if self.config.strict:
+                    raise
+                log.warning(
+                    "convergence_warning",
+                    stage=stage.name,
+                    error=str(e),
+                    message="Continuing despite convergence issues (strict=False)",
+                )
             except PipelineError:
                 raise
             except Exception as e:
