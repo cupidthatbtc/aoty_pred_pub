@@ -19,6 +19,36 @@ if TYPE_CHECKING:
 
 
 @dataclass
+class StageContext:
+    """Context passed to stage run functions.
+
+    Provides access to run configuration and shared state for stage execution.
+
+    Attributes:
+        run_dir: Directory for this pipeline run (outputs/{timestamp}/).
+        seed: Random seed for reproducibility.
+        strict: If True, fail on convergence warnings.
+        verbose: If True, enable verbose logging.
+        manifest: Current run manifest for tracking progress.
+
+    Example:
+        >>> ctx = StageContext(
+        ...     run_dir=Path("outputs/2026-01-19_143052"),
+        ...     seed=42,
+        ...     strict=False,
+        ...     verbose=True,
+        ...     manifest=manifest,
+        ... )
+    """
+
+    run_dir: Path
+    seed: int
+    strict: bool
+    verbose: bool
+    manifest: "RunManifest"
+
+
+@dataclass
 class PipelineStage:
     """A pipeline stage with input tracking for incremental runs.
 
@@ -207,13 +237,61 @@ def _topological_sort(
     return result
 
 
-# Define all pipeline stages
-# Note: run_fn is None initially - orchestrator will wire them up
-PIPELINE_STAGES: list[PipelineStage] = [
-    PipelineStage(
+# ============================================================================
+# Stage Factory Functions
+# ============================================================================
+
+
+def _run_data_stage(ctx: StageContext) -> None:
+    """Run data preparation stage."""
+    from aoty_pred.pipelines.prepare_dataset import prepare_datasets
+
+    prepare_datasets()
+
+
+def _run_splits_stage(ctx: StageContext) -> None:
+    """Run splits creation stage."""
+    from aoty_pred.pipelines.create_splits import create_splits, SplitConfig
+
+    # Pass seed from context for reproducibility
+    config = SplitConfig(random_state=ctx.seed)
+    create_splits(config)
+
+
+def _run_features_stage(ctx: StageContext) -> None:
+    """Run feature building stage."""
+    from aoty_pred.pipelines.build_features import build_features
+
+    build_features(ctx)
+
+
+def _run_train_stage(ctx: StageContext) -> None:
+    """Run model training stage."""
+    from aoty_pred.pipelines.train_bayes import train_models
+
+    train_models(ctx)
+
+
+def _run_evaluate_stage(ctx: StageContext) -> None:
+    """Run model evaluation stage."""
+    from aoty_pred.pipelines.evaluate import evaluate_models
+
+    evaluate_models(ctx)
+
+
+def _run_report_stage(ctx: StageContext) -> None:
+    """Run publication artifact generation stage."""
+    from aoty_pred.pipelines.publication import generate_publication_artifacts
+
+    generate_publication_artifacts(ctx)
+
+
+def make_stage_data() -> PipelineStage:
+    """Create data preparation stage."""
+    return PipelineStage(
         name="data",
         description="Prepare and clean raw album data",
-        run_fn=None,
+        run_fn=_run_data_stage,
         input_paths=[Path("data/raw/all_albums_full.csv")],
         output_paths=[
             Path("data/processed/cleaned_all.parquet"),
@@ -223,11 +301,15 @@ PIPELINE_STAGES: list[PipelineStage] = [
             Path("data/processed/critic_score.parquet"),
         ],
         depends_on=[],
-    ),
-    PipelineStage(
+    )
+
+
+def make_stage_splits() -> PipelineStage:
+    """Create splits stage."""
+    return PipelineStage(
         name="splits",
         description="Create train/validation/test splits",
-        run_fn=None,
+        run_fn=_run_splits_stage,
         input_paths=[Path("data/processed/user_score_minratings_10.parquet")],
         output_paths=[
             Path("data/splits/within_artist_temporal/train.parquet"),
@@ -238,11 +320,15 @@ PIPELINE_STAGES: list[PipelineStage] = [
             Path("data/splits/artist_disjoint/test.parquet"),
         ],
         depends_on=["data"],
-    ),
-    PipelineStage(
+    )
+
+
+def make_stage_features() -> PipelineStage:
+    """Create feature building stage."""
+    return PipelineStage(
         name="features",
         description="Build feature matrices from split data",
-        run_fn=None,
+        run_fn=_run_features_stage,
         input_paths=[
             Path("data/splits/within_artist_temporal/train.parquet"),
             Path("data/splits/within_artist_temporal/validation.parquet"),
@@ -254,11 +340,15 @@ PIPELINE_STAGES: list[PipelineStage] = [
             Path("data/features/test_features.parquet"),
         ],
         depends_on=["splits"],
-    ),
-    PipelineStage(
+    )
+
+
+def make_stage_train() -> PipelineStage:
+    """Create model training stage."""
+    return PipelineStage(
         name="train",
         description="Fit Bayesian models on training data",
-        run_fn=None,
+        run_fn=_run_train_stage,
         input_paths=[
             Path("data/features/train_features.parquet"),
             Path("data/features/validation_features.parquet"),
@@ -268,11 +358,15 @@ PIPELINE_STAGES: list[PipelineStage] = [
             Path("models/critic_score_model/"),
         ],
         depends_on=["features"],
-    ),
-    PipelineStage(
+    )
+
+
+def make_stage_evaluate() -> PipelineStage:
+    """Create model evaluation stage."""
+    return PipelineStage(
         name="evaluate",
         description="Run model evaluation and diagnostics",
-        run_fn=None,
+        run_fn=_run_evaluate_stage,
         input_paths=[
             Path("models/user_score_model/"),
             Path("models/critic_score_model/"),
@@ -283,11 +377,15 @@ PIPELINE_STAGES: list[PipelineStage] = [
             Path("outputs/evaluation/diagnostics.json"),
         ],
         depends_on=["train"],
-    ),
-    PipelineStage(
+    )
+
+
+def make_stage_report() -> PipelineStage:
+    """Create publication artifacts stage."""
+    return PipelineStage(
         name="report",
         description="Generate publication artifacts (figures, tables)",
-        run_fn=None,
+        run_fn=_run_report_stage,
         input_paths=[
             Path("outputs/evaluation/metrics.json"),
             Path("outputs/evaluation/diagnostics.json"),
@@ -297,7 +395,17 @@ PIPELINE_STAGES: list[PipelineStage] = [
             Path("reports/tables/"),
         ],
         depends_on=["evaluate"],
-    ),
+    )
+
+
+# Build stages list using factory functions
+PIPELINE_STAGES: list[PipelineStage] = [
+    make_stage_data(),
+    make_stage_splits(),
+    make_stage_features(),
+    make_stage_train(),
+    make_stage_evaluate(),
+    make_stage_report(),
 ]
 
 

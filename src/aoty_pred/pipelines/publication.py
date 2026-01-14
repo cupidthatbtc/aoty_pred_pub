@@ -1,0 +1,226 @@
+"""Publication artifact generation pipeline.
+
+Generates publication-ready tables, figures, and model cards from
+evaluation results.
+"""
+
+from __future__ import annotations
+
+import json
+import shutil
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+import pandas as pd
+import structlog
+import arviz as az
+
+from aoty_pred.models.bayes.io import load_model, load_manifest
+from aoty_pred.reporting.tables import (
+    create_coefficient_table,
+    create_diagnostics_table,
+    export_table,
+)
+from aoty_pred.reporting.figures import (
+    save_trace_plot,
+    save_posterior_plot,
+)
+from aoty_pred.reporting.model_card import (
+    write_model_card,
+    create_default_model_card_data,
+    update_model_card_with_results,
+)
+
+if TYPE_CHECKING:
+    from aoty_pred.pipelines.stages import StageContext
+
+log = structlog.get_logger()
+
+
+def generate_publication_artifacts(ctx: "StageContext") -> dict:
+    """Generate publication-ready artifacts.
+
+    Creates tables, figures, and model documentation from the fitted
+    model and evaluation results.
+
+    Args:
+        ctx: Stage context with run configuration.
+
+    Returns:
+        Dictionary with paths to generated artifacts.
+    """
+    log.info("publication_pipeline_start")
+
+    # Set up output directories
+    reports_dir = Path("reports")
+    figures_dir = reports_dir / "figures"
+    tables_dir = reports_dir / "tables"
+
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    tables_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load model
+    model_dir = Path("models")
+    manifest = load_manifest(model_dir)
+
+    if manifest is None or "user_score" not in manifest.current:
+        raise ValueError("No trained user_score model found")
+
+    model_filename = manifest.current["user_score"]
+    model_path = model_dir / model_filename
+
+    log.info("loading_model", path=str(model_path))
+    idata = load_model(model_path)
+
+    # Load evaluation results
+    eval_dir = Path("outputs/evaluation")
+    with open(eval_dir / "metrics.json", "r", encoding="utf-8") as f:
+        metrics = json.load(f)
+    with open(eval_dir / "diagnostics.json", "r", encoding="utf-8") as f:
+        diagnostics = json.load(f)
+
+    artifacts = {"tables": [], "figures": [], "docs": []}
+
+    # =========================================================================
+    # Generate Tables
+    # =========================================================================
+
+    log.info("generating_tables")
+
+    # Coefficient table
+    try:
+        coef_df = create_coefficient_table(
+            idata,
+            var_names=["beta", "mu_artist", "sigma_artist", "sigma_obs"],
+        )
+        coef_path = tables_dir / "coefficients"
+        export_table(coef_df, str(coef_path), caption="Model coefficient estimates")
+        artifacts["tables"].append(str(coef_path) + ".csv")
+        artifacts["tables"].append(str(coef_path) + ".tex")
+        log.info("coefficient_table_saved", path=str(coef_path))
+    except Exception as e:
+        log.warning("coefficient_table_failed", error=str(e))
+
+    # Diagnostics table
+    try:
+        diag_df = create_diagnostics_table(idata)
+        diag_path = tables_dir / "diagnostics"
+        export_table(diag_df, str(diag_path), caption="Convergence diagnostics")
+        artifacts["tables"].append(str(diag_path) + ".csv")
+        artifacts["tables"].append(str(diag_path) + ".tex")
+        log.info("diagnostics_table_saved", path=str(diag_path))
+    except Exception as e:
+        log.warning("diagnostics_table_failed", error=str(e))
+
+    # Metrics summary table
+    try:
+        metrics_df = pd.DataFrame([
+            {"Metric": "RMSE", "Value": metrics["point_metrics"]["rmse"]},
+            {"Metric": "MAE", "Value": metrics["point_metrics"]["mae"]},
+            {"Metric": "R-squared", "Value": metrics["point_metrics"]["r2"]},
+            {"Metric": "Coverage (90%)", "Value": metrics["calibration"]["coverage_90"]},
+            {"Metric": "Coverage (50%)", "Value": metrics["calibration"]["coverage_50"]},
+        ])
+        metrics_path = tables_dir / "metrics_summary"
+        export_table(metrics_df, str(metrics_path), caption="Model performance metrics")
+        artifacts["tables"].append(str(metrics_path) + ".csv")
+        artifacts["tables"].append(str(metrics_path) + ".tex")
+        log.info("metrics_table_saved", path=str(metrics_path))
+    except Exception as e:
+        log.warning("metrics_table_failed", error=str(e))
+
+    # =========================================================================
+    # Generate Figures
+    # =========================================================================
+
+    log.info("generating_figures")
+
+    # Trace plots
+    try:
+        trace_path = figures_dir / "trace_plot.png"
+        save_trace_plot(
+            idata,
+            var_names=["mu_artist", "sigma_artist", "sigma_obs"],
+            output_path=trace_path,
+        )
+        artifacts["figures"].append(str(trace_path))
+        log.info("trace_plot_saved", path=str(trace_path))
+    except Exception as e:
+        log.warning("trace_plot_failed", error=str(e))
+
+    # Posterior plots
+    try:
+        posterior_path = figures_dir / "posterior_plot.png"
+        save_posterior_plot(
+            idata,
+            var_names=["mu_artist", "sigma_artist", "sigma_obs"],
+            output_path=posterior_path,
+        )
+        artifacts["figures"].append(str(posterior_path))
+        log.info("posterior_plot_saved", path=str(posterior_path))
+    except Exception as e:
+        log.warning("posterior_plot_failed", error=str(e))
+
+    # =========================================================================
+    # Generate Model Card
+    # =========================================================================
+
+    log.info("generating_model_card")
+
+    try:
+        # Create model card data
+        model_card_data = create_default_model_card_data()
+
+        # Update with results
+        model_card_data = update_model_card_with_results(
+            model_card_data,
+            metrics=metrics,
+            diagnostics=diagnostics,
+        )
+
+        # Write model card
+        model_card_path = reports_dir / "MODEL_CARD.md"
+        write_model_card(model_card_data, model_card_path)
+        artifacts["docs"].append(str(model_card_path))
+
+        # Also copy to project root
+        root_card_path = Path("MODEL_CARD.md")
+        shutil.copy(model_card_path, root_card_path)
+        artifacts["docs"].append(str(root_card_path))
+
+        log.info("model_card_saved", path=str(model_card_path))
+    except Exception as e:
+        log.warning("model_card_failed", error=str(e))
+
+    # =========================================================================
+    # Copy artifacts to run directory if available
+    # =========================================================================
+
+    if ctx.run_dir and ctx.run_dir.exists():
+        run_reports_dir = ctx.run_dir / "reports"
+        run_reports_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy figures
+        for fig_path in artifacts["figures"]:
+            if Path(fig_path).exists():
+                dest = run_reports_dir / "figures" / Path(fig_path).name
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(fig_path, dest)
+
+        # Copy tables
+        for table_path in artifacts["tables"]:
+            if Path(table_path).exists():
+                dest = run_reports_dir / "tables" / Path(table_path).name
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(table_path, dest)
+
+        log.info("artifacts_copied_to_run_dir", run_dir=str(ctx.run_dir))
+
+    log.info(
+        "publication_pipeline_complete",
+        n_tables=len(artifacts["tables"]),
+        n_figures=len(artifacts["figures"]),
+        n_docs=len(artifacts["docs"]),
+    )
+
+    return artifacts
