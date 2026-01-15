@@ -60,29 +60,18 @@ def evaluate_models(ctx: "StageContext") -> dict:
 
     diagnostics_result = {
         "passed": diagnostics.passed,
-        "max_rhat": float(diagnostics.max_rhat),
-        "min_ess": float(diagnostics.min_ess),
+        "rhat_max": float(diagnostics.rhat_max),
+        "ess_bulk_min": float(diagnostics.ess_bulk_min),
         "divergences": int(diagnostics.divergences),
         "rhat_threshold": float(diagnostics.rhat_threshold),
-        "ess_threshold": float(diagnostics.ess_threshold),
-        "parameter_diagnostics": {
-            param: {
-                "rhat": float(rhat),
-                "ess": float(ess),
-            }
-            for param, rhat, ess in zip(
-                diagnostics.parameter_rhats.keys() if hasattr(diagnostics, "parameter_rhats") else [],
-                diagnostics.parameter_rhats.values() if hasattr(diagnostics, "parameter_rhats") else [],
-                diagnostics.parameter_ess.values() if hasattr(diagnostics, "parameter_ess") else [],
-            )
-        },
+        "ess_threshold": int(diagnostics.ess_threshold),
     }
 
     log.info(
         "convergence_results",
         passed=diagnostics.passed,
-        max_rhat=diagnostics.max_rhat,
-        min_ess=diagnostics.min_ess,
+        rhat_max=diagnostics.rhat_max,
+        ess_bulk_min=diagnostics.ess_bulk_min,
     )
 
     # Load test data

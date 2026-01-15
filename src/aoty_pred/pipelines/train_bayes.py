@@ -162,8 +162,8 @@ def train_models(ctx: "StageContext") -> dict:
     log.info(
         "convergence_check",
         passed=diagnostics.passed,
-        max_rhat=diagnostics.max_rhat,
-        min_ess=diagnostics.min_ess,
+        rhat_max=diagnostics.rhat_max,
+        ess_bulk_min=diagnostics.ess_bulk_min,
         divergences=diagnostics.divergences,
     )
 
@@ -178,7 +178,7 @@ def train_models(ctx: "StageContext") -> dict:
     if ctx.strict and not diagnostics.passed:
         raise ConvergenceError(
             f"Convergence diagnostics failed: "
-            f"max_rhat={diagnostics.max_rhat:.4f}, min_ess={diagnostics.min_ess:.0f}",
+            f"rhat_max={diagnostics.rhat_max:.4f}, ess_bulk_min={diagnostics.ess_bulk_min:.0f}",
             stage="train",
         )
 
@@ -211,8 +211,8 @@ def train_models(ctx: "StageContext") -> dict:
         "runtime_seconds": fit_result.runtime_seconds,
         "diagnostics": {
             "passed": diagnostics.passed,
-            "max_rhat": float(diagnostics.max_rhat),
-            "min_ess": float(diagnostics.min_ess),
+            "rhat_max": float(diagnostics.rhat_max),
+            "ess_bulk_min": float(diagnostics.ess_bulk_min),
         },
     }
 

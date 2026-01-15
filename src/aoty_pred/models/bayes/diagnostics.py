@@ -63,6 +63,8 @@ class ConvergenceDiagnostics:
     passed: bool
     failing_params: list[str]
     summary_df: pd.DataFrame
+    rhat_threshold: float
+    ess_threshold: int
 
     def __repr__(self) -> str:
         status = "PASSED" if self.passed else "FAILED"
@@ -184,6 +186,8 @@ def check_convergence(
         passed=passed,
         failing_params=failing_params,
         summary_df=summary,
+        rhat_threshold=rhat_threshold,
+        ess_threshold=ess_threshold,
     )
 
 

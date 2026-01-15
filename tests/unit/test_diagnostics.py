@@ -434,6 +434,8 @@ class TestConvergenceDiagnosticsDataclass:
             passed=True,
             failing_params=[],
             summary_df=pd.DataFrame(),
+            rhat_threshold=1.01,
+            ess_threshold=400,
         )
 
         with pytest.raises(Exception):  # FrozenInstanceError
@@ -449,6 +451,8 @@ class TestConvergenceDiagnosticsDataclass:
             passed=True,
             failing_params=[],
             summary_df=pd.DataFrame(),
+            rhat_threshold=1.01,
+            ess_threshold=400,
         )
 
         assert "PASSED" in repr(diags)
@@ -464,6 +468,8 @@ class TestConvergenceDiagnosticsDataclass:
             passed=False,
             failing_params=["beta"],
             summary_df=pd.DataFrame(),
+            rhat_threshold=1.01,
+            ess_threshold=400,
         )
 
         assert "FAILED" in repr(diags)

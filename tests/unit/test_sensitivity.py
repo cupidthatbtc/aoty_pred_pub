@@ -42,6 +42,8 @@ def mock_convergence():
             "ess_bulk": [2500, 2700],
             "ess_tail": [2200, 2400],
         }, index=["param1", "param2"]),
+        rhat_threshold=1.01,
+        ess_threshold=400,
     )
 
 
