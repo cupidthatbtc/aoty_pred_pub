@@ -137,27 +137,29 @@ def generate_publication_artifacts(ctx: "StageContext") -> dict:
 
     # Trace plots
     try:
-        trace_path = figures_dir / "trace_plot.png"
-        save_trace_plot(
+        pdf_path, png_path = save_trace_plot(
             idata,
             var_names=["mu_artist", "sigma_artist", "sigma_obs"],
-            output_path=trace_path,
+            output_dir=figures_dir,
+            filename_base="trace_plot",
         )
-        artifacts["figures"].append(str(trace_path))
-        log.info("trace_plot_saved", path=str(trace_path))
+        artifacts["figures"].append(str(pdf_path))
+        artifacts["figures"].append(str(png_path))
+        log.info("trace_plot_saved", pdf=str(pdf_path), png=str(png_path))
     except Exception as e:
         log.warning("trace_plot_failed", error=str(e))
 
     # Posterior plots
     try:
-        posterior_path = figures_dir / "posterior_plot.png"
-        save_posterior_plot(
+        pdf_path, png_path = save_posterior_plot(
             idata,
             var_names=["mu_artist", "sigma_artist", "sigma_obs"],
-            output_path=posterior_path,
+            output_dir=figures_dir,
+            filename_base="posterior_plot",
         )
-        artifacts["figures"].append(str(posterior_path))
-        log.info("posterior_plot_saved", path=str(posterior_path))
+        artifacts["figures"].append(str(pdf_path))
+        artifacts["figures"].append(str(png_path))
+        log.info("posterior_plot_saved", pdf=str(pdf_path), png=str(png_path))
     except Exception as e:
         log.warning("posterior_plot_failed", error=str(e))
 
@@ -172,10 +174,12 @@ def generate_publication_artifacts(ctx: "StageContext") -> dict:
         model_card_data = create_default_model_card_data()
 
         # Update with results
+        # Note: Full update requires typed objects (ConvergenceDiagnostics, CoverageResult, etc.)
+        # For now, just update the idata reference; detailed metrics remain as defaults
+        # A future enhancement could reconstruct typed objects from the JSON files
         model_card_data = update_model_card_with_results(
             model_card_data,
-            metrics=metrics,
-            diagnostics=diagnostics,
+            idata=idata,
         )
 
         # Write model card
