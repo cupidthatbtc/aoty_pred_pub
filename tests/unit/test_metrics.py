@@ -183,6 +183,8 @@ class TestComputePointMetrics:
         assert result.rmse == 0.0
         assert result.r2 == 1.0
         assert result.median_ae == 0.0
+        assert result.n_observations == 5
+        assert result.mean_bias == 0.0
 
     def test_compute_point_metrics_imperfect(self, point_prediction_imperfect):
         """Imperfect predictions should have reasonable metric values."""
@@ -201,6 +203,13 @@ class TestComputePointMetrics:
         # Median AE should be 2.0
         assert np.isclose(result.median_ae, 2.0)
 
+        # n_observations should be 5
+        assert result.n_observations == 5
+
+        # mean_bias = mean([52-50, 58-60, 72-70, 78-80, 92-90])
+        #           = mean([+2, -2, +2, -2, +2]) = 2/5 = 0.4
+        assert np.isclose(result.mean_bias, 0.4)
+
     def test_compute_point_metrics_all_fields(self, point_prediction_imperfect):
         """All PointMetrics fields should be populated."""
         y_true, y_pred = point_prediction_imperfect
@@ -211,10 +220,13 @@ class TestComputePointMetrics:
         assert isinstance(result.rmse, float)
         assert isinstance(result.r2, float)
         assert isinstance(result.median_ae, float)
+        assert isinstance(result.n_observations, int)
+        assert isinstance(result.mean_bias, float)
         assert not np.isnan(result.mae)
         assert not np.isnan(result.rmse)
         assert not np.isnan(result.r2)
         assert not np.isnan(result.median_ae)
+        assert not np.isnan(result.mean_bias)
 
     def test_mae_always_positive_or_zero(self, rng):
         """MAE should never be negative."""
@@ -273,6 +285,24 @@ class TestComputePointMetrics:
 
         with pytest.raises(ValueError, match="y_true must be 1D"):
             compute_point_metrics(y_true_2d, y_pred)
+
+    def test_point_metrics_mean_bias_calculation(self):
+        """Test mean_bias calculation with known asymmetric errors."""
+        # y_pred consistently 3 units higher than y_true
+        y_true = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+        y_pred = np.array([13.0, 23.0, 33.0, 43.0, 53.0])  # All +3 bias
+
+        result = compute_point_metrics(y_true, y_pred)
+
+        # mean_bias = mean(y_pred - y_true) = mean([3, 3, 3, 3, 3]) = 3.0
+        assert np.isclose(result.mean_bias, 3.0)
+
+        # Test negative bias
+        y_pred_under = np.array([8.0, 18.0, 28.0, 38.0, 48.0])  # All -2 bias
+        result_under = compute_point_metrics(y_true, y_pred_under)
+
+        # mean_bias = mean([-2, -2, -2, -2, -2]) = -2.0
+        assert np.isclose(result_under.mean_bias, -2.0)
 
 
 # ============================================================================

@@ -85,12 +85,20 @@ class PointMetrics:
     median_ae : float
         Median Absolute Error. More robust to outliers than MAE.
         Same units as target variable.
+    n_observations : int
+        Count of observations used to compute the metrics.
+    mean_bias : float
+        Mean prediction bias (mean of y_pred - y_true). Positive values
+        indicate overprediction on average, negative values indicate
+        underprediction.
     """
 
     mae: float
     rmse: float
     r2: float
     median_ae: float
+    n_observations: int
+    mean_bias: float
 
 
 def compute_crps(
@@ -250,11 +258,19 @@ def compute_point_metrics(
     # Median AE
     median_ae = float(np.median(abs_errors))
 
+    # Count of observations
+    n_observations = len(y_true)
+
+    # Mean bias (positive = overprediction, negative = underprediction)
+    mean_bias = float((y_pred_mean - y_true).mean())
+
     return PointMetrics(
         mae=mae,
         rmse=rmse,
         r2=r2,
         median_ae=median_ae,
+        n_observations=n_observations,
+        mean_bias=mean_bias,
     )
 
 
