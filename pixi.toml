@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "aoty-pred"
 version = "0.1.0"
 description = "Publication-focused Bayesian artist prediction pipeline"
@@ -28,12 +28,10 @@ rich = ">=13.7"
 matplotlib = ">=3.8"
 seaborn = ">=0.13"
 uncertainties = ">=3.1"
-
-[pypi-dependencies]
-numpyro = ">=0.19.0"
-jax = { version = ">=0.8.2", extras = ["cuda12_pip"] }
-
-[feature.dev.dependencies]
 pytest = ">=8.0"
 pytest-cov = ">=4.1"
 ruff = "*"
+
+[pypi-dependencies]
+numpyro = ">=0.19.0"
+jax = ">=0.8.2"
