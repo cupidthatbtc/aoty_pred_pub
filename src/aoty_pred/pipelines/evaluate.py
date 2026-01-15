@@ -121,30 +121,43 @@ def evaluate_models(ctx: "StageContext") -> dict:
         r2=point_metrics.r2,
     )
 
-    # Calibration metrics (simplified)
+    # Calibration metrics
     log.info("computing_calibration")
-    coverage_90 = compute_coverage(
-        y_true,
-        y_pred_mean - 1.645 * y_pred_std,  # 90% interval
-        y_pred_mean + 1.645 * y_pred_std,
-    )
-    coverage_50 = compute_coverage(
-        y_true,
-        y_pred_mean - 0.674 * y_pred_std,  # 50% interval
-        y_pred_mean + 0.674 * y_pred_std,
-    )
 
-    calibration_result = {
-        "coverage_90": float(coverage_90.coverage),
-        "coverage_50": float(coverage_50.coverage),
-        "expected_90": 0.90,
-        "expected_50": 0.50,
-    }
+    if "y_pred" in posterior:
+        # Reshape samples from (chains, draws, n_obs) to (n_samples, n_obs)
+        n_chains, n_draws, n_obs = y_pred_samples.shape
+        y_samples_2d = y_pred_samples.reshape(n_chains * n_draws, n_obs)
+
+        coverage_90 = compute_coverage(y_true, y_samples_2d, prob=0.90)
+        coverage_50 = compute_coverage(y_true, y_samples_2d, prob=0.50)
+    else:
+        # Fallback: cannot compute calibration without samples
+        log.warning("no_posterior_samples", message="Cannot compute calibration without y_pred samples")
+        coverage_90 = None
+        coverage_50 = None
+
+    if coverage_90 is not None and coverage_50 is not None:
+        calibration_result = {
+            "coverage_90": float(coverage_90.empirical),
+            "coverage_50": float(coverage_50.empirical),
+            "expected_90": 0.90,
+            "expected_50": 0.50,
+            "interval_width_90": float(coverage_90.interval_width),
+            "interval_width_50": float(coverage_50.interval_width),
+        }
+    else:
+        calibration_result = {
+            "coverage_90": None,
+            "coverage_50": None,
+            "expected_90": 0.90,
+            "expected_50": 0.50,
+        }
 
     log.info(
         "calibration_metrics",
-        coverage_90=coverage_90.coverage,
-        coverage_50=coverage_50.coverage,
+        coverage_90=calibration_result["coverage_90"],
+        coverage_50=calibration_result["coverage_50"],
     )
 
     # Save results
