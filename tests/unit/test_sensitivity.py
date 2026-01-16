@@ -1,12 +1,21 @@
 """Unit tests for sensitivity analysis module.
 
 Tests data structures, prior configurations, and aggregation functions.
-Integration tests requiring actual model fitting are marked for skip.
+Integration tests requiring actual model fitting are skipped by default.
+Set RUN_SLOW_TESTS=1 to run them.
 """
+
+import os
 
 import numpy as np
 import pandas as pd
 import pytest
+
+# Skip slow integration tests unless RUN_SLOW_TESTS is set
+SKIP_SLOW = pytest.mark.skipif(
+    not os.environ.get("RUN_SLOW_TESTS"),
+    reason="Slow integration test - set RUN_SLOW_TESTS=1 to run"
+)
 
 from aoty_pred.pipelines.sensitivity import (
     SensitivityResult,
@@ -403,7 +412,7 @@ class TestCreateCoefficientComparisonDf:
 # ============================================================================
 
 
-@pytest.mark.skip(reason="Integration test requires actual model fitting")
+@SKIP_SLOW
 class TestRunPriorSensitivityIntegration:
     """Integration tests for run_prior_sensitivity (requires actual models)."""
 
@@ -416,7 +425,7 @@ class TestRunPriorSensitivityIntegration:
         pass
 
 
-@pytest.mark.skip(reason="Integration test requires actual model fitting")
+@SKIP_SLOW
 class TestRunThresholdSensitivityIntegration:
     """Integration tests for run_threshold_sensitivity (requires data loading)."""
 
@@ -425,7 +434,7 @@ class TestRunThresholdSensitivityIntegration:
         pass
 
 
-@pytest.mark.skip(reason="Integration test requires actual model fitting")
+@SKIP_SLOW
 class TestRunFeatureAblationIntegration:
     """Integration tests for run_feature_ablation (requires actual models)."""
 
