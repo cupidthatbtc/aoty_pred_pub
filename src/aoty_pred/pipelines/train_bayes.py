@@ -105,6 +105,11 @@ def train_models(ctx: "StageContext") -> dict:
     splits_dir = Path("data/splits/within_artist_temporal")
     train_df = pd.read_parquet(splits_dir / "train.parquet")
 
+    # Drop columns that overlap with engineered features
+    overlap_cols = list(set(train_df.columns) & set(train_features.columns))
+    if overlap_cols:
+        train_df = train_df.drop(columns=overlap_cols)
+
     # Merge features with original data
     train_df = train_df.join(train_features, how="left")
 
