@@ -113,14 +113,18 @@ def train_models(ctx: "StageContext") -> dict:
     # Merge features with original data
     train_df = train_df.join(train_features, how="left")
 
+    # Handle NaN values in features (fill with 0 for numeric stability)
+    feature_cols = list(train_features.columns)
+    nan_count = train_df[feature_cols].isna().sum().sum()
+    if nan_count > 0:
+        log.info("filling_nan_values", nan_count=nan_count)
+        train_df[feature_cols] = train_df[feature_cols].fillna(0)
+
     log.info(
         "data_loaded",
         train_rows=len(train_df),
         n_features=len(train_features.columns),
     )
-
-    # Get feature column names
-    feature_cols = list(train_features.columns)
 
     # Prepare model data
     model_args = prepare_model_data(train_df, feature_cols)
