@@ -241,7 +241,7 @@ class TestErrorHandling:
             mock_stage.compute_input_hash.return_value = "hash123"
             mock_order.return_value = [mock_stage]
 
-            config = PipelineConfig()
+            config = PipelineConfig(strict=True)
             orchestrator = PipelineOrchestrator(config, output_base=tmp_path)
             exit_code = orchestrator.run()
 
