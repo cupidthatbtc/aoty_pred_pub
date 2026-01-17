@@ -47,12 +47,19 @@ from aoty_pred.visualization.dashboard import (
     get_artist_list,
 )
 
+# Import server functions
+from aoty_pred.visualization.server import (
+    app,
+    run_server,
+)
+
 # Ensure themes are registered
 register_themes()
 
 __all__ = [
     "COLORBLIND_COLORS",
     "DashboardData",
+    "app",
     "create_artist_view",
     "create_dashboard_figures",
     "create_forest_plot",
@@ -66,4 +73,5 @@ __all__ = [
     "export_figure",
     "get_artist_list",
     "register_themes",
+    "run_server",
 ]
