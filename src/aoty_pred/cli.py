@@ -287,6 +287,110 @@ def visualize(
     run_server(port=port, host=host, open_browser=not no_browser, run_dir=run_path)
 
 
+@app.command("generate-diagrams")
+def generate_diagrams(
+    output_dir: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output directory for diagrams",
+    ),
+    level: Optional[str] = typer.Option(
+        "all",
+        "--level",
+        "-l",
+        help="Detail level: high, intermediate, detailed, or all",
+    ),
+    theme: Optional[str] = typer.Option(
+        "all",
+        "--theme",
+        "-t",
+        help="Theme: light, dark, transparent, or all",
+    ),
+) -> None:
+    """Generate data flow diagrams for documentation.
+
+    Creates publication-quality SVG/PNG/PDF diagrams showing the data
+    transformation pipeline from raw input to predictions.
+
+    Examples:
+        # Generate all 9 variants
+        aoty-pipeline generate-diagrams
+
+        # Generate only high-level light theme
+        aoty-pipeline generate-diagrams --level high --theme light
+
+        # Custom output directory
+        aoty-pipeline generate-diagrams -o ./my_diagrams
+    """
+    from pathlib import Path
+
+    from aoty_pred.visualization.diagrams import (
+        create_detailed_diagram,
+        create_high_level_diagram,
+        create_intermediate_diagram,
+        generate_all_diagrams,
+    )
+
+    # Default output directory
+    if output_dir is None:
+        output_path = Path("docs/figures")
+    else:
+        output_path = Path(output_dir)
+
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    # Handle "all" cases
+    if level == "all" and theme == "all":
+        # Generate all 9 variants
+        results = generate_all_diagrams(output_path)
+        typer.echo(f"Generated {len(results)} diagram sets in {output_path}")
+        for name, paths in results.items():
+            typer.echo(f"  {name}: {[p.name for p in paths]}")
+        return
+
+    # Map level to creator function
+    creators = {
+        "high": create_high_level_diagram,
+        "intermediate": create_intermediate_diagram,
+        "detailed": create_detailed_diagram,
+    }
+
+    # Determine which levels and themes to generate
+    levels_to_gen = list(creators.keys()) if level == "all" else [level]
+    themes_to_gen = ["light", "dark", "transparent"] if theme == "all" else [theme]
+
+    # Validate inputs
+    for lvl in levels_to_gen:
+        if lvl not in creators:
+            typer.echo(
+                f"Error: Unknown level '{lvl}'. Choose: high, intermediate, detailed, all",
+                err=True,
+            )
+            raise typer.Exit(1)
+
+    valid_themes = {"light", "dark", "transparent"}
+    for t in themes_to_gen:
+        if t not in valid_themes:
+            typer.echo(
+                f"Error: Unknown theme '{t}'. Choose: light, dark, transparent, all",
+                err=True,
+            )
+            raise typer.Exit(1)
+
+    # Generate requested diagrams
+    count = 0
+    for lvl in levels_to_gen:
+        for t in themes_to_gen:
+            name = f"data_flow_{lvl}_{t}"
+            diagram = creators[lvl](t)
+            paths = diagram.save(output_path / name)
+            typer.echo(f"Created: {name} ({len(paths)} files)")
+            count += 1
+
+    typer.echo(f"Generated {count} diagram(s) in {output_path}")
+
+
 @app.command("export-figures")
 def export_figures(
     output_dir: str = typer.Option(
