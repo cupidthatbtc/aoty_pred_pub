@@ -258,6 +258,153 @@ def stage_report(
     raise typer.Exit(code=exit_code)
 
 
+# Visualization commands
+@app.command("visualize")
+def visualize(
+    port: int = typer.Option(8050, "--port", "-p", help="Server port"),
+    host: str = typer.Option("127.0.0.1", "--host", help="Server host"),
+    no_browser: bool = typer.Option(False, "--no-browser", help="Don't auto-open browser"),
+    run_dir: Optional[str] = typer.Option(
+        None, "--run", "-r", help="Path to pipeline run directory"
+    ),
+) -> None:
+    """Launch interactive model visualization dashboard.
+
+    Opens a local web server with interactive Plotly charts for
+    exploring model results, diagnostics, and predictions.
+
+    Examples:
+        aoty-pipeline visualize
+        aoty-pipeline visualize --port 8080
+        aoty-pipeline visualize --no-browser
+        aoty-pipeline visualize --run reports/2026-01-19_143052
+    """
+    from pathlib import Path
+
+    from aoty_pred.visualization.server import run_server
+
+    run_path = Path(run_dir) if run_dir else None
+    run_server(port=port, host=host, open_browser=not no_browser, run_dir=run_path)
+
+
+@app.command("export-figures")
+def export_figures(
+    output_dir: str = typer.Option(
+        "reports/interactive", "--output", "-o", help="Output directory"
+    ),
+    formats: str = typer.Option(
+        "svg,png", "--formats", "-f", help="Comma-separated formats (svg,png,pdf)"
+    ),
+    width: int = typer.Option(800, "--width", "-w", help="Figure width in pixels"),
+    height: int = typer.Option(600, "--height", help="Figure height in pixels"),
+    scale: float = typer.Option(
+        2.0, "--scale", "-s", help="Scale factor for raster output (2.0 = ~300dpi)"
+    ),
+    run_dir: Optional[str] = typer.Option(
+        None, "--run", "-r", help="Path to pipeline run directory"
+    ),
+) -> None:
+    """Export all visualization figures to static formats.
+
+    Generates publication-quality SVG and PNG files from the
+    interactive dashboard figures.
+
+    Examples:
+        aoty-pipeline export-figures
+        aoty-pipeline export-figures --output figs/ --formats svg,png,pdf
+        aoty-pipeline export-figures --width 1200 --height 800 --scale 3.0
+    """
+    from pathlib import Path
+
+    import plotly.graph_objects as go
+
+    from aoty_pred.visualization.charts import (
+        create_forest_plot,
+        create_predictions_plot,
+        create_reliability_plot,
+    )
+    from aoty_pred.visualization.export import ensure_kaleido_chrome, export_all_figures
+    from aoty_pred.visualization.server import load_dashboard_data
+
+    # Parse formats
+    format_list = tuple(f.strip() for f in formats.split(",") if f.strip())
+
+    # Ensure Kaleido Chrome is available for raster formats
+    if any(fmt in ("png", "jpeg", "webp") for fmt in format_list):
+        if not ensure_kaleido_chrome():
+            typer.echo("Warning: Kaleido Chrome not available, PNG export may fail", err=True)
+
+    # Load data
+    run_path = Path(run_dir) if run_dir else None
+    data = load_dashboard_data(run_path)
+
+    # Create figures as go.Figure objects (not HTML strings)
+    figures: dict[str, go.Figure] = {}
+
+    if data.predictions is not None:
+        pred = data.predictions
+        required = ["y_true", "y_pred_mean", "y_pred_lower", "y_pred_upper"]
+        if all(k in pred for k in required):
+            figures["predictions"] = create_predictions_plot(
+                pred["y_true"],
+                pred["y_pred_mean"],
+                pred["y_pred_lower"],
+                pred["y_pred_upper"],
+            )
+
+    if data.coefficients is not None:
+        figures["coefficients"] = create_forest_plot(data.coefficients)
+
+    if data.reliability is not None:
+        rel = data.reliability
+        required = ["predicted_probs", "observed_freq", "counts"]
+        if all(k in rel for k in required):
+            figures["reliability"] = create_reliability_plot(
+                rel["predicted_probs"],
+                rel["observed_freq"],
+                rel["counts"],
+            )
+
+    # Add trace/posterior plots if idata available
+    if data.idata is not None:
+        try:
+            from aoty_pred.visualization.charts import create_trace_plot
+
+            posterior = data.idata.posterior
+            if hasattr(posterior, "data_vars"):
+                var_names = list(posterior.data_vars)
+                if var_names:
+                    var_name = var_names[0]
+                    samples = posterior[var_name].values
+                    # Handle multi-dimensional samples
+                    if samples.ndim > 2:
+                        samples = samples.reshape(samples.shape[0], -1)[:, 0:100]
+                    elif samples.ndim == 1:
+                        samples = samples.reshape(1, -1)
+                    figures["trace"] = create_trace_plot(samples, var_name)
+        except Exception:
+            pass  # Skip if idata format is unexpected
+
+    if not figures:
+        typer.echo("No data available for export. Run pipeline first.", err=True)
+        raise typer.Exit(code=1)
+
+    # Export
+    output_path = Path(output_dir)
+    results = export_all_figures(
+        output_dir=output_path,
+        figures=figures,
+        formats=format_list,
+        width=width,
+        height=height,
+        scale=scale,
+    )
+
+    typer.echo(f"Exported {len(results)} figures to {output_path}")
+    for name, paths in results.items():
+        typer.echo(f"  {name}: {', '.join(p.name for p in paths)}")
+
+
 # Legacy config-based commands (kept for backwards compatibility)
 @app.command("prepare", hidden=True)
 def prepare(
