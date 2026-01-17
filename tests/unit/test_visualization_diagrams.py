@@ -122,7 +122,7 @@ class TestDataFlowDiagramInit:
         try:
             assert diagram.bg_color == "white"
             assert diagram.text_color == "#333333"
-            assert diagram.border_color == "#666666"
+            assert diagram.border_color == "#555555"
         finally:
             diagram.close()
 
@@ -142,7 +142,7 @@ class TestDataFlowDiagramInit:
         try:
             assert diagram.bg_color == "none"
             assert diagram.text_color == "#333333"
-            assert diagram.border_color == "#333333"
+            assert diagram.border_color == "#555555"
         finally:
             diagram.close()
 
@@ -273,11 +273,12 @@ class TestAddLegend:
         assert diagram.ax.get_legend() is not None
 
     def test_legend_has_correct_entry_count(self, diagram):
-        """Legend should have one entry per stage type."""
+        """Legend should have entries for key stage types."""
         diagram.add_legend()
         legend = diagram.ax.get_legend()
-        # Legend handles should match STAGE_COLORS count
-        assert len(legend.legend_handles) == len(STAGE_COLORS)
+        # Legend shows 5 key stages (data_input, features, model, validation, output)
+        # to avoid clutter in technical manual style
+        assert len(legend.legend_handles) == 5
 
 
 class TestSave:
