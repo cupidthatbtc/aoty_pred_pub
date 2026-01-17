@@ -1,0 +1,19 @@
+{# Header component for AOTY Model Dashboard #}
+<header class="header">
+    <h1>{{ title|default('AOTY Model Dashboard') }}</h1>
+
+    <div class="header-controls">
+        <button id="theme-toggle" class="btn" onclick="toggleTheme()">
+            Dark Mode
+        </button>
+
+        <div class="dropdown">
+            <button class="btn">Export</button>
+            <div class="dropdown-content">
+                <a href="/export?format=svg">Export as SVG</a>
+                <a href="/export?format=png">Export as PNG</a>
+                <a href="/export?format=html">Export as HTML</a>
+            </div>
+        </div>
+    </div>
+</header>

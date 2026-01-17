@@ -1,0 +1,64 @@
+{# Sidebar navigation component for AOTY Model Dashboard #}
+<aside class="sidebar">
+    <nav>
+        <ul class="nav-list">
+            <li>
+                <a href="/"
+                   {% if active_view == 'overview' %}class="active"{% endif %}>
+                    Overview
+                </a>
+            </li>
+            <li>
+                <a href="/diagnostics"
+                   {% if active_view == 'trace' %}class="active"{% endif %}>
+                    Diagnostics
+                </a>
+            </li>
+            <li>
+                <a href="/predictions"
+                   {% if active_view == 'predictions' %}class="active"{% endif %}>
+                    Predictions
+                </a>
+            </li>
+            <li>
+                <a href="/coefficients"
+                   {% if active_view == 'coefficients' %}class="active"{% endif %}>
+                    Coefficients
+                </a>
+            </li>
+            <li>
+                <a href="/calibration"
+                   {% if active_view == 'reliability' %}class="active"{% endif %}>
+                    Calibration
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="search-box">
+        <label for="artist-search">Search Artist</label>
+        <form action="/artist" method="get">
+            <input type="text"
+                   id="artist-search"
+                   name="name"
+                   placeholder="Enter artist name..."
+                   list="artist-list"
+                   autocomplete="off">
+            <datalist id="artist-list">
+                {% for artist in artists %}
+                <option value="{{ artist }}">
+                {% endfor %}
+            </datalist>
+        </form>
+    </div>
+</aside>
+
+<script>
+    // Submit search on Enter key
+    document.getElementById('artist-search').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            this.form.submit();
+        }
+    });
+</script>
