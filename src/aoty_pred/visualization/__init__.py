@@ -5,6 +5,7 @@ for exploring model results. It includes:
 
 - Custom Plotly templates (light and dark themes)
 - Chart creation functions for diagnostics and predictions
+- Static export pipeline (SVG, PNG via Kaleido)
 - Colorblind-safe color palette
 
 Usage:
@@ -29,6 +30,14 @@ from aoty_pred.visualization.charts import (
     create_trace_plot,
 )
 
+# Import export functions
+from aoty_pred.visualization.export import (
+    ensure_kaleido_chrome,
+    export_all_figures,
+    export_dashboard_html,
+    export_figure,
+)
+
 # Ensure themes are registered
 register_themes()
 
@@ -39,5 +48,9 @@ __all__ = [
     "create_predictions_plot",
     "create_reliability_plot",
     "create_trace_plot",
+    "ensure_kaleido_chrome",
+    "export_all_figures",
+    "export_dashboard_html",
+    "export_figure",
     "register_themes",
 ]
