@@ -1,392 +1,335 @@
-"""Tests for DataFlowDiagram builder class.
+"""Tests for Graphviz DOT diagram generation.
 
 These tests verify the diagram generation infrastructure including:
-- STAGE_COLORS mapping
-- DiagramNode dataclass
-- DataFlowDiagram initialization with themes
-- Node and arrow addition
-- Legend generation
+- THEME_COLORS configuration
+- create_aoty_pipeline_diagram() function
+- generate_all_diagrams() function
+- Theme-specific styling
 - Multi-format export
 """
 
 from pathlib import Path
 
-# Use non-interactive backend before importing pyplot
-import matplotlib
-
-matplotlib.use("Agg")
-
-import matplotlib.pyplot as plt
 import pytest
 
 from aoty_pred.visualization.diagrams import (
-    STAGE_COLORS,
-    DataFlowDiagram,
-    DetailLevel,
-    DiagramNode,
+    THEME_COLORS,
     DiagramTheme,
+    create_aoty_pipeline_diagram,
+    generate_all_diagrams,
 )
 
 
-class TestStageColors:
-    """Tests for STAGE_COLORS constant."""
+class TestThemeColors:
+    """Tests for THEME_COLORS constant."""
 
-    def test_has_seven_entries(self):
-        """STAGE_COLORS should have 7 pipeline stage mappings."""
-        assert len(STAGE_COLORS) == 7
+    def test_has_three_themes(self):
+        """THEME_COLORS should have light, dark, and transparent themes."""
+        assert len(THEME_COLORS) == 3
+        assert "light" in THEME_COLORS
+        assert "dark" in THEME_COLORS
+        assert "transparent" in THEME_COLORS
 
-    def test_all_values_are_hex_colors(self):
-        """All color values should be valid hex color strings."""
-        for stage, color in STAGE_COLORS.items():
-            assert isinstance(color, str), f"{stage} color is not a string"
-            assert color.startswith("#"), f"{stage} color doesn't start with #"
-            assert len(color) == 7, f"{stage} color is not valid hex (6 digits)"
-            # Verify all characters after # are valid hex
-            hex_chars = set("0123456789ABCDEFabcdef")
-            for char in color[1:]:
-                assert char in hex_chars, f"{stage} has invalid hex char: {char}"
+    def test_light_theme_has_cream_bgcolor(self):
+        """Light theme should have cream background."""
+        assert THEME_COLORS["light"]["bgcolor"] == "#FFFEF0"
 
-    def test_contains_expected_keys(self):
-        """STAGE_COLORS should contain all expected pipeline stage keys."""
-        expected_keys = {
-            "data_input",
-            "sanitization",
-            "splitting",
-            "features",
-            "model",
-            "validation",
-            "output",
+    def test_dark_theme_has_dark_bgcolor(self):
+        """Dark theme should have dark background."""
+        assert THEME_COLORS["dark"]["bgcolor"] == "#1E1E1E"
+
+    def test_transparent_theme_has_transparent_bgcolor(self):
+        """Transparent theme should have transparent background."""
+        assert THEME_COLORS["transparent"]["bgcolor"] == "transparent"
+
+    def test_all_themes_have_required_keys(self):
+        """All themes should have required color keys."""
+        required_keys = {
+            "bgcolor",
+            "fontcolor",
+            "color",
+            "fillcolor",
+            "input_fill",
+            "preprocess_fill",
+            "split_fill",
+            "feature_fill",
+            "model_fill",
+            "eval_fill",
+            "output_fill",
+            "data_fill",
+            "storage_fill",
+            "decision_fill",
+            "result_fill",
+            "note_fill",
+            "merge_fill",
+            "train_fill",
+            "val_fill",
+            "test_fill",
         }
-        assert set(STAGE_COLORS.keys()) == expected_keys
+        for theme in THEME_COLORS:
+            theme_keys = set(THEME_COLORS[theme].keys())
+            assert required_keys.issubset(theme_keys), f"{theme} missing keys: {required_keys - theme_keys}"
 
 
-class TestDiagramNode:
-    """Tests for DiagramNode dataclass."""
+class TestCreateAotyPipelineDiagram:
+    """Tests for create_aoty_pipeline_diagram function."""
 
-    def test_create_node_with_all_fields(self):
-        """DiagramNode should accept all specified fields."""
-        node = DiagramNode(
-            id="test_node",
-            x=0.1,
-            y=0.5,
-            width=0.2,
-            height=0.1,
-            label="Test Node",
-            stage_type="data_input",
-            sublabel="optional text",
-        )
-        assert node.id == "test_node"
-        assert node.x == 0.1
-        assert node.y == 0.5
-        assert node.width == 0.2
-        assert node.height == 0.1
-        assert node.label == "Test Node"
-        assert node.stage_type == "data_input"
-        assert node.sublabel == "optional text"
+    def test_returns_digraph(self):
+        """Function should return a graphviz.Digraph object."""
+        import graphviz
 
-    def test_sublabel_defaults_to_none(self):
-        """sublabel should default to None when not provided."""
-        node = DiagramNode(
-            id="simple",
-            x=0.0,
-            y=0.0,
-            width=0.1,
-            height=0.1,
-            label="Simple",
-            stage_type="model",
-        )
-        assert node.sublabel is None
+        diagram = create_aoty_pipeline_diagram("light")
+        assert isinstance(diagram, graphviz.Digraph)
 
-    def test_id_and_label_accessible(self):
-        """Node id and label should be accessible as attributes."""
-        node = DiagramNode(
-            id="my_id",
-            x=0.2,
-            y=0.3,
-            width=0.15,
-            height=0.08,
-            label="My Label",
-            stage_type="features",
-        )
-        assert node.id == "my_id"
-        assert node.label == "My Label"
-        assert node.stage_type == "features"
+    def test_light_theme_creates_diagram(self):
+        """Light theme should create a valid diagram."""
+        diagram = create_aoty_pipeline_diagram("light")
+        # Check DOT source contains expected content
+        source = diagram.source
+        assert "digraph" in source
+        assert "bgcolor" in source
+        assert "#FFFEF0" in source
 
+    def test_dark_theme_creates_diagram(self):
+        """Dark theme should create a valid diagram."""
+        diagram = create_aoty_pipeline_diagram("dark")
+        source = diagram.source
+        assert "digraph" in source
+        assert "#1E1E1E" in source
 
-class TestDataFlowDiagramInit:
-    """Tests for DataFlowDiagram initialization."""
+    def test_transparent_theme_creates_diagram(self):
+        """Transparent theme should create a valid diagram."""
+        diagram = create_aoty_pipeline_diagram("transparent")
+        source = diagram.source
+        assert "digraph" in source
+        # Transparent theme should not have bgcolor attribute
+        # (or it's set to transparent which graphviz ignores)
 
-    def test_light_theme_colors(self):
-        """Light theme should return correct color tuple."""
-        diagram = DataFlowDiagram("high", "light")
-        try:
-            assert diagram.bg_color == "white"
-            assert diagram.text_color == "#333333"
-            assert diagram.border_color == "#555555"
-        finally:
-            diagram.close()
+    def test_diagram_has_title(self):
+        """Diagram should have a title label."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "AOTY PREDICTION PIPELINE" in source
 
-    def test_dark_theme_colors(self):
-        """Dark theme should return correct color tuple."""
-        diagram = DataFlowDiagram("high", "dark")
-        try:
-            assert diagram.bg_color == "#1E1E1E"
-            assert diagram.text_color == "#E0E0E0"
-            assert diagram.border_color == "#888888"
-        finally:
-            diagram.close()
+    def test_diagram_uses_ortho_splines(self):
+        """Diagram should use orthogonal splines."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "splines=ortho" in source
 
-    def test_transparent_theme_colors(self):
-        """Transparent theme should return correct color tuple."""
-        diagram = DataFlowDiagram("high", "transparent")
-        try:
-            assert diagram.bg_color == "none"
-            assert diagram.text_color == "#333333"
-            assert diagram.border_color == "#555555"
-        finally:
-            diagram.close()
+    def test_diagram_uses_courier_font(self):
+        """Diagram should use Courier New font."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "Courier New" in source
 
-    def test_figure_is_created(self):
-        """Figure should be created on initialization."""
-        diagram = DataFlowDiagram("intermediate", "light")
-        try:
-            assert diagram.fig is not None
-            assert diagram.ax is not None
-        finally:
-            diagram.close()
+    def test_diagram_has_section_clusters(self):
+        """Diagram should have numbered section clusters."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "1.0 INPUT" in source
+        assert "2.0 PREPROCESSING" in source
+        assert "3.0 SPLIT INFRASTRUCTURE" in source
+        assert "4.0 FEATURE ENGINEERING" in source
+        assert "5.0 BAYESIAN MODEL" in source
+        assert "6.0 EVALUATION" in source
+        assert "7.0 OUTPUT" in source
 
-    def test_custom_figure_size(self):
-        """Custom figure dimensions should be applied."""
-        diagram = DataFlowDiagram(
-            "detailed", "light", fig_width=15.0, fig_height=10.0
-        )
-        try:
-            fig_width, fig_height = diagram.fig.get_size_inches()
-            assert fig_width == pytest.approx(15.0)
-            assert fig_height == pytest.approx(10.0)
-        finally:
-            diagram.close()
+    def test_diagram_has_feature_blocks(self):
+        """Diagram should include all 6 feature blocks."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "TemporalBlock" in source
+        assert "AlbumTypeBlock" in source
+        assert "ArtistHistoryBlock" in source
+        assert "ArtistReputationBlock" in source
+        assert "GenreBlock" in source
+        assert "CollaborationBlock" in source
 
-    def test_title_is_set(self):
-        """Title should be set when provided."""
-        diagram = DataFlowDiagram("high", "light", title="Test Title")
-        try:
-            # Title is set via ax.set_title
-            title = diagram.ax.get_title()
-            assert title == "Test Title"
-        finally:
-            diagram.close()
+    def test_diagram_has_legend(self):
+        """Diagram should have a legend cluster."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "LEGEND" in source
+        assert "legend_data" in source
+        assert "legend_storage" in source
+
+    def test_diagram_has_various_shapes(self):
+        """Diagram should use various node shapes."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "shape=folder" in source
+        assert "shape=cylinder" in source
+        assert "shape=diamond" in source
+        assert "shape=parallelogram" in source
+        assert "shape=doubleoctagon" in source
+        assert "shape=note" in source
 
 
-class TestAddNode:
-    """Tests for add_node method."""
+class TestGenerateAllDiagrams:
+    """Tests for generate_all_diagrams function."""
 
-    @pytest.fixture
-    def diagram(self):
-        """Create a diagram for testing."""
-        d = DataFlowDiagram("high", "light")
-        yield d
-        d.close()
+    def test_creates_three_diagram_sets(self, tmp_path):
+        """Function should create 3 diagram sets (one per theme)."""
+        results = generate_all_diagrams(tmp_path)
+        assert len(results) == 3
+        assert "aoty_pipeline_light" in results
+        assert "aoty_pipeline_dark" in results
+        assert "aoty_pipeline_transparent" in results
 
-    def test_add_node_appends_to_list(self, diagram):
-        """add_node should append node to nodes list."""
-        node = DiagramNode(
-            id="test",
-            x=0.1,
-            y=0.5,
-            width=0.15,
-            height=0.08,
-            label="Test",
-            stage_type="data_input",
-        )
-        diagram.add_node(node)
-        assert len(diagram.nodes) == 1
-        assert diagram.nodes[0] == node
+    def test_creates_four_files_per_set(self, tmp_path):
+        """Each diagram set should have 4 files (svg, png, pdf, dot)."""
+        results = generate_all_diagrams(tmp_path)
+        for name, paths in results.items():
+            assert len(paths) == 4, f"{name} should have 4 files, got {len(paths)}"
 
-    def test_add_node_creates_patch(self, diagram):
-        """add_node should add a patch to the axes."""
-        initial_patches = len(diagram.ax.patches)
-        node = DiagramNode(
-            id="test",
-            x=0.1,
-            y=0.5,
-            width=0.15,
-            height=0.08,
-            label="Test",
-            stage_type="model",
-        )
-        diagram.add_node(node)
-        # Should have added one patch (the box)
-        assert len(diagram.ax.patches) == initial_patches + 1
+    def test_creates_svg_files(self, tmp_path):
+        """Function should create SVG files."""
+        results = generate_all_diagrams(tmp_path)
+        for name, paths in results.items():
+            svg_paths = [p for p in paths if p.suffix == ".svg"]
+            assert len(svg_paths) == 1, f"{name} missing SVG"
+            assert svg_paths[0].exists()
+            assert svg_paths[0].stat().st_size > 0
 
+    def test_creates_png_files(self, tmp_path):
+        """Function should create PNG files."""
+        results = generate_all_diagrams(tmp_path)
+        for name, paths in results.items():
+            png_paths = [p for p in paths if p.suffix == ".png"]
+            assert len(png_paths) == 1, f"{name} missing PNG"
+            assert png_paths[0].exists()
+            assert png_paths[0].stat().st_size > 0
 
-class TestAddArrow:
-    """Tests for add_arrow method."""
+    def test_creates_pdf_files(self, tmp_path):
+        """Function should create PDF files."""
+        results = generate_all_diagrams(tmp_path)
+        for name, paths in results.items():
+            pdf_paths = [p for p in paths if p.suffix == ".pdf"]
+            assert len(pdf_paths) == 1, f"{name} missing PDF"
+            assert pdf_paths[0].exists()
+            assert pdf_paths[0].stat().st_size > 0
 
-    @pytest.fixture
-    def diagram(self):
-        """Create a diagram for testing."""
-        d = DataFlowDiagram("high", "light")
-        yield d
-        d.close()
+    def test_creates_dot_files(self, tmp_path):
+        """Function should create DOT source files."""
+        results = generate_all_diagrams(tmp_path)
+        for name, paths in results.items():
+            dot_paths = [p for p in paths if p.suffix == ".dot"]
+            assert len(dot_paths) == 1, f"{name} missing DOT"
+            assert dot_paths[0].exists()
+            # DOT file should be readable text
+            content = dot_paths[0].read_text(encoding="utf-8")
+            assert "digraph" in content
 
-    def test_add_straight_arrow(self, diagram):
-        """add_arrow should create an arrow patch."""
-        initial_patches = len(diagram.ax.patches)
-        diagram.add_arrow((0.1, 0.5), (0.3, 0.5))
-        assert len(diagram.ax.patches) == initial_patches + 1
+    def test_creates_output_directory(self, tmp_path):
+        """Function should create output directory if it doesn't exist."""
+        nested_dir = tmp_path / "nested" / "output" / "dir"
+        assert not nested_dir.exists()
+        generate_all_diagrams(nested_dir)
+        assert nested_dir.exists()
 
-    def test_add_curved_arrow(self, diagram):
-        """add_arrow with curved=True should work."""
-        initial_patches = len(diagram.ax.patches)
-        diagram.add_arrow((0.1, 0.5), (0.3, 0.7), curved=True)
-        assert len(diagram.ax.patches) == initial_patches + 1
+    def test_dot_files_contain_theme_specific_colors(self, tmp_path):
+        """DOT files should contain theme-specific background colors."""
+        results = generate_all_diagrams(tmp_path)
 
-    def test_add_dashed_arrow(self, diagram):
-        """add_arrow with dashed=True should work."""
-        initial_patches = len(diagram.ax.patches)
-        diagram.add_arrow((0.1, 0.5), (0.3, 0.5), dashed=True)
-        assert len(diagram.ax.patches) == initial_patches + 1
+        # Check light theme has cream bgcolor
+        light_dot = next(p for p in results["aoty_pipeline_light"] if p.suffix == ".dot")
+        light_content = light_dot.read_text(encoding="utf-8")
+        assert "#FFFEF0" in light_content
 
-    def test_add_arrow_with_label(self, diagram):
-        """add_arrow with label should add text."""
-        initial_texts = len(diagram.ax.texts)
-        diagram.add_arrow((0.1, 0.5), (0.3, 0.5), label="Flow")
-        # Should have added text for label
-        assert len(diagram.ax.texts) > initial_texts
-
-
-class TestAddLegend:
-    """Tests for add_legend method."""
-
-    @pytest.fixture
-    def diagram(self):
-        """Create a diagram for testing."""
-        d = DataFlowDiagram("high", "light")
-        yield d
-        d.close()
-
-    def test_legend_is_added(self, diagram):
-        """add_legend should create a legend on axes."""
-        assert diagram.ax.get_legend() is None
-        diagram.add_legend()
-        assert diagram.ax.get_legend() is not None
-
-    def test_legend_has_correct_entry_count(self, diagram):
-        """Legend should have entries for key stage types."""
-        diagram.add_legend()
-        legend = diagram.ax.get_legend()
-        # Legend shows 5 key stages (data_input, features, model, validation, output)
-        # to avoid clutter in technical manual style
-        assert len(legend.legend_handles) == 5
+        # Check dark theme has dark bgcolor
+        dark_dot = next(p for p in results["aoty_pipeline_dark"] if p.suffix == ".dot")
+        dark_content = dark_dot.read_text(encoding="utf-8")
+        assert "#1E1E1E" in dark_content
 
 
-class TestSave:
-    """Tests for save method."""
+class TestDiagramThemeType:
+    """Tests for DiagramTheme type alias."""
 
-    def test_save_creates_svg_file(self, tmp_path):
-        """save() should create SVG file when requested."""
-        diagram = DataFlowDiagram("high", "light")
-
-        # Add a simple node to have content
-        node = DiagramNode(
-            id="test",
-            x=0.4,
-            y=0.4,
-            width=0.2,
-            height=0.1,
-            label="Test",
-            stage_type="data_input",
-        )
-        diagram.add_node(node)
-
-        output_base = tmp_path / "test_diagram"
-        paths = diagram.save(output_base, formats=("svg",))
-
-        assert len(paths) == 1
-        assert paths[0].suffix == ".svg"
-        assert paths[0].exists()
-        assert paths[0].stat().st_size > 0
-
-    def test_save_creates_multiple_formats(self, tmp_path):
-        """save() should create files for all requested formats."""
-        diagram = DataFlowDiagram("high", "dark")
-
-        node = DiagramNode(
-            id="test",
-            x=0.4,
-            y=0.4,
-            width=0.2,
-            height=0.1,
-            label="Test",
-            stage_type="model",
-        )
-        diagram.add_node(node)
-
-        output_base = tmp_path / "multi_format"
-        paths = diagram.save(output_base, formats=("svg", "png", "pdf"))
-
-        assert len(paths) == 3
-        extensions = {p.suffix for p in paths}
-        assert extensions == {".svg", ".png", ".pdf"}
-        for path in paths:
-            assert path.exists()
-            assert path.stat().st_size > 0
-
-
-class TestThemeTransparency:
-    """Tests for transparent theme handling."""
-
-    def test_transparent_theme_alpha(self):
-        """Transparent theme should set figure alpha to 0."""
-        diagram = DataFlowDiagram("high", "transparent")
-        try:
-            # Check figure patch alpha
-            alpha = diagram.fig.patch.get_alpha()
-            # Alpha should be 0 or close to 0
-            assert alpha is None or alpha == 0 or alpha < 0.01
-        finally:
-            diagram.close()
-
-    def test_transparent_theme_axes_alpha(self):
-        """Transparent theme should set axes patch alpha to 0."""
-        diagram = DataFlowDiagram("high", "transparent")
-        try:
-            alpha = diagram.ax.patch.get_alpha()
-            assert alpha is None or alpha == 0 or alpha < 0.01
-        finally:
-            diagram.close()
-
-
-class TestClose:
-    """Tests for close method."""
-
-    def test_close_does_not_error_on_open_figure(self):
-        """close() should not raise on an open figure."""
-        diagram = DataFlowDiagram("high", "light")
-        # Should not raise
-        diagram.close()
-
-    def test_close_does_not_error_on_already_closed(self):
-        """close() should not raise if called twice."""
-        diagram = DataFlowDiagram("high", "light")
-        diagram.close()
-        # Second close should not raise
-        diagram.close()
-
-
-class TestTypeAliases:
-    """Tests for type aliases."""
-
-    def test_detail_level_type(self):
-        """DetailLevel should accept valid values."""
-        # These should all work without error
-        for level in ["high", "intermediate", "detailed"]:
-            diagram = DataFlowDiagram(level, "light")  # type: ignore[arg-type]
-            diagram.close()
-
-    def test_diagram_theme_type(self):
-        """DiagramTheme should accept valid values."""
+    def test_valid_themes_are_accepted(self):
+        """DiagramTheme should accept light, dark, transparent."""
         for theme in ["light", "dark", "transparent"]:
-            diagram = DataFlowDiagram("high", theme)  # type: ignore[arg-type]
-            diagram.close()
+            # Should not raise
+            diagram = create_aoty_pipeline_diagram(theme)  # type: ignore[arg-type]
+            assert diagram is not None
+
+
+class TestDiagramContent:
+    """Tests for diagram content accuracy."""
+
+    def test_input_section_has_csv_info(self):
+        """Input section should mention CSV file details."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "all_albums_full.csv" in source
+        assert "130,023" in source
+
+    def test_preprocessing_section_has_steps(self):
+        """Preprocessing section should have schema, cleaning, filter steps."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "Schema Validation" in source
+        assert "Cleaning Rules" in source
+        assert "Min Ratings Filter" in source
+
+    def test_split_section_has_strategies(self):
+        """Split section should mention both split strategies."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "Within-Artist Split" in source
+        assert "Artist-Disjoint Split" in source
+
+    def test_model_section_has_components(self):
+        """Model section should have all model components."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "PriorConfig" in source
+        assert "Hierarchical" in source
+        assert "Non-centered" in source
+        assert "Time-varying" in source
+        assert "AR(1)" in source
+        assert "MCMC Sampling" in source
+
+    def test_eval_section_has_checks(self):
+        """Evaluation section should have convergence and validation checks."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "Convergence" in source
+        assert "R-hat" in source
+        assert "ESS" in source
+        assert "LOO-CV" in source
+        assert "Calibration" in source
+
+    def test_output_section_has_artifacts(self):
+        """Output section should mention predictions and artifacts."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        assert "Predictions" in source
+        assert "Model Artifacts" in source
+        assert "Publication" in source
+
+
+class TestEdgeConnections:
+    """Tests for diagram edge connections."""
+
+    def test_has_feedback_loops(self):
+        """Diagram should have feedback loop edges."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        # Feedback loops use dashed style and constraint=false
+        assert "style=dashed" in source
+        assert "constraint=false" in source
+
+    def test_has_train_flow_edges(self):
+        """Diagram should have train set to feature block edges."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        # Green color for train flow
+        assert "#388E3C" in source
+
+    def test_has_test_evaluation_edge(self):
+        """Diagram should have test set to predictions edge."""
+        diagram = create_aoty_pipeline_diagram("light")
+        source = diagram.source
+        # Purple color for test evaluation
+        assert "#7B1FA2" in source
