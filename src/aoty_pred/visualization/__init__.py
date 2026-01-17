@@ -6,6 +6,7 @@ for exploring model results. It includes:
 - Custom Plotly templates (light and dark themes)
 - Chart creation functions for diagnostics and predictions
 - Static export pipeline (SVG, PNG via Kaleido)
+- Dashboard assembly for multi-chart views
 - Colorblind-safe color palette
 
 Usage:
@@ -38,11 +39,22 @@ from aoty_pred.visualization.export import (
     export_figure,
 )
 
+# Import dashboard functions
+from aoty_pred.visualization.dashboard import (
+    DashboardData,
+    create_artist_view,
+    create_dashboard_figures,
+    get_artist_list,
+)
+
 # Ensure themes are registered
 register_themes()
 
 __all__ = [
     "COLORBLIND_COLORS",
+    "DashboardData",
+    "create_artist_view",
+    "create_dashboard_figures",
     "create_forest_plot",
     "create_posterior_plot",
     "create_predictions_plot",
@@ -52,5 +64,6 @@ __all__ = [
     "export_all_figures",
     "export_dashboard_html",
     "export_figure",
+    "get_artist_list",
     "register_themes",
 ]
