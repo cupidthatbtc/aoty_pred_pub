@@ -1272,61 +1272,82 @@ def create_detailed_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph:
     return graph
 
 
-def generate_all_diagrams(output_dir: Path) -> dict[str, list[Path]]:
+def generate_all_diagrams(
+    output_dir: Path,
+    levels: list[DetailLevel] | None = None,
+) -> dict[str, list[Path]]:
     """Generate all AOTY pipeline diagram variants.
 
-    Creates 3 diagram variants (one per theme) in multiple formats.
-    Each diagram is saved in SVG, PNG, and PDF formats.
+    Creates diagram variants for specified detail levels and all themes.
+    Each diagram is saved in SVG, PNG, PDF, and DOT formats.
 
     Parameters
     ----------
     output_dir : Path
         Directory for output files (created if needed).
+    levels : list[DetailLevel] | None, optional
+        Detail levels to generate. If None, generates all three levels
+        (high, intermediate, detailed). Default is None.
 
     Returns
     -------
     dict[str, list[Path]]
         Dict mapping diagram name to list of created file paths.
+        Names follow pattern: pipeline_{level}_{theme}
+
+    Notes
+    -----
+    With default parameters (all levels), generates 9 diagram sets
+    (3 levels x 3 themes) with 4 files each (svg, png, pdf, dot),
+    totaling 36 files.
 
     Example
     -------
     >>> results = generate_all_diagrams(Path("docs/figures"))
-    >>> for name, paths in results.items():
-    ...     print(f"{name}: {len(paths)} files")
-    aoty_pipeline_light: 3 files
-    aoty_pipeline_dark: 3 files
-    aoty_pipeline_transparent: 3 files
+    >>> print(f"Generated {len(results)} diagram sets")
+    Generated 9 diagram sets
+
+    >>> # Generate only high-level diagrams (3 themes x 4 formats = 12 files)
+    >>> results = generate_all_diagrams(Path("docs/figures"), levels=["high"])
+    >>> print(f"Generated {len(results)} diagram sets")
+    Generated 3 diagram sets
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Default to all levels if not specified
+    if levels is None:
+        levels = ["high", "intermediate", "detailed"]
 
     results: dict[str, list[Path]] = {}
     themes: list[DiagramTheme] = ["light", "dark", "transparent"]
     formats = ["svg", "png", "pdf"]
 
-    for theme in themes:
-        name = f"aoty_pipeline_{theme}"
-        diagram = create_aoty_pipeline_diagram(theme)
+    for level in levels:
+        diagram_func = LEVEL_FUNCTIONS[level]
+        for theme in themes:
+            name = f"pipeline_{level}_{theme}"
+            diagram = diagram_func(theme)
 
-        created_paths: list[Path] = []
-        for fmt in formats:
-            # graphviz render() writes to directory with auto filename
-            # We use render to generate the dot file then convert
-            base_path = output_dir / name
-            diagram.format = fmt
-            output_path = diagram.render(
-                filename=str(base_path),
-                directory=None,
-                cleanup=True,  # Remove intermediate dot file
-            )
-            created_paths.append(Path(output_path))
+            created_paths: list[Path] = []
+            for fmt in formats:
+                # graphviz render() writes to directory with auto filename
+                # We use render to generate the dot file then convert
+                base_path = output_dir / name
+                diagram.format = fmt
+                output_path = diagram.render(
+                    filename=str(base_path),
+                    directory=None,
+                    cleanup=True,  # Remove intermediate dot file
+                )
+                created_paths.append(Path(output_path))
 
-        # Also save the .dot source file for reference
-        dot_path = output_dir / f"{name}.dot"
-        dot_path.write_text(diagram.source, encoding="utf-8")
-        created_paths.append(dot_path)
+            # Also save the .dot source file for reference
+            dot_path = output_dir / f"{name}.dot"
+            dot_path.write_text(diagram.source, encoding="utf-8")
+            created_paths.append(dot_path)
 
-        results[name] = created_paths
+            results[name] = created_paths
 
     return results
 
