@@ -174,10 +174,11 @@ def _create_graph(
         pad="0.75",
         nodesep=nodesep,
         ranksep=ranksep,
-        splines="ortho",
+        splines="spline",
         compound="true",
         forcelabels="true",
         overlap="false",
+        outputorder="edgesfirst",
     )
 
     # Set bgcolor only for non-transparent themes
@@ -206,6 +207,8 @@ def _create_graph(
         color=colors["color"],
         fontcolor=colors["fontcolor"],
         penwidth="1",
+        labeldistance="2.0",
+        labelangle="25",
     )
 
     return graph
