@@ -128,8 +128,8 @@ def _create_graph(
     theme: DiagramTheme,
     *,
     title: str = "AOTY PREDICTION PIPELINE\nTechnical Reference",
-    nodesep: str = "1.8",
-    ranksep: str = "2.0",
+    nodesep: str = "0.8",
+    ranksep: str = "1.0",
     node_fontsize: str = "8",
     node_margin: str = "0.15,0.1",
 ) -> graphviz.Digraph:
@@ -142,9 +142,9 @@ def _create_graph(
     title : str
         Diagram title text.
     nodesep : str
-        Horizontal spacing between nodes (default "1.8" for overlap fix).
+        Horizontal spacing between nodes (default "0.8").
     ranksep : str
-        Vertical spacing between ranks (default "2.0" for overlap fix).
+        Vertical spacing between ranks (default "1.0").
     node_fontsize : str
         Default font size for nodes.
     node_margin : str
@@ -237,8 +237,8 @@ def create_high_level_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph
     graph = _create_graph(
         theme,
         title="AOTY PREDICTION PIPELINE\nOverview",
-        nodesep="2.0",
-        ranksep="2.5",
+        nodesep="1.0",
+        ranksep="1.2",
         node_fontsize="10",
         node_margin="0.2,0.15",
     )
@@ -364,29 +364,6 @@ def create_high_level_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph
             shape="cylinder",
             fillcolor=colors["storage_fill"],
         )
-
-    # =========================================================================
-    # LEGEND (compact)
-    # =========================================================================
-    with graph.subgraph(name="cluster_legend") as c:
-        c.attr(
-            label="LEGEND",
-            style="filled",
-            fillcolor=colors["fillcolor"],
-            color=colors["color"],
-            fontcolor=colors["fontcolor"],
-        )
-
-        c.node("legend_data", "Data", shape="folder", fillcolor=colors["data_fill"])
-        c.node("legend_storage", "Storage", shape="cylinder", fillcolor=colors["storage_fill"])
-        c.node("legend_decision", "Decision", shape="diamond", fillcolor=colors["decision_fill"])
-        c.node("legend_merge", "Transform", shape="parallelogram", fillcolor=colors["merge_fill"])
-        c.node("legend_result", "Key Result", shape="doubleoctagon", fillcolor=colors["result_fill"])
-
-        c.edge("legend_data", "legend_storage", style="invis")
-        c.edge("legend_storage", "legend_decision", style="invis")
-        c.edge("legend_decision", "legend_merge", style="invis")
-        c.edge("legend_merge", "legend_result", style="invis")
 
     # =========================================================================
     # PRIMARY FLOW
@@ -719,31 +696,6 @@ def create_aoty_pipeline_diagram(theme: DiagramTheme = "light") -> graphviz.Digr
         )
 
     # =========================================================================
-    # APPENDIX: LEGEND
-    # =========================================================================
-    with graph.subgraph(name="cluster_legend") as c:
-        c.attr(
-            label="LEGEND",
-            style="filled",
-            fillcolor=colors["fillcolor"],
-            color=colors["color"],
-            fontcolor=colors["fontcolor"],
-        )
-
-        c.node("legend_data", "Data/File", shape="folder", fillcolor=colors["data_fill"])
-        c.node("legend_storage", "Storage", shape="cylinder", fillcolor=colors["storage_fill"])
-        c.node("legend_decision", "Decision", shape="diamond", fillcolor=colors["decision_fill"])
-        c.node("legend_merge", "Transform", shape="parallelogram", fillcolor=colors["merge_fill"])
-        c.node("legend_result", "Key Result", shape="doubleoctagon", fillcolor=colors["result_fill"])
-        c.node("legend_note", "Note/Ref", shape="note", fillcolor=colors["note_fill"])
-
-        c.edge("legend_data", "legend_storage", style="invis")
-        c.edge("legend_storage", "legend_decision", style="invis")
-        c.edge("legend_decision", "legend_merge", style="invis")
-        c.edge("legend_merge", "legend_result", style="invis")
-        c.edge("legend_result", "legend_note", style="invis")
-
-    # =========================================================================
     # MAIN FLOW CONNECTIONS
     # =========================================================================
 
@@ -845,8 +797,8 @@ def create_detailed_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph:
     graph = _create_graph(
         theme,
         title="AOTY PREDICTION PIPELINE\nDetailed Technical Reference",
-        nodesep="1.5",
-        ranksep="1.8",
+        nodesep="0.6",
+        ranksep="0.8",
         node_fontsize="7",
         node_margin="0.1,0.08",
     )
@@ -1176,31 +1128,6 @@ def create_detailed_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph:
             shape="note",
             fillcolor=colors["note_fill"],
         )
-
-    # =========================================================================
-    # LEGEND
-    # =========================================================================
-    with graph.subgraph(name="cluster_legend") as c:
-        c.attr(
-            label="LEGEND",
-            style="filled",
-            fillcolor=colors["fillcolor"],
-            color=colors["color"],
-            fontcolor=colors["fontcolor"],
-        )
-
-        c.node("legend_data", "Data/File", shape="folder", fillcolor=colors["data_fill"])
-        c.node("legend_storage", "Storage", shape="cylinder", fillcolor=colors["storage_fill"])
-        c.node("legend_decision", "Decision", shape="diamond", fillcolor=colors["decision_fill"])
-        c.node("legend_merge", "Transform", shape="parallelogram", fillcolor=colors["merge_fill"])
-        c.node("legend_result", "Key Result", shape="doubleoctagon", fillcolor=colors["result_fill"])
-        c.node("legend_note", "Note/Ref", shape="note", fillcolor=colors["note_fill"])
-
-        c.edge("legend_data", "legend_storage", style="invis")
-        c.edge("legend_storage", "legend_decision", style="invis")
-        c.edge("legend_decision", "legend_merge", style="invis")
-        c.edge("legend_merge", "legend_result", style="invis")
-        c.edge("legend_result", "legend_note", style="invis")
 
     # =========================================================================
     # MAIN FLOW CONNECTIONS
