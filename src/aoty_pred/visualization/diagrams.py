@@ -128,8 +128,8 @@ def _create_graph(
     theme: DiagramTheme,
     *,
     title: str = "AOTY PREDICTION PIPELINE\nTechnical Reference",
-    nodesep: str = "1.2",
-    ranksep: str = "1.5",
+    nodesep: str = "1.8",
+    ranksep: str = "2.0",
     node_fontsize: str = "8",
     node_margin: str = "0.15,0.1",
 ) -> graphviz.Digraph:
@@ -142,9 +142,9 @@ def _create_graph(
     title : str
         Diagram title text.
     nodesep : str
-        Horizontal spacing between nodes (default "1.2" for overlap fix).
+        Horizontal spacing between nodes (default "1.8" for overlap fix).
     ranksep : str
-        Vertical spacing between ranks (default "1.5" for overlap fix).
+        Vertical spacing between ranks (default "2.0" for overlap fix).
     node_fontsize : str
         Default font size for nodes.
     node_margin : str
@@ -237,8 +237,8 @@ def create_high_level_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph
     graph = _create_graph(
         theme,
         title="AOTY PREDICTION PIPELINE\nOverview",
-        nodesep="1.5",
-        ranksep="1.8",
+        nodesep="2.0",
+        ranksep="2.5",
         node_fontsize="10",
         node_margin="0.2,0.15",
     )
@@ -845,8 +845,8 @@ def create_detailed_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph:
     graph = _create_graph(
         theme,
         title="AOTY PREDICTION PIPELINE\nDetailed Technical Reference",
-        nodesep="1.0",
-        ranksep="1.2",
+        nodesep="1.5",
+        ranksep="1.8",
         node_fontsize="7",
         node_margin="0.1,0.08",
     )
