@@ -817,6 +817,461 @@ def create_aoty_pipeline_diagram(theme: DiagramTheme = "light") -> graphviz.Digr
     return graph
 
 
+def create_detailed_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph:
+    """Create detailed technical reference diagram with 30+ nodes.
+
+    Generates a comprehensive diagram showing all pipeline components in
+    detail, suitable for academic papers and technical documentation.
+
+    Features:
+    - Expanded preprocessing steps (schema, null handling, dedup, etc.)
+    - All 6 individual feature blocks with details
+    - Complete model structure (priors, non-centered, AR(1))
+    - Detailed evaluation chain (individual diagnostics)
+    - Multiple feedback loops with retry/tune logic
+    - Smaller fonts for dense information display
+
+    Parameters
+    ----------
+    theme : DiagramTheme, default "light"
+        Visual theme: "light" (cream bg), "dark" (dark bg), "transparent".
+
+    Returns
+    -------
+    graphviz.Digraph
+        Configured detailed diagram ready for rendering.
+    """
+    colors = THEME_COLORS[theme]
+    graph = _create_graph(
+        theme,
+        title="AOTY PREDICTION PIPELINE\nDetailed Technical Reference",
+        nodesep="1.0",
+        ranksep="1.2",
+        node_fontsize="7",
+        node_margin="0.1,0.08",
+    )
+
+    # Smaller separator for detailed view
+    sep = "\u2500" * 18
+
+    # =========================================================================
+    # SECTION 1.0: INPUT (expanded)
+    # =========================================================================
+    with graph.subgraph(name="cluster_input") as c:
+        c.attr(
+            label="1.0 INPUT",
+            style="filled",
+            fillcolor=colors["input_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+        c.node(
+            "input_file",
+            f"1.1 Raw CSV\n{sep}\nall_albums_full.csv\n130,023 rows x 18 cols",
+            shape="folder",
+            fillcolor=colors["data_fill"],
+        )
+        c.node(
+            "schema_spec",
+            f"1.2 Schema Spec\n{sep}\nexpected columns\ntype definitions",
+            shape="note",
+            fillcolor=colors["note_fill"],
+        )
+
+    # =========================================================================
+    # SECTION 2.0: PREPROCESSING (expanded)
+    # =========================================================================
+    with graph.subgraph(name="cluster_preprocess") as c:
+        c.attr(
+            label="2.0 PREPROCESSING",
+            style="filled",
+            fillcolor=colors["preprocess_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+
+        c.node(
+            "schema_val",
+            f"2.1 Schema Validation\n{sep}\nPandera checks\ntype enforcement",
+        )
+        c.node(
+            "null_handling",
+            f"2.2 Null Handling\n{sep}\ndrop nulls\ndefault imputation",
+        )
+        c.node(
+            "date_parsing",
+            f"2.3 Date Parsing\n{sep}\nISO format\ntimezone handling",
+        )
+        c.node(
+            "dedup",
+            f"2.4 Deduplication\n{sep}\nartist+album+date\nkeep latest",
+        )
+        c.node(
+            "min_ratings",
+            f"2.5 Min Ratings Filter\n{sep}\nthreshold=10\nquality gate",
+        )
+        c.node(
+            "audit_trail",
+            f"2.6 Audit Trail\n{sep}\nJSONL exclusion log\n277K records",
+            shape="note",
+            fillcolor=colors["note_fill"],
+        )
+        c.node(
+            "cleaned_data",
+            f"2.7 CLEANED DATA\n{sep}\n~62,000 rows\n(52% retained)",
+            shape="cylinder",
+            fillcolor=colors["storage_fill"],
+        )
+
+        # Internal preprocessing flow
+        c.edge("schema_val", "null_handling")
+        c.edge("null_handling", "date_parsing")
+        c.edge("date_parsing", "dedup")
+        c.edge("dedup", "min_ratings")
+        c.edge("min_ratings", "audit_trail")
+        c.edge("min_ratings", "cleaned_data")
+
+    # =========================================================================
+    # SECTION 3.0: SPLITTING (expanded)
+    # =========================================================================
+    with graph.subgraph(name="cluster_split") as c:
+        c.attr(
+            label="3.0 SPLIT INFRASTRUCTURE",
+            style="filled",
+            fillcolor=colors["split_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+
+        c.node(
+            "within_artist",
+            f"3.1 Within-Artist\n{sep}\ntemporal ordering\nper-artist split",
+        )
+        c.node(
+            "artist_disjoint",
+            f"3.2 Artist-Disjoint\n{sep}\nholdout artists\ngeneralization test",
+        )
+        c.node(
+            "split_manifest",
+            f"3.3 Split Manifest\n{sep}\nversion tracking\nreproducibility",
+            shape="note",
+            fillcolor=colors["note_fill"],
+        )
+        c.node(
+            "hash_verify",
+            f"3.4 Hash Verification\n{sep}\nSHA-256\ndata integrity",
+        )
+        c.node(
+            "train_set",
+            f"3.5 TRAIN\n{sep}\n~41K rows (64%)",
+            shape="cylinder",
+            fillcolor=colors["train_fill"],
+        )
+        c.node(
+            "val_set",
+            f"3.6 VAL\n{sep}\n~7.5K rows (12%)",
+            shape="cylinder",
+            fillcolor=colors["val_fill"],
+        )
+        c.node(
+            "test_set",
+            f"3.7 TEST\n{sep}\n~7.5K rows (12%)",
+            shape="cylinder",
+            fillcolor=colors["test_fill"],
+        )
+
+    # =========================================================================
+    # SECTION 4.0: FEATURE ENGINEERING - All 6 blocks
+    # =========================================================================
+    with graph.subgraph(name="cluster_features") as c:
+        c.attr(
+            label="4.0 FEATURE ENGINEERING (fit on TRAIN only)",
+            style="filled",
+            fillcolor=colors["feature_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+
+        c.node(
+            "temporal_block",
+            f"4.1 TemporalBlock\n{sep}\nalbum_sequence\ncareer_years\nrelease_gap",
+        )
+        c.node(
+            "album_type_block",
+            f"4.2 AlbumTypeBlock\n{sep}\none-hot encoding\nFittedVocabulary",
+        )
+        c.node(
+            "artist_history_block",
+            f"4.3 ArtistHistoryBlock\n{sep}\nleave-one-out\nprior stats\ndebut detection",
+        )
+        c.node(
+            "artist_rep_block",
+            f"4.4 ArtistReputationBlock\n{sep}\nprior mean\nsmoothing\nglobal fallback",
+        )
+        c.node(
+            "genre_block",
+            f"4.5 GenreBlock\n{sep}\nmulti-hot\nPCA (n=10)\nmin_count=20",
+        )
+        c.node(
+            "collab_block",
+            f"4.6 CollaborationBlock\n{sep}\nordinal encoding\nsolo->duo->group",
+        )
+        c.node(
+            "feature_pipeline",
+            f"4.7 FeaturePipeline\n{sep}\nfit(train)\ntransform(all)\nleakage prevention",
+            shape="parallelogram",
+            fillcolor=colors["merge_fill"],
+        )
+
+    # =========================================================================
+    # SECTION 5.0: BAYESIAN MODEL (expanded)
+    # =========================================================================
+    with graph.subgraph(name="cluster_model") as c:
+        c.attr(
+            label="5.0 BAYESIAN MODEL",
+            style="filled",
+            fillcolor=colors["model_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+
+        c.node(
+            "prior_config",
+            f"5.1 PriorConfig\n{sep}\n9 hyperparameters\ndefault/diffuse/\ninformative",
+        )
+        c.node(
+            "hierarchical",
+            f"5.2 Hierarchical\n{sep}\nartist random effects\npartial pooling",
+        )
+        c.node(
+            "non_centered",
+            f"5.3 Non-centered\n{sep}\nLocScaleReparam\nsampling efficiency",
+        )
+        c.node(
+            "time_varying",
+            f"5.4 Time-varying\n{sep}\nrandom walk\ntrend capture",
+        )
+        c.node(
+            "ar1_structure",
+            f"5.5 AR(1)\n{sep}\nTruncatedNormal\n|rho| < 0.99",
+        )
+        c.node(
+            "likelihood",
+            f"5.6 Likelihood\n{sep}\nNormal(mu, sigma)\nobservation model",
+        )
+        c.node(
+            "mcmc_sampling",
+            f"5.7 MCMC Sampling\n{sep}\nNUTS / JAX GPU\n4 chains x 1000",
+            shape="doubleoctagon",
+            fillcolor=colors["result_fill"],
+        )
+        c.node(
+            "posterior_samples",
+            f"5.8 Posterior\n{sep}\nInferenceData\n4000 samples",
+            shape="cylinder",
+            fillcolor=colors["storage_fill"],
+        )
+
+        # Internal model flow
+        c.edge("prior_config", "hierarchical")
+        c.edge("hierarchical", "non_centered")
+        c.edge("non_centered", "time_varying")
+        c.edge("time_varying", "ar1_structure")
+        c.edge("ar1_structure", "likelihood")
+        c.edge("likelihood", "mcmc_sampling")
+        c.edge("mcmc_sampling", "posterior_samples")
+
+    # =========================================================================
+    # SECTION 6.0: EVALUATION (expanded)
+    # =========================================================================
+    with graph.subgraph(name="cluster_eval") as c:
+        c.attr(
+            label="6.0 EVALUATION",
+            style="filled",
+            fillcolor=colors["eval_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+
+        c.node(
+            "convergence",
+            f"6.1 Convergence\n{sep}\ncheck all\ndiagnostics",
+            shape="diamond",
+            fillcolor=colors["decision_fill"],
+        )
+        c.node(
+            "rhat_check",
+            f"6.2 R-hat\n{sep}\nthreshold < 1.01\nper-parameter",
+        )
+        c.node(
+            "ess_check",
+            f"6.3 ESS\n{sep}\nbulk > 400\ntail > 400",
+        )
+        c.node(
+            "divergence_check",
+            f"6.4 Divergences\n{sep}\ncount = 0\ntree depth",
+        )
+        c.node(
+            "loo_cv",
+            f"6.5 LOO-CV\n{sep}\nPSIS importance\nmodel comparison",
+        )
+        c.node(
+            "pareto_k",
+            f"6.6 Pareto-k\n{sep}\nthreshold < 0.7\nhigh-k warnings",
+            shape="diamond",
+            fillcolor=colors["decision_fill"],
+        )
+        c.node(
+            "calibration",
+            f"6.7 Calibration\n{sep}\ncoverage analysis\nreliability diagram",
+        )
+        c.node(
+            "prior_predictive",
+            f"6.8 Prior Predictive\n{sep}\nsanity check\nprior influence",
+        )
+        c.node(
+            "sensitivity",
+            f"6.9 Sensitivity\n{sep}\nprior ablation\nfeature ablation",
+        )
+
+        # Internal evaluation flow
+        c.edge("convergence", "rhat_check")
+        c.edge("convergence", "ess_check")
+        c.edge("convergence", "divergence_check")
+        c.edge("rhat_check", "loo_cv")
+        c.edge("ess_check", "loo_cv")
+        c.edge("divergence_check", "loo_cv")
+        c.edge("loo_cv", "pareto_k")
+        c.edge("pareto_k", "calibration")
+        c.edge("calibration", "prior_predictive")
+        c.edge("prior_predictive", "sensitivity")
+
+    # =========================================================================
+    # SECTION 7.0: OUTPUT
+    # =========================================================================
+    with graph.subgraph(name="cluster_output") as c:
+        c.attr(
+            label="7.0 OUTPUT",
+            style="filled",
+            fillcolor=colors["output_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+
+        c.node(
+            "predictions",
+            f"7.1 Predictions\n{sep}\nposterior mean\n95% credible intervals",
+            shape="cylinder",
+            fillcolor=colors["storage_fill"],
+        )
+        c.node(
+            "model_artifacts",
+            f"7.2 Model Artifacts\n{sep}\nInferenceData netCDF\nmanifest JSON",
+            shape="folder",
+            fillcolor=colors["data_fill"],
+        )
+        c.node(
+            "publication",
+            f"7.3 Publication\n{sep}\nfigures, tables\nmodel card",
+            shape="note",
+            fillcolor=colors["note_fill"],
+        )
+
+    # =========================================================================
+    # LEGEND
+    # =========================================================================
+    with graph.subgraph(name="cluster_legend") as c:
+        c.attr(
+            label="LEGEND",
+            style="filled",
+            fillcolor=colors["fillcolor"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+
+        c.node("legend_data", "Data/File", shape="folder", fillcolor=colors["data_fill"])
+        c.node("legend_storage", "Storage", shape="cylinder", fillcolor=colors["storage_fill"])
+        c.node("legend_decision", "Decision", shape="diamond", fillcolor=colors["decision_fill"])
+        c.node("legend_merge", "Transform", shape="parallelogram", fillcolor=colors["merge_fill"])
+        c.node("legend_result", "Key Result", shape="doubleoctagon", fillcolor=colors["result_fill"])
+        c.node("legend_note", "Note/Ref", shape="note", fillcolor=colors["note_fill"])
+
+        c.edge("legend_data", "legend_storage", style="invis")
+        c.edge("legend_storage", "legend_decision", style="invis")
+        c.edge("legend_decision", "legend_merge", style="invis")
+        c.edge("legend_merge", "legend_result", style="invis")
+        c.edge("legend_result", "legend_note", style="invis")
+
+    # =========================================================================
+    # MAIN FLOW CONNECTIONS
+    # =========================================================================
+
+    # Input -> Preprocessing
+    graph.edge("input_file", "schema_val", penwidth="1.5")
+    graph.edge("schema_spec", "schema_val", style="dashed")
+
+    # Preprocessing -> Splits
+    graph.edge("cleaned_data", "within_artist", penwidth="1.5")
+    graph.edge("cleaned_data", "artist_disjoint", penwidth="1.5")
+
+    # Splits internal
+    graph.edge("within_artist", "split_manifest", style="dashed")
+    graph.edge("artist_disjoint", "split_manifest", style="dashed")
+    graph.edge("split_manifest", "hash_verify")
+    graph.edge("within_artist", "train_set", penwidth="1.5")
+    graph.edge("within_artist", "val_set", penwidth="1.5")
+    graph.edge("within_artist", "test_set", penwidth="1.5")
+
+    # Train -> Feature Blocks (green flow)
+    graph.edge("train_set", "temporal_block", color="#388E3C", penwidth="1.5")
+    graph.edge("train_set", "album_type_block", color="#388E3C", penwidth="1.5")
+    graph.edge("train_set", "artist_history_block", color="#388E3C", penwidth="1.5")
+    graph.edge("train_set", "artist_rep_block", color="#388E3C", penwidth="1.5")
+    graph.edge("train_set", "genre_block", color="#388E3C", penwidth="1.5")
+    graph.edge("train_set", "collab_block", color="#388E3C", penwidth="1.5")
+
+    # Feature Blocks -> Pipeline
+    graph.edge("temporal_block", "feature_pipeline")
+    graph.edge("album_type_block", "feature_pipeline")
+    graph.edge("artist_history_block", "feature_pipeline")
+    graph.edge("artist_rep_block", "feature_pipeline")
+    graph.edge("genre_block", "feature_pipeline")
+    graph.edge("collab_block", "feature_pipeline")
+
+    # Feature Pipeline -> Model
+    graph.edge("feature_pipeline", "prior_config", penwidth="1.5")
+
+    # Model -> Evaluation
+    graph.edge("posterior_samples", "convergence", penwidth="1.5")
+
+    # Evaluation -> Output
+    graph.edge("sensitivity", "predictions", penwidth="1.5")
+    graph.edge("posterior_samples", "model_artifacts", style="dashed")
+    graph.edge("sensitivity", "publication")
+
+    # Feedback loops (dashed, colored)
+    graph.edge(
+        "convergence", "mcmc_sampling",
+        style="dashed", color="#D32F2F",
+        xlabel="retry", constraint="false",
+    )
+    graph.edge(
+        "sensitivity", "prior_config",
+        style="dashed", color="#7B1FA2",
+        xlabel="tune", constraint="false",
+    )
+    graph.edge(
+        "pareto_k", "loo_cv",
+        style="dashed", color="#F57C00",
+        xlabel="refit", constraint="false",
+    )
+
+    # Test set evaluation (purple flow)
+    graph.edge("test_set", "predictions", color="#7B1FA2", style="dashed", xlabel="eval")
+
+    return graph
+
+
 def generate_all_diagrams(output_dir: Path) -> dict[str, list[Path]]:
     """Generate all AOTY pipeline diagram variants.
 
@@ -874,3 +1329,11 @@ def generate_all_diagrams(output_dir: Path) -> dict[str, list[Path]]:
         results[name] = created_paths
 
     return results
+
+
+# Level function mapping for programmatic access
+LEVEL_FUNCTIONS: dict[DetailLevel, Callable[[DiagramTheme], graphviz.Digraph]] = {
+    "high": create_high_level_diagram,
+    "intermediate": create_aoty_pipeline_diagram,
+    "detailed": create_detailed_diagram,
+}
