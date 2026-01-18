@@ -25,15 +25,22 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal
 
 import graphviz
 
 __all__ = [
     "DiagramTheme",
+    "DetailLevel",
+    "LEVEL_FUNCTIONS",
+    "create_high_level_diagram",
     "create_aoty_pipeline_diagram",
+    "create_detailed_diagram",
     "generate_all_diagrams",
 ]
+
+# Type alias for detail level
+DetailLevel = Literal["high", "intermediate", "detailed"]
 
 # Type alias for theme
 DiagramTheme = Literal["light", "dark", "transparent"]
@@ -117,8 +124,37 @@ THEME_COLORS: dict[DiagramTheme, dict[str, str]] = {
 SEP = "\u2500" * 21  # Unicode box drawing horizontal line
 
 
-def _create_graph(theme: DiagramTheme) -> graphviz.Digraph:
-    """Create base Digraph with theme-specific global settings."""
+def _create_graph(
+    theme: DiagramTheme,
+    *,
+    title: str = "AOTY PREDICTION PIPELINE\nTechnical Reference",
+    nodesep: str = "1.2",
+    ranksep: str = "1.5",
+    node_fontsize: str = "8",
+    node_margin: str = "0.15,0.1",
+) -> graphviz.Digraph:
+    """Create base Digraph with theme-specific global settings.
+
+    Parameters
+    ----------
+    theme : DiagramTheme
+        Visual theme: "light", "dark", or "transparent".
+    title : str
+        Diagram title text.
+    nodesep : str
+        Horizontal spacing between nodes (default "1.2" for overlap fix).
+    ranksep : str
+        Vertical spacing between ranks (default "1.5" for overlap fix).
+    node_fontsize : str
+        Default font size for nodes.
+    node_margin : str
+        Default margin for nodes (horizontal, vertical).
+
+    Returns
+    -------
+    graphviz.Digraph
+        Configured base graph.
+    """
     colors = THEME_COLORS[theme]
 
     graph = graphviz.Digraph(
@@ -132,12 +168,12 @@ def _create_graph(theme: DiagramTheme) -> graphviz.Digraph:
         rankdir="TB",
         fontname="Courier New",
         fontsize="10",
-        label="AOTY PREDICTION PIPELINE\nTechnical Reference",
+        label=title,
         labelloc="t",
         labeljust="c",
         pad="0.75",
-        nodesep="0.6",
-        ranksep="0.8",
+        nodesep=nodesep,
+        ranksep=ranksep,
         splines="ortho",
         compound="true",
         forcelabels="true",
@@ -152,14 +188,14 @@ def _create_graph(theme: DiagramTheme) -> graphviz.Digraph:
     graph.attr(
         "node",
         fontname="Courier New",
-        fontsize="8",
+        fontsize=node_fontsize,
         shape="box",
         style="filled",
         fillcolor=colors["fillcolor"],
         color=colors["color"],
         fontcolor=colors["fontcolor"],
         penwidth="1",
-        margin="0.15,0.1",
+        margin=node_margin,
     )
 
     # Default edge style
@@ -170,6 +206,207 @@ def _create_graph(theme: DiagramTheme) -> graphviz.Digraph:
         color=colors["color"],
         fontcolor=colors["fontcolor"],
         penwidth="1",
+    )
+
+    return graph
+
+
+def create_high_level_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph:
+    """Create high-level AOTY pipeline overview diagram.
+
+    Generates a simplified ~10-node diagram showing the 7 main pipeline
+    stages, suitable for README files and presentation overviews.
+
+    Features:
+    - Single node per stage (no internal details)
+    - Larger fonts and margins for readability
+    - Simplified feedback loop (EVAL -> MODEL for tuning)
+    - Compact legend
+
+    Parameters
+    ----------
+    theme : DiagramTheme, default "light"
+        Visual theme: "light" (cream bg), "dark" (dark bg), "transparent".
+
+    Returns
+    -------
+    graphviz.Digraph
+        Configured high-level diagram ready for rendering.
+    """
+    colors = THEME_COLORS[theme]
+    graph = _create_graph(
+        theme,
+        title="AOTY PREDICTION PIPELINE\nOverview",
+        nodesep="1.5",
+        ranksep="1.8",
+        node_fontsize="10",
+        node_margin="0.2,0.15",
+    )
+
+    # =========================================================================
+    # SECTION 1.0: INPUT
+    # =========================================================================
+    with graph.subgraph(name="cluster_input") as c:
+        c.attr(
+            label="1.0 INPUT",
+            style="filled",
+            fillcolor=colors["input_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+        c.node(
+            "input_data",
+            f"Raw CSV\n{SEP}\n130K albums",
+            shape="folder",
+            fillcolor=colors["data_fill"],
+        )
+
+    # =========================================================================
+    # SECTION 2.0: PREPROCESSING
+    # =========================================================================
+    with graph.subgraph(name="cluster_preprocess") as c:
+        c.attr(
+            label="2.0 PREPROCESSING",
+            style="filled",
+            fillcolor=colors["preprocess_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+        c.node(
+            "cleaning",
+            f"Data Cleaning\n{SEP}\nvalidation, filtering\nquality gates",
+        )
+
+    # =========================================================================
+    # SECTION 3.0: SPLITTING
+    # =========================================================================
+    with graph.subgraph(name="cluster_split") as c:
+        c.attr(
+            label="3.0 SPLITTING",
+            style="filled",
+            fillcolor=colors["split_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+        c.node(
+            "splits",
+            f"Train/Val/Test Split\n{SEP}\ntemporal ordering\nartist disjoint",
+        )
+
+    # =========================================================================
+    # SECTION 4.0: FEATURES
+    # =========================================================================
+    with graph.subgraph(name="cluster_features") as c:
+        c.attr(
+            label="4.0 FEATURES",
+            style="filled",
+            fillcolor=colors["feature_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+        c.node(
+            "features",
+            f"Feature Engineering\n{SEP}\n6 feature blocks\nfit/transform",
+            shape="parallelogram",
+            fillcolor=colors["merge_fill"],
+        )
+
+    # =========================================================================
+    # SECTION 5.0: MODEL
+    # =========================================================================
+    with graph.subgraph(name="cluster_model") as c:
+        c.attr(
+            label="5.0 MODEL",
+            style="filled",
+            fillcolor=colors["model_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+        c.node(
+            "model",
+            f"Bayesian Model\n{SEP}\nhierarchical\nMCMC sampling",
+            shape="doubleoctagon",
+            fillcolor=colors["result_fill"],
+        )
+
+    # =========================================================================
+    # SECTION 6.0: EVALUATION
+    # =========================================================================
+    with graph.subgraph(name="cluster_eval") as c:
+        c.attr(
+            label="6.0 EVALUATION",
+            style="filled",
+            fillcolor=colors["eval_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+        c.node(
+            "evaluation",
+            f"Validation & Diagnostics\n{SEP}\nconvergence, LOO-CV\ncalibration",
+            shape="diamond",
+            fillcolor=colors["decision_fill"],
+        )
+
+    # =========================================================================
+    # SECTION 7.0: OUTPUT
+    # =========================================================================
+    with graph.subgraph(name="cluster_output") as c:
+        c.attr(
+            label="7.0 OUTPUT",
+            style="filled",
+            fillcolor=colors["output_fill"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+        c.node(
+            "predictions",
+            f"Predictions\n{SEP}\nposterior mean\n95% CI",
+            shape="cylinder",
+            fillcolor=colors["storage_fill"],
+        )
+
+    # =========================================================================
+    # LEGEND (compact)
+    # =========================================================================
+    with graph.subgraph(name="cluster_legend") as c:
+        c.attr(
+            label="LEGEND",
+            style="filled",
+            fillcolor=colors["fillcolor"],
+            color=colors["color"],
+            fontcolor=colors["fontcolor"],
+        )
+
+        c.node("legend_data", "Data", shape="folder", fillcolor=colors["data_fill"])
+        c.node("legend_storage", "Storage", shape="cylinder", fillcolor=colors["storage_fill"])
+        c.node("legend_decision", "Decision", shape="diamond", fillcolor=colors["decision_fill"])
+        c.node("legend_merge", "Transform", shape="parallelogram", fillcolor=colors["merge_fill"])
+        c.node("legend_result", "Key Result", shape="doubleoctagon", fillcolor=colors["result_fill"])
+
+        c.edge("legend_data", "legend_storage", style="invis")
+        c.edge("legend_storage", "legend_decision", style="invis")
+        c.edge("legend_decision", "legend_merge", style="invis")
+        c.edge("legend_merge", "legend_result", style="invis")
+
+    # =========================================================================
+    # PRIMARY FLOW
+    # =========================================================================
+    graph.edge("input_data", "cleaning", penwidth="2")
+    graph.edge("cleaning", "splits", penwidth="2")
+    graph.edge("splits", "features", penwidth="2")
+    graph.edge("features", "model", penwidth="2")
+    graph.edge("model", "evaluation", penwidth="2")
+    graph.edge("evaluation", "predictions", penwidth="2")
+
+    # =========================================================================
+    # FEEDBACK LOOP (EVAL -> MODEL for tuning)
+    # =========================================================================
+    graph.edge(
+        "evaluation", "model",
+        style="dashed",
+        color="#7B1FA2",
+        xlabel="tune",
+        constraint="false",
     )
 
     return graph
