@@ -301,18 +301,32 @@ def generate_diagrams(
         "-t",
         help="Theme: light, dark, transparent, or all",
     ),
+    level: Optional[str] = typer.Option(
+        "all",
+        "--level",
+        "-l",
+        help="Detail level: high, intermediate, detailed, or all",
+    ),
 ) -> None:
     """Generate data flow diagrams for documentation.
 
     Creates publication-quality SVG/PNG/PDF diagrams using Graphviz DOT format
     showing the data transformation pipeline from raw input to predictions.
 
+    Three detail levels are available:
+    - high: ~10 nodes, simplified overview for README
+    - intermediate: ~20 nodes, balanced detail for presentations
+    - detailed: 30+ nodes, full technical reference for papers
+
     Examples:
-        # Generate all 3 theme variants
+        # Generate all 9 diagram variants (3 levels x 3 themes)
         aoty-pipeline generate-diagrams
 
-        # Generate only light theme
-        aoty-pipeline generate-diagrams --theme light
+        # Generate only high-level diagrams (3 themes)
+        aoty-pipeline generate-diagrams --level high
+
+        # Generate only light theme intermediate diagram
+        aoty-pipeline generate-diagrams --theme light --level intermediate
 
         # Custom output directory
         aoty-pipeline generate-diagrams -o ./my_diagrams
@@ -320,7 +334,8 @@ def generate_diagrams(
     from pathlib import Path
 
     from aoty_pred.visualization.diagrams import (
-        create_aoty_pipeline_diagram,
+        LEVEL_FUNCTIONS,
+        DetailLevel,
         generate_all_diagrams,
     )
 
@@ -332,17 +347,17 @@ def generate_diagrams(
 
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Handle "all" case
-    if theme == "all":
-        # Generate all 3 variants
-        results = generate_all_diagrams(output_path)
-        typer.echo(f"Generated {len(results)} diagram sets in {output_path}")
-        for name, paths in results.items():
-            typer.echo(f"  {name}: {[p.name for p in paths]}")
-        return
+    # Validate level
+    valid_levels = {"high", "intermediate", "detailed", "all"}
+    if level not in valid_levels:
+        typer.echo(
+            f"Error: Unknown level '{level}'. Choose: high, intermediate, detailed, all",
+            err=True,
+        )
+        raise typer.Exit(1)
 
     # Validate theme
-    valid_themes = {"light", "dark", "transparent"}
+    valid_themes = {"light", "dark", "transparent", "all"}
     if theme not in valid_themes:
         typer.echo(
             f"Error: Unknown theme '{theme}'. Choose: light, dark, transparent, all",
@@ -350,29 +365,59 @@ def generate_diagrams(
         )
         raise typer.Exit(1)
 
-    # Generate single theme
-    name = f"aoty_pipeline_{theme}"
-    diagram = create_aoty_pipeline_diagram(theme)  # type: ignore[arg-type]
+    # Determine which levels to generate
+    if level == "all":
+        levels_to_generate: list[DetailLevel] = ["high", "intermediate", "detailed"]
+    else:
+        levels_to_generate = [level]  # type: ignore[list-item]
 
-    created_paths: list[Path] = []
-    for fmt in ["svg", "png", "pdf"]:
-        base_path = output_path / name
-        diagram.format = fmt
-        output = diagram.render(
-            filename=str(base_path),
-            directory=None,
-            cleanup=True,
-        )
-        created_paths.append(Path(output))
+    # Determine which themes to generate
+    themes_to_generate: list[str] = []
+    if theme == "all":
+        themes_to_generate = ["light", "dark", "transparent"]
+    else:
+        themes_to_generate = [theme]
 
-    # Save .dot file
-    dot_path = output_path / f"{name}.dot"
-    dot_path.write_text(diagram.source, encoding="utf-8")
-    created_paths.append(dot_path)
+    # Handle "all themes" case via generate_all_diagrams
+    if theme == "all":
+        results = generate_all_diagrams(output_path, levels=levels_to_generate)
+        typer.echo(f"Generated {len(results)} diagram sets in {output_path}")
+        typer.echo(f"  Levels: {', '.join(levels_to_generate)}")
+        typer.echo(f"  Themes: light, dark, transparent")
+        for name, paths in results.items():
+            typer.echo(f"  {name}: {[p.name for p in paths]}")
+        return
 
-    typer.echo(f"Created: {name} ({len(created_paths)} files)")
-    for p in created_paths:
-        typer.echo(f"  {p.name}")
+    # Generate specific theme(s) for specified level(s)
+    total_files = 0
+    for lvl in levels_to_generate:
+        diagram_func = LEVEL_FUNCTIONS[lvl]
+        for thm in themes_to_generate:
+            name = f"pipeline_{lvl}_{thm}"
+            diagram = diagram_func(thm)  # type: ignore[arg-type]
+
+            created_paths: list[Path] = []
+            for fmt in ["svg", "png", "pdf"]:
+                base_path = output_path / name
+                diagram.format = fmt
+                output = diagram.render(
+                    filename=str(base_path),
+                    directory=None,
+                    cleanup=True,
+                )
+                created_paths.append(Path(output))
+
+            # Save .dot file
+            dot_path = output_path / f"{name}.dot"
+            dot_path.write_text(diagram.source, encoding="utf-8")
+            created_paths.append(dot_path)
+
+            typer.echo(f"Created: {name} ({len(created_paths)} files)")
+            for p in created_paths:
+                typer.echo(f"  {p.name}")
+            total_files += len(created_paths)
+
+    typer.echo(f"\nTotal: {total_files} files in {output_path}")
 
 
 @app.command("export-figures")
