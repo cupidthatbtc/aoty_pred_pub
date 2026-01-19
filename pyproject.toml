@@ -40,6 +40,10 @@ dev = [
 [tool.pytest.ini_options]
 addopts = "-q"
 python_files = ["test_*.py"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "e2e: marks tests as end-to-end tests",
+]
 
 [tool.ruff]
 line-length = 100
