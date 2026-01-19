@@ -174,11 +174,12 @@ def _create_graph(
         pad="0.75",
         nodesep=nodesep,
         ranksep=ranksep,
-        splines="spline",
+        splines="ortho",
         compound="true",
         forcelabels="true",
         overlap="false",
         outputorder="edgesfirst",
+        sep="+15",
     )
 
     # Set bgcolor only for non-transparent themes
@@ -754,20 +755,22 @@ def create_aoty_pipeline_diagram(theme: DiagramTheme = "light") -> graphviz.Digr
     graph.edge("mcmc_sampling", "model_artifacts", style="dashed")
     graph.edge("sensitivity", "publication")
 
-    # Feedback loops (dashed)
+    # Feedback loops (dashed) - use taillabel and ports for cleaner routing
     graph.edge(
         "convergence", "mcmc_sampling",
         style="dashed", color="#D32F2F",
-        xlabel="retry", constraint="false",
+        taillabel="retry", labelfontsize="6",
+        constraint="false", tailport="w", headport="w",
     )
     graph.edge(
         "sensitivity", "prior_config",
         style="dashed", color="#7B1FA2",
-        xlabel="tune", constraint="false",
+        taillabel="tune", labelfontsize="6",
+        constraint="false", tailport="w", headport="w",
     )
 
     # Test set evaluation (purple flow)
-    graph.edge("test_set", "predictions", color="#7B1FA2", style="dashed", xlabel="eval")
+    graph.edge("test_set", "predictions", color="#7B1FA2", style="dashed", taillabel="eval", labelfontsize="6")
 
     return graph
 
@@ -1179,25 +1182,28 @@ def create_detailed_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph:
     graph.edge("posterior_samples", "model_artifacts", style="dashed")
     graph.edge("sensitivity", "publication")
 
-    # Feedback loops (dashed, colored)
+    # Feedback loops (dashed, colored) - use taillabel and ports for cleaner routing
     graph.edge(
         "convergence", "mcmc_sampling",
         style="dashed", color="#D32F2F",
-        xlabel="retry", constraint="false",
+        taillabel="retry", labelfontsize="5",
+        constraint="false", tailport="w", headport="w",
     )
     graph.edge(
         "sensitivity", "prior_config",
         style="dashed", color="#7B1FA2",
-        xlabel="tune", constraint="false",
+        taillabel="tune", labelfontsize="5",
+        constraint="false", tailport="w", headport="w",
     )
     graph.edge(
         "pareto_k", "loo_cv",
         style="dashed", color="#F57C00",
-        xlabel="refit", constraint="false",
+        taillabel="refit", labelfontsize="5",
+        constraint="false", tailport="w", headport="w",
     )
 
     # Test set evaluation (purple flow)
-    graph.edge("test_set", "predictions", color="#7B1FA2", style="dashed", xlabel="eval")
+    graph.edge("test_set", "predictions", color="#7B1FA2", style="dashed", taillabel="eval", labelfontsize="5")
 
     return graph
 
