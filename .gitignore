@@ -34,3 +34,6 @@ configs/local.yaml
 # IDE
 .vscode/
 .idea/
+
+# Legacy CLI backup (preserved locally, not tracked)
+scripts/legacy_cli.py
