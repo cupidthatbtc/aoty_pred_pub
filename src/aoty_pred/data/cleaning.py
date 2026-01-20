@@ -302,6 +302,3 @@ def filter_for_critic_score_model(
     return df
 
 
-def clean_raw_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Legacy function for backward compatibility."""
-    return rename_columns(df)
