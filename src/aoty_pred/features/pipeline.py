@@ -6,7 +6,6 @@ they are fitted on training data only before transforming any split.
 
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 import pandas as pd
@@ -180,47 +179,3 @@ def build_blocks_from_config(config: dict[str, Any]) -> list[BaseFeatureBlock]:
     return registry.build_all(specs)
 
 
-def run_feature_blocks(df: pd.DataFrame, ctx: FeatureContext, blocks: list) -> FeatureOutput:
-    """Run feature blocks on data (DEPRECATED).
-
-    .. deprecated::
-        Use FeaturePipeline instead. This function uses fit_transform() on
-        each block which doesn't support separate fit/transform for different
-        splits.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Data to process.
-    ctx : FeatureContext
-        Shared context with config and random state.
-    blocks : list
-        Feature blocks to run.
-
-    Returns
-    -------
-    FeatureOutput
-        Combined output from all blocks.
-    """
-    warnings.warn(
-        "run_feature_blocks is deprecated. Use FeaturePipeline class instead "
-        "for proper fit/transform separation.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    outputs: list[FeatureOutput] = []
-    completed: set[str] = set()
-    for block in blocks:
-        missing = [name for name in block.requires if name not in completed]
-        if missing:
-            raise ValueError(f"Feature block {block.name} missing dependencies: {missing}")
-        outputs.append(block.fit_transform(df, ctx))
-        completed.add(block.name)
-
-    frames = [out.data for out in outputs if out.data is not None]
-    if frames:
-        data = pd.concat(frames, axis=1)
-    else:
-        data = pd.DataFrame(index=df.index)
-    metadata = {"blocks": [out.metadata for out in outputs]}
-    return FeatureOutput(data=data, feature_names=list(data.columns), metadata=metadata)

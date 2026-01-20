@@ -1,7 +1,5 @@
 """Tests for FeaturePipeline class proving fit/transform separation prevents leakage."""
 
-import warnings
-
 import pandas as pd
 import pytest
 
@@ -10,7 +8,6 @@ from aoty_pred.features.errors import NotFittedError
 from aoty_pred.features.pipeline import (
     FeaturePipeline,
     build_blocks_from_config,
-    run_feature_blocks,
 )
 
 
@@ -229,36 +226,41 @@ class TestPipelineFitTransform:
         assert "test_feature" in output.feature_names
 
 
-class TestDeprecatedRunFeatureBlocks:
-    """Tests for deprecated run_feature_blocks function."""
-
-    def test_deprecated_run_feature_blocks_warns(self):
-        """Test that run_feature_blocks emits DeprecationWarning."""
-        config = {"features": {"blocks": [{"name": "core_numeric", "params": {}}]}}
-        df = pd.DataFrame({"Artist": ["a"], "Year": [2000]})
-        ctx = FeatureContext(config=config, random_state=0)
-        blocks = build_blocks_from_config(config)
-
-        with pytest.warns(DeprecationWarning) as record:
-            run_feature_blocks(df, ctx, blocks)
-
-        assert len(record) == 1
-        assert "deprecated" in str(record[0].message).lower()
-        assert "FeaturePipeline" in str(record[0].message)
-
-    def test_deprecated_run_feature_blocks_still_works(self):
-        """Test that deprecated function still produces output."""
-        config = {"features": {"blocks": [{"name": "core_numeric", "params": {}}]}}
-        df = pd.DataFrame({"Artist": ["a"], "Year": [2000]})
-        ctx = FeatureContext(config=config, random_state=0)
-        blocks = build_blocks_from_config(config)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            out = run_feature_blocks(df, ctx, blocks)
-
-        assert isinstance(out, FeatureOutput)
-        assert out.data.index.equals(df.index)
+# === COMMENTED OUT: 2026-01-21 ===
+# run_feature_blocks was removed from pipeline.py (deprecated).
+# Keeping tests as reference per project decision (CONTEXT.md).
+# See .backup/dead_code/run_feature_blocks.py for full backup.
+#
+# class TestDeprecatedRunFeatureBlocks:
+#     """Tests for deprecated run_feature_blocks function."""
+#
+#     def test_deprecated_run_feature_blocks_warns(self):
+#         """Test that run_feature_blocks emits DeprecationWarning."""
+#         config = {"features": {"blocks": [{"name": "core_numeric", "params": {}}]}}
+#         df = pd.DataFrame({"Artist": ["a"], "Year": [2000]})
+#         ctx = FeatureContext(config=config, random_state=0)
+#         blocks = build_blocks_from_config(config)
+#
+#         with pytest.warns(DeprecationWarning) as record:
+#             run_feature_blocks(df, ctx, blocks)
+#
+#         assert len(record) == 1
+#         assert "deprecated" in str(record[0].message).lower()
+#         assert "FeaturePipeline" in str(record[0].message)
+#
+#     def test_deprecated_run_feature_blocks_still_works(self):
+#         """Test that deprecated function still produces output."""
+#         config = {"features": {"blocks": [{"name": "core_numeric", "params": {}}]}}
+#         df = pd.DataFrame({"Artist": ["a"], "Year": [2000]})
+#         ctx = FeatureContext(config=config, random_state=0)
+#         blocks = build_blocks_from_config(config)
+#
+#         with warnings.catch_warnings():
+#             warnings.simplefilter("ignore", DeprecationWarning)
+#             out = run_feature_blocks(df, ctx, blocks)
+#
+#         assert isinstance(out, FeatureOutput)
+#         assert out.data.index.equals(df.index)
 
 
 class TestPipelineMultipleBlocks:
