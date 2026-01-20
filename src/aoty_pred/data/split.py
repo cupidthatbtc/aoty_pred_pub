@@ -1,7 +1,6 @@
 """Leak-safe splitting logic for artist album prediction."""
 
 from typing import Tuple
-import warnings
 
 import pandas as pd
 from sklearn.model_selection import GroupShuffleSplit
@@ -228,18 +227,3 @@ def validate_temporal_split(
                     f"Temporal violation for {artist}: "
                     f"val max {val_max} > test min {test_min}"
                 )
-
-
-def group_split(df, group_col: str, seed: int):
-    """
-    DEPRECATED: Use within_artist_temporal_split or artist_disjoint_split instead.
-
-    This stub remains for backward compatibility only.
-    """
-    warnings.warn(
-        "group_split is deprecated. Use within_artist_temporal_split or "
-        "artist_disjoint_split instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return df, df, df
