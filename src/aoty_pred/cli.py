@@ -16,16 +16,6 @@ from typing import Optional
 
 import typer
 
-# Legacy imports for backwards compatibility with config-based commands
-from aoty_pred.pipelines import (
-    build_features,
-    prepare_dataset,
-    publication,
-    predict_next,
-    sensitivity,
-    train_bayes,
-)
-
 __version__ = "0.1.0"
 
 app = typer.Typer(
@@ -536,55 +526,6 @@ def export_figures(
     typer.echo(f"Exported {len(results)} figures to {output_path}")
     for name, paths in results.items():
         typer.echo(f"  {name}: {', '.join(p.name for p in paths)}")
-
-
-# Legacy config-based commands (kept for backwards compatibility)
-@app.command("prepare", hidden=True)
-def prepare(
-    config: list[str] = typer.Option(..., "--config", "-c"),
-) -> None:
-    """[Legacy] Prepare dataset using config files."""
-    prepare_dataset.run(config)
-
-
-@app.command("build-features", hidden=True)
-def build_features_cmd(
-    config: list[str] = typer.Option(..., "--config", "-c"),
-) -> None:
-    """[Legacy] Build features using config files."""
-    build_features.run(config)
-
-
-@app.command("train-legacy", hidden=True)
-def train_legacy(
-    config: list[str] = typer.Option(..., "--config", "-c"),
-) -> None:
-    """[Legacy] Train model using config files."""
-    train_bayes.run(config)
-
-
-@app.command("predict-legacy", hidden=True)
-def predict_legacy(
-    config: list[str] = typer.Option(..., "--config", "-c"),
-) -> None:
-    """[Legacy] Generate predictions using config files."""
-    predict_next.run(config)
-
-
-@app.command("sensitivity-legacy", hidden=True)
-def sensitivity_cmd(
-    config: list[str] = typer.Option(..., "--config", "-c"),
-) -> None:
-    """[Legacy] Run sensitivity analysis using config files."""
-    sensitivity.run(config)
-
-
-@app.command("publication-legacy", hidden=True)
-def publication_cmd(
-    config: list[str] = typer.Option(..., "--config", "-c"),
-) -> None:
-    """[Legacy] Generate publication artifacts using config files."""
-    publication.run(config)
 
 
 def main() -> None:
