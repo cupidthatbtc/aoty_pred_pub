@@ -41,17 +41,6 @@ from aoty_pred.pipelines.errors import (
     StageError,
 )
 
-# Legacy pipeline modules (for backwards compatibility)
-from aoty_pred.pipelines import (
-    build_features,
-    create_splits,
-    predict_next,
-    prepare_dataset,
-    publication,
-    sensitivity,
-    train_bayes,
-)
-
 __all__ = [
     # Orchestrator
     "PipelineConfig",
@@ -75,12 +64,4 @@ __all__ = [
     "DataValidationError",
     "PipelineError",
     "StageError",
-    # Legacy modules
-    "build_features",
-    "create_splits",
-    "predict_next",
-    "prepare_dataset",
-    "publication",
-    "sensitivity",
-    "train_bayes",
 ]
