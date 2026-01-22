@@ -5,18 +5,26 @@ This script validates the WSL2 CUDA environment for JAX/NumPyro GPU acceleration
 Run this after completing WSL2 CUDA setup to verify everything works correctly.
 
 Usage:
-    python scripts/verify_gpu.py [--help]
+    python scripts/verify_gpu.py [--help] [--jax]
 
 Exit codes:
     0 - All checks passed
     1 - One or more checks failed
 
-Checks performed:
+Flags:
+    --jax   Only run JAX-specific checks (skip NumPyro MCMC and fit.py checks)
+
+Checks performed (all, no flags):
     1. JAX GPU detection - verifies jax.devices() includes GPU
     2. JAX default backend - verifies 'gpu' is default
     3. Matrix multiply smoke test - 1000x1000 matrix multiplication
     4. NumPyro MCMC smoke test - simple model with 2 chains
     5. GPU info from existing infrastructure - calls get_gpu_info()
+
+Checks performed (--jax flag):
+    1. JAX GPU detection - verifies jax.devices() includes GPU
+    2. JAX default backend - verifies 'gpu' is default
+    3. Matrix multiply smoke test - 1000x1000 matrix multiplication
 """
 
 from __future__ import annotations
@@ -271,17 +279,22 @@ def check_get_gpu_info() -> CheckResult:
         )
 
 
-def run_verification() -> list[CheckResult]:
-    """Run all verification checks.
+def run_verification(jax_only: bool = False) -> list[CheckResult]:
+    """Run verification checks.
+
+    Args:
+        jax_only: If True, only run JAX-specific checks (skip NumPyro MCMC and fit.py).
 
     Returns:
         List of CheckResult objects for all checks.
     """
     results = []
+    check_num = 0
 
     # 1. JAX GPU detection
+    check_num += 1
     print("=" * 60)
-    print("1. Checking JAX GPU Detection")
+    print(f"{check_num}. Checking JAX GPU Detection")
     print("=" * 60)
     result = check_jax_gpu_detection()
     results.append(result)
@@ -289,8 +302,9 @@ def run_verification() -> list[CheckResult]:
     print()
 
     # 2. JAX default backend
+    check_num += 1
     print("=" * 60)
-    print("2. Checking JAX Default Backend")
+    print(f"{check_num}. Checking JAX Default Backend")
     print("=" * 60)
     result = check_jax_default_backend()
     results.append(result)
@@ -298,17 +312,24 @@ def run_verification() -> list[CheckResult]:
     print()
 
     # 3. Matrix multiply test
+    check_num += 1
     print("=" * 60)
-    print("3. Running Matrix Multiply Test")
+    print(f"{check_num}. Running Matrix Multiply Test")
     print("=" * 60)
     result = check_matrix_multiply()
     results.append(result)
     print(f"   {result.message}")
     print()
 
+    if jax_only:
+        print("(--jax flag: skipping NumPyro MCMC and fit.py checks)")
+        print()
+        return results
+
     # 4. NumPyro MCMC test
+    check_num += 1
     print("=" * 60)
-    print("4. Running NumPyro MCMC Test")
+    print(f"{check_num}. Running NumPyro MCMC Test")
     print("=" * 60)
     result = check_numpyro_mcmc()
     results.append(result)
@@ -316,8 +337,9 @@ def run_verification() -> list[CheckResult]:
     print()
 
     # 5. GPU info from fit.py
+    check_num += 1
     print("=" * 60)
-    print("5. Checking GPU Info (fit.py)")
+    print(f"{check_num}. Checking GPU Info (fit.py)")
     print("=" * 60)
     result = check_get_gpu_info()
     results.append(result)
@@ -379,6 +401,7 @@ def main() -> int:
         epilog="""
 Examples:
     python scripts/verify_gpu.py          Run all verification checks
+    python scripts/verify_gpu.py --jax    Run JAX-only checks (faster)
     python scripts/verify_gpu.py --help   Show this help message
 
 Exit codes:
@@ -386,14 +409,23 @@ Exit codes:
     1  One or more checks failed - see output for troubleshooting
         """,
     )
-    parser.parse_args()
+    parser.add_argument(
+        "--jax",
+        action="store_true",
+        help="Only check JAX GPU (skip NumPyro MCMC and fit.py checks)",
+    )
+    args = parser.parse_args()
 
     print()
     print("GPU Verification Script for WSL2 RTX 5090")
     print("=========================================")
+    if args.jax:
+        print("Mode: JAX-only checks")
+    else:
+        print("Mode: Full verification")
     print()
 
-    results = run_verification()
+    results = run_verification(jax_only=args.jax)
     all_passed = print_summary(results)
 
     return 0 if all_passed else 1
