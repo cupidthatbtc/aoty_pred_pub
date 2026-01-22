@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 
-def generate_publication_artifacts(ctx: "StageContext") -> dict:
+def generate_publication_artifacts(ctx: StageContext) -> dict:
     """Generate publication-ready artifacts.
 
     Creates tables, figures, and model documentation from the fitted

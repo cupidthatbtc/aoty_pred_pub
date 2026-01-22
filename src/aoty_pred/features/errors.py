@@ -28,8 +28,6 @@ class NotFittedError(ValueError, AttributeError):
     Call 'fit' with training data before using 'transform'.
     """
 
-    pass
-
 
 @dataclass(frozen=True)
 class FittedVocabulary:
