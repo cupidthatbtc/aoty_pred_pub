@@ -1,2 +1,5 @@
 #!/usr/bin/env bash
-python -m pytest
+set -e  # Exit immediately on error
+
+# Forward all arguments to pytest
+python -m pytest "$@"
