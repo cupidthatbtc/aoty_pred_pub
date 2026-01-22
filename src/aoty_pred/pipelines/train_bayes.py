@@ -67,7 +67,7 @@ def prepare_model_data(
     y = train_df["User_Score"].values.astype(np.float32)
 
     # Max sequence for JAX tracing (capped to limit rw_innovations tensor size)
-    max_seq = min(int(album_seq.max()) + 1, 50)
+    max_seq = min(int(album_seq.max()) + 1, 30)
     # max_seq = int(album_seq.max()) + 1  # uncapped
 
     return {

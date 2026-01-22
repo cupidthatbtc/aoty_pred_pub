@@ -17,7 +17,7 @@ Usage:
     ...     create_diagnostics_table,
     ...     export_table,
     ... )
-    >>> coef_df = create_coefficient_table(idata, var_names=["beta", "sigma"])
+    >>> coef_df = create_coefficient_table(idata, var_names=["user_beta", "user_sigma_obs"])
     >>> export_table(coef_df, "reports/coefficients", caption="Model coefficients")
 """
 
