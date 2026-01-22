@@ -33,17 +33,22 @@ def prepare_model_data(
     train_df: pd.DataFrame,
     feature_cols: list[str],
 ) -> dict:
-    """Prepare data for NumPyro model fitting.
-
-    Creates the arrays needed by the Bayesian model including artist indices,
-    album sequences, and feature matrix.
-
-    Args:
-        train_df: Training data with features and target.
-        feature_cols: List of feature column names.
-
+    """
+    Assemble and return arrays and metadata required by the NumPyro user_score model.
+    
+    Parameters:
+        train_df (pd.DataFrame): Training rows containing at least "Artist" and "User_Score" plus feature columns.
+        feature_cols (list[str]): Column names to use as the model feature matrix.
+    
     Returns:
-        Dictionary with model arguments.
+        dict: Model inputs with keys:
+            - artist_idx (ndarray[int]): Integer index for the artist of each row.
+            - album_seq (ndarray[int]): Within-artist cumulative sequence number for each row (0-based).
+            - prev_score (ndarray[float]): Previous row's User_Score within each artist; first entry per artist filled with the global mean.
+            - X (ndarray[float32]): Feature matrix constructed from feature_cols.
+            - y (ndarray[float32]): Target vector of User_Score.
+            - n_artists (int): Number of unique artists.
+            - max_seq (int): Maximum sequence length used for JAX tracing, equal to min(max(album_seq)+1, 30).
     """
     # Create artist index mapping
     artists = train_df["Artist"].unique()
