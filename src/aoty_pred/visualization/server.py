@@ -117,19 +117,29 @@ def load_dashboard_data(run_dir: Path | None = None) -> DashboardData:
                 logger.info("Using most recent run: %s", run_dir)
 
     # Try to load inference data
-    if run_dir is not None:
-        try:
-            import arviz as az
+    try:
+        import arviz as az
 
-            # Look for NetCDF files
+        model_files = []
+        if run_dir is not None:
+            # Look for NetCDF files in run directory
             model_files = list(run_dir.glob("models/*.nc"))
             if not model_files:
                 model_files = list(run_dir.glob("*.nc"))
-            if model_files:
-                data.idata = az.from_netcdf(model_files[0])
-                logger.info("Loaded inference data from %s", model_files[0])
-        except Exception as e:
-            logger.warning("Could not load inference data: %s", e)
+
+        # Fallback: check models/ directory directly
+        if not model_files:
+            models_dir = Path("models")
+            if models_dir.exists():
+                model_files = sorted(models_dir.glob("*.nc"), key=lambda f: f.stat().st_mtime, reverse=True)
+
+        if model_files:
+            data.idata = az.from_netcdf(model_files[0])
+            logger.info("Loaded inference data from %s", model_files[0])
+    except Exception as e:
+        logger.warning("Could not load inference data: %s", e)
+
+    if run_dir is not None:
 
         # Try to load predictions from evaluation
         try:
