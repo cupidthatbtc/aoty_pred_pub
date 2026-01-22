@@ -40,3 +40,4 @@ scripts/legacy_cli.py
 
 # Windows reserved name artifacts
 nul
+.planning/
