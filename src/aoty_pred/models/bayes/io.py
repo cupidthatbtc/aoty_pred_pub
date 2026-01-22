@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import subprocess
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -28,14 +28,14 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 __all__ = [
-    "ModelManifest",
-    "ModelsManifest",
-    "save_model",
-    "load_model",
     "generate_model_filename",
     "get_git_commit",
     "load_manifest",
+    "load_model",
+    "ModelManifest",
+    "ModelsManifest",
     "save_manifest",
+    "save_model",
 ]
 
 
@@ -133,7 +133,7 @@ def generate_model_filename(model_type: str) -> str:
     str
         Filename with timestamp in format YYYYMMDD_HHMMSS.
     """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     return f"{model_type}_{timestamp}.nc"
 
 
@@ -229,7 +229,7 @@ def save_model(
     )
     manifest = ModelManifest(
         version="1.0",
-        created_at=datetime.utcnow().isoformat() + "Z",
+        created_at=datetime.now(timezone.utc).isoformat() + "Z",
         model_type=model_type,
         filename=filename,
         mcmc_config=mcmc_config,
