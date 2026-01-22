@@ -2,7 +2,7 @@
 
 Purpose
 - Make all publication-critical choices explicit so implementation is deterministic.
-- Claude should proceed using these defaults unless overridden.
+- Use these defaults unless overridden via config.
 
 Change control
 - All defaults must be reflected in `configs/base.yaml`.

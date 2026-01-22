@@ -1,6 +1,6 @@
 # Dev Setup (Miniforge)
 
-This repo is designed to be handed off and run in a clean environment.
+This repo is designed to run in a clean environment.
 
 Environment
 1. Install Miniforge (Python 3.12).
