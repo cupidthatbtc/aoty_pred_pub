@@ -1,0 +1,5 @@
+# Publication defaults (stricter diagnostics)
+model:
+  tune: 2000
+  draws: 2000
+  chains: 4
