@@ -5,7 +5,7 @@ import tempfile
 from aoty_pred.config.loader import load_config
 
 
-def test_load_config_merges_overrides():
+def test_load_config_merges_overrides(monkeypatch):
     base = """
 dataset:
   raw_csv: "${AOTY_DATASET_PATH}"
@@ -21,7 +21,7 @@ model:
   tune: 2000
 """
     with tempfile.TemporaryDirectory() as tmpdir:
-        os.environ["AOTY_DATASET_PATH"] = "env.csv"
+        monkeypatch.setenv("AOTY_DATASET_PATH", "env.csv")
         base_path = Path(tmpdir) / "base.yaml"
         override_path = Path(tmpdir) / "override.yaml"
         base_path.write_text(base, encoding="utf-8")

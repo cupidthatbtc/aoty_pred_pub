@@ -1,5 +1,5 @@
 # Dataset metadata
 name: "aoty_full"
-raw_csv: "C:/Users/jcwen/Downloads/aoty full artist/all_albums_full.csv"
+raw_csv: "${AOTY_DATASET_PATH}"
 encoding: "utf-8-sig"
 notes: "Raw AOTY all_albums_full.csv dataset"

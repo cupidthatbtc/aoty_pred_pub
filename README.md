@@ -1,6 +1,6 @@
 # AOTY Artist Prediction (Bayesian)
 
-This repository is a clean-room rebuild focused on publication quality Bayesian prediction of artist-level outcomes (next album score). It is intentionally separated from the legacy codebase to make leakage controls, data lineage, and reproducibility explicit.
+This repository is a clean-room rebuild focused on publication-quality Bayesian prediction of artist-level outcomes (next album score). It is intentionally separated from the legacy codebase to make leakage controls, data lineage, and reproducibility explicit.
 
 Goals
 - Leak-safe data pipeline and evaluation
