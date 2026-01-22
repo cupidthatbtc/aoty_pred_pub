@@ -13,22 +13,21 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 import structlog
-import arviz as az
 
-from aoty_pred.models.bayes.io import load_model, load_manifest
+from aoty_pred.models.bayes.io import load_manifest, load_model
+from aoty_pred.reporting.figures import (
+    save_posterior_plot,
+    save_trace_plot,
+)
+from aoty_pred.reporting.model_card import (
+    create_default_model_card_data,
+    update_model_card_with_results,
+    write_model_card,
+)
 from aoty_pred.reporting.tables import (
     create_coefficient_table,
     create_diagnostics_table,
     export_table,
-)
-from aoty_pred.reporting.figures import (
-    save_trace_plot,
-    save_posterior_plot,
-)
-from aoty_pred.reporting.model_card import (
-    write_model_card,
-    create_default_model_card_data,
-    update_model_card_with_results,
 )
 
 if TYPE_CHECKING:
@@ -82,6 +81,10 @@ def generate_publication_artifacts(ctx: "StageContext") -> dict:
     # =========================================================================
     # Generate Tables
     # =========================================================================
+    # Note: Each artifact uses broad exception handling intentionally.
+    # This is best-effort generation: log failures but continue to generate
+    # remaining artifacts. Failures in one artifact should not block others.
+    # =========================================================================
 
     log.info("generating_tables")
 
@@ -96,7 +99,7 @@ def generate_publication_artifacts(ctx: "StageContext") -> dict:
         artifacts["tables"].append(str(coef_path) + ".csv")
         artifacts["tables"].append(str(coef_path) + ".tex")
         log.info("coefficient_table_saved", path=str(coef_path))
-    except Exception as e:
+    except Exception as e:  # Broad catch: best-effort artifact generation
         log.warning("coefficient_table_failed", error=str(e))
 
     # Diagnostics table
@@ -107,7 +110,7 @@ def generate_publication_artifacts(ctx: "StageContext") -> dict:
         artifacts["tables"].append(str(diag_path) + ".csv")
         artifacts["tables"].append(str(diag_path) + ".tex")
         log.info("diagnostics_table_saved", path=str(diag_path))
-    except Exception as e:
+    except Exception as e:  # Broad catch: best-effort artifact generation
         log.warning("diagnostics_table_failed", error=str(e))
 
     # Metrics summary table
@@ -124,7 +127,7 @@ def generate_publication_artifacts(ctx: "StageContext") -> dict:
         artifacts["tables"].append(str(metrics_path) + ".csv")
         artifacts["tables"].append(str(metrics_path) + ".tex")
         log.info("metrics_table_saved", path=str(metrics_path))
-    except Exception as e:
+    except Exception as e:  # Broad catch: best-effort artifact generation
         log.warning("metrics_table_failed", error=str(e))
 
     # =========================================================================
@@ -144,7 +147,7 @@ def generate_publication_artifacts(ctx: "StageContext") -> dict:
         artifacts["figures"].append(str(pdf_path))
         artifacts["figures"].append(str(png_path))
         log.info("trace_plot_saved", pdf=str(pdf_path), png=str(png_path))
-    except Exception as e:
+    except Exception as e:  # Broad catch: best-effort artifact generation
         log.warning("trace_plot_failed", error=str(e))
 
     # Posterior plots
@@ -158,7 +161,7 @@ def generate_publication_artifacts(ctx: "StageContext") -> dict:
         artifacts["figures"].append(str(pdf_path))
         artifacts["figures"].append(str(png_path))
         log.info("posterior_plot_saved", pdf=str(pdf_path), png=str(png_path))
-    except Exception as e:
+    except Exception as e:  # Broad catch: best-effort artifact generation
         log.warning("posterior_plot_failed", error=str(e))
 
     # =========================================================================
@@ -191,7 +194,7 @@ def generate_publication_artifacts(ctx: "StageContext") -> dict:
         artifacts["docs"].append(str(root_card_path))
 
         log.info("model_card_saved", path=str(model_card_path))
-    except Exception as e:
+    except Exception as e:  # Broad catch: best-effort artifact generation
         log.warning("model_card_failed", error=str(e))
 
     # =========================================================================
