@@ -1,6 +1,6 @@
 # Pipeline Plan (Publication-Focused)
 
-This plan defines the full rebuild for Bayesian artist-level prediction. It is intentionally explicit so a second modeler can implement it without reading legacy code.
+This plan defines the full rebuild for Bayesian artist-level prediction.
 
 Phase 0 - Governance and Guardrails
 - Define the prediction target: next album user score for an artist.
