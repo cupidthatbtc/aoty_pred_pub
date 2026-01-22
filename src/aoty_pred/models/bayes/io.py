@@ -229,7 +229,7 @@ def save_model(
     )
     manifest = ModelManifest(
         version="1.0",
-        created_at=datetime.now(timezone.utc).isoformat() + "Z",
+        created_at=datetime.now(timezone.utc).isoformat(),
         model_type=model_type,
         filename=filename,
         mcmc_config=mcmc_config,
