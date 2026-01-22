@@ -35,3 +35,4 @@ Start here
 - `docs/EVALUATION_PROTOCOL.md` (metrics, diagnostics, and thresholds)
 - `docs/EXTENSIBILITY.md` (how to add features safely)
 - `docs/DEV_SETUP.md` (environment and test setup)
+
