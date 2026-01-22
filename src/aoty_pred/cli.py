@@ -376,7 +376,7 @@ def generate_diagrams(
         results = generate_all_diagrams(output_path, levels=levels_to_generate)
         typer.echo(f"Generated {len(results)} diagram sets in {output_path}")
         typer.echo(f"  Levels: {', '.join(levels_to_generate)}")
-        typer.echo(f"  Themes: light, dark, transparent")
+        typer.echo("  Themes: light, dark, transparent")
         for name, paths in results.items():
             typer.echo(f"  {name}: {[p.name for p in paths]}")
         return
@@ -508,8 +508,8 @@ def export_figures(
                     elif samples.ndim == 1:
                         samples = samples.reshape(1, -1)
                     figures["trace"] = create_trace_plot(samples, var_name)
-        except Exception as e:
-            logger.debug("Skipping trace plot due to unexpected idata format: %s", e)
+        except Exception as e:  # Broad catch intentional: idata format varies widely
+            logger.debug("trace_plot_skipped", reason="unexpected_idata_format", error=str(e))
 
     if not figures:
         typer.echo("No data available for export. Run pipeline first.", err=True)
