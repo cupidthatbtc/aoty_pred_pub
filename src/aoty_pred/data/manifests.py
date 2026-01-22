@@ -41,12 +41,12 @@ class SplitManifest:
     content_hash: str = ""  # Combined hash of all splits
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        d = asdict(self)
-        # Convert SplitStats and SplitAssignment dataclasses
-        d["splits"] = {k: asdict(v) for k, v in self.splits.items()}
-        d["assignments"] = [asdict(a) for a in self.assignments]
-        return d
+        """Convert to dictionary for JSON serialization.
+
+        Uses dataclasses.asdict() which recursively converts nested
+        dataclasses (SplitStats, SplitAssignment) to dicts automatically.
+        """
+        return asdict(self)
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "SplitManifest":
