@@ -25,18 +25,19 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable, Literal
+from collections.abc import Callable
+from typing import Literal
 
 import graphviz
 
 __all__ = [
-    "DiagramTheme",
-    "DetailLevel",
-    "LEVEL_FUNCTIONS",
-    "create_high_level_diagram",
     "create_aoty_pipeline_diagram",
     "create_detailed_diagram",
+    "create_high_level_diagram",
+    "DetailLevel",
+    "DiagramTheme",
     "generate_all_diagrams",
+    "LEVEL_FUNCTIONS",
 ]
 
 # Type alias for detail level

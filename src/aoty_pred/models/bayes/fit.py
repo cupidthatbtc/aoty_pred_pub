@@ -2,7 +2,7 @@
 
 This module provides the infrastructure for fitting NumPyro models using MCMC
 with GPU acceleration via JAX. Key features:
-- NUTS kernel with chain_method='vectorized' for single-GPU multi-chain sampling
+- NUTS kernel with configurable chain_method (sequential default for stability)
 - Automatic GPU detection and logging
 - Divergence tracking (logged but not failing - Phase 7 handles thresholds)
 - ArviZ InferenceData conversion with observed/constant data groups
@@ -12,7 +12,7 @@ import logging
 import subprocess
 import time
 from dataclasses import dataclass, asdict
-from typing import Callable
+from collections.abc import Callable
 
 import arviz as az
 import jax
@@ -44,7 +44,8 @@ class MCMCConfig:
         num_chains: Number of parallel chains.
             Default 4 is standard for Rhat convergence assessment.
         chain_method: How to parallelize chains.
-            "vectorized" runs chains on single GPU (recommended).
+            "sequential" runs chains one at a time (default, most stable).
+            "vectorized" runs chains on single GPU (faster but uses more memory).
             "parallel" uses pmap across multiple devices.
         seed: Random seed for reproducibility.
             Default 0 for consistent results.
