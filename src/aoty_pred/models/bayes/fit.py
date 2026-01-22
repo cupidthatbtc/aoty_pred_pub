@@ -57,7 +57,7 @@ class MCMCConfig:
     num_warmup: int = 1000
     num_samples: int = 1000
     num_chains: int = 4
-    chain_method: str = "vectorized"
+    chain_method: str = "sequential"
     seed: int = 0
     max_tree_depth: int = 10
     target_accept_prob: float = 0.8
