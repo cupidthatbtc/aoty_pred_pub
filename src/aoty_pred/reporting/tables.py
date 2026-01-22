@@ -406,7 +406,7 @@ def create_comparison_table(
 
     # Handle single model case
     if len(model_dict) == 1:
-        name = list(model_dict.keys())[0]
+        name = next(iter(model_dict.keys()))
         idata = model_dict[name]
 
         # Compute LOO/WAIC for single model
