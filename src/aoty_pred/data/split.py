@@ -1,6 +1,6 @@
 """Leak-safe splitting logic for artist album prediction."""
 
-from typing import Tuple
+from __future__ import annotations
 
 import pandas as pd
 from sklearn.model_selection import GroupShuffleSplit
@@ -13,7 +13,7 @@ def within_artist_temporal_split(
     test_albums: int = 1,
     val_albums: int = 1,
     min_train_albums: int = 1,
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Split data holding out last N albums per artist for test/validation.
 
@@ -72,7 +72,7 @@ def artist_disjoint_split(
     test_size: float = 0.15,
     val_size: float = 0.15,
     random_state: int = 42,
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Split data ensuring no artist appears in multiple splits.
 

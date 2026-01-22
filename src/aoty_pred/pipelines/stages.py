@@ -188,27 +188,9 @@ def _topological_sort(
             if dep not in all_stage_names:
                 raise ValueError(f"Stage '{stage.name}' depends on unknown stage '{dep}'")
 
-    # Build in-degree map
-    in_degree: dict[str, int] = {s.name: 0 for s in stages}
-    for stage in stages:
-        for dep in stage.depends_on:
-            if dep in in_degree:  # Only count deps within our stage set
-                pass  # dep is a prerequisite, handled below
-            # Count only if the dependency is in our set
-        for other in stages:
-            if stage.name in other.depends_on:
-                in_degree[stage.name] += 0  # We're building it wrong
-
-    # Actually build in-degree correctly
-    in_degree = {s.name: 0 for s in stages}
-    for stage in stages:
-        for dep in stage.depends_on:
-            if dep in {s.name for s in stages}:
-                # dep must come before stage
-                pass
-    # For each stage, count how many of its dependencies are in our set
+    # Build in-degree map: count dependencies within our stage set
     stage_name_set = {s.name for s in stages}
-    in_degree = {s.name: 0 for s in stages}
+    in_degree: dict[str, int] = {s.name: 0 for s in stages}
     for stage in stages:
         for dep in stage.depends_on:
             if dep in stage_name_set:

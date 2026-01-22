@@ -12,9 +12,12 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 import typer
+
+logger = logging.getLogger(__name__)
 
 __version__ = "0.1.0"
 
@@ -505,8 +508,8 @@ def export_figures(
                     elif samples.ndim == 1:
                         samples = samples.reshape(1, -1)
                     figures["trace"] = create_trace_plot(samples, var_name)
-        except Exception:
-            pass  # Skip if idata format is unexpected
+        except Exception as e:
+            logger.debug("Skipping trace plot due to unexpected idata format: %s", e)
 
     if not figures:
         typer.echo("No data available for export. Run pipeline first.", err=True)

@@ -329,8 +329,8 @@ class PipelineOrchestrator:
                     prev_manifest_path = latest_link / "manifest.json"
                     if prev_manifest_path.exists():
                         previous_manifest = load_run_manifest(prev_manifest_path)
-                except Exception:
-                    pass  # Continue without previous manifest
+                except Exception as e:
+                    log.debug("Could not load previous manifest, continuing without: %s", e)
 
         # Set up progress display
         with Progress(
@@ -562,12 +562,18 @@ class PipelineOrchestrator:
                     log.debug("created_symlink", target=str(self.run_dir))
                 except OSError:
                     # Fall back to directory junction (no special permissions)
+                    # Validate paths don't contain shell metacharacters
+                    link_str = str(latest_link)
+                    target_str = str(self.run_dir)
+                    if any(c in link_str + target_str for c in '&|;<>`$'):
+                        log.warning("unsafe_path_characters", link=link_str, target=target_str)
+                        return
                     result = subprocess.run(
-                        ["cmd", "/c", "mklink", "/J", str(latest_link), str(self.run_dir)],
+                        ["cmd", "/c", "mklink", "/J", link_str, target_str],
                         capture_output=True,
                         check=True,
                     )
-                    log.debug("created_junction", target=str(self.run_dir))
+                    log.debug("created_junction", target=target_str)
             else:
                 os.symlink(self.run_dir, latest_link, target_is_directory=True)
                 log.debug("created_symlink", target=str(self.run_dir))

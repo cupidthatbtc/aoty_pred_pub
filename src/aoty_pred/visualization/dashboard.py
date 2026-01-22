@@ -12,11 +12,14 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 from aoty_pred.visualization.charts import (
     create_forest_plot,
@@ -136,8 +139,8 @@ def create_dashboard_figures(
                         include_plotlyjs=first_figure,
                     )
                     first_figure = False
-        except Exception:
-            pass  # Skip if idata format is unexpected
+        except Exception as e:
+            logger.debug("Skipping trace plot due to unexpected idata format: %s", e)
 
     # Predictions scatter plot
     if data.predictions is not None:

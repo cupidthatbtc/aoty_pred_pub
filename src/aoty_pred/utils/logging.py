@@ -119,7 +119,7 @@ def is_interactive() -> bool:
 
 
 # Keep deprecated stub for backwards compatibility
-def setup_logging():
+def setup_logging() -> None:
     """Deprecated: Use setup_pipeline_logging instead.
 
     This stub exists for backwards compatibility. New code should use
@@ -132,4 +132,4 @@ def setup_logging():
         DeprecationWarning,
         stacklevel=2,
     )
-    return setup_pipeline_logging(verbose=False)
+    setup_pipeline_logging(verbose=False)

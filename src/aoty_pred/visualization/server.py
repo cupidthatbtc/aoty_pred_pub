@@ -127,16 +127,24 @@ def load_dashboard_data(run_dir: Path | None = None) -> DashboardData:
             if not model_files:
                 model_files = list(run_dir.glob("*.nc"))
 
-        # Fallback: check models/ directory directly
+        # Fallback: check models/ directory relative to project root
         if not model_files:
-            models_dir = Path("models")
+            # Find project root by looking for pyproject.toml or .git
+            project_root = Path.cwd()
+            for parent in [Path.cwd()] + list(Path.cwd().parents):
+                if (parent / "pyproject.toml").exists() or (parent / ".git").exists():
+                    project_root = parent
+                    break
+            models_dir = project_root / "models"
             if models_dir.exists():
                 model_files = sorted(models_dir.glob("*.nc"), key=lambda f: f.stat().st_mtime, reverse=True)
+                if model_files:
+                    logger.info("Using fallback models directory: %s", models_dir)
 
         if model_files:
             data.idata = az.from_netcdf(model_files[0])
             logger.info("Loaded inference data from %s", model_files[0])
-    except Exception as e:
+    except (FileNotFoundError, ValueError, OSError) as e:
         logger.warning("Could not load inference data: %s", e)
 
     if run_dir is not None:
@@ -448,8 +456,8 @@ async def export_chart(
                 elif samples.ndim == 1:
                     samples = samples.reshape(1, -1)
                 fig = create_trace_plot(samples, var_names[0])
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Skipping trace chart due to unexpected idata format: %s", e)
 
     if fig is None:
         return Response(
