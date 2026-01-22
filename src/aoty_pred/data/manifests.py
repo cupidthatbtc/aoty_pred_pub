@@ -147,9 +147,6 @@ def create_split_assignments(
                 reason=f"earlier_album_for_{row[artist_col][:50]}"
             ))
     else:  # artist_disjoint
-        test_artists = set(test_df[artist_col])
-        val_artists = set(val_df[artist_col])
-
         for _, row in test_df.iterrows():
             assignments.append(SplitAssignment(
                 original_row_id=int(row["original_row_id"]),
