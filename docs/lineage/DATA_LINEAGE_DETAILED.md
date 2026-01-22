@@ -1,4 +1,5 @@
 # COMPREHENSIVE DATA LINEAGE DOCUMENTATION
+
 ## Album Analysis Pipeline - Every Operation Documented
 
 **Input File:** `all_albums_full.csv` (130,023 albums)
