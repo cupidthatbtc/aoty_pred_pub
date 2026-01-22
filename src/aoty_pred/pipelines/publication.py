@@ -76,8 +76,6 @@ def generate_publication_artifacts(ctx: "StageContext") -> dict:
     eval_dir = Path("outputs/evaluation")
     with open(eval_dir / "metrics.json", "r", encoding="utf-8") as f:
         metrics = json.load(f)
-    with open(eval_dir / "diagnostics.json", "r", encoding="utf-8") as f:
-        diagnostics = json.load(f)
 
     artifacts = {"tables": [], "figures": [], "docs": []}
 
