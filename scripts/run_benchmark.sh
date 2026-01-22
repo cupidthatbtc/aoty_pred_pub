@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euo pipefail  # Exit on error, undefined var, or pipe failure
+
 # Run GPU benchmark with pixi environment
 # Usage: ./scripts/run_benchmark.sh [config] [output]
 
@@ -18,5 +20,9 @@ export PATH="$HOME/.pixi/bin:$PATH"
 
 echo "Running GPU benchmark with config: $CONFIG"
 echo "Output: $OUTPUT"
+
+# Ensure output directory exists
+OUTPUT_DIR="$(dirname "$OUTPUT")"
+mkdir -p "$OUTPUT_DIR"
 
 pixi run python scripts/benchmark_gpu.py --config "$CONFIG" --output "$OUTPUT"
