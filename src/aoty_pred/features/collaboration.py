@@ -13,7 +13,6 @@ import pandas as pd
 from .base import BaseFeatureBlock, FeatureContext, FeatureOutput
 from .errors import FittedVocabulary
 
-
 # Default collab_type ordering for ordinal encoding
 DEFAULT_COLLAB_TYPES = ("solo", "duo", "small_group", "ensemble")
 

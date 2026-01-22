@@ -11,12 +11,11 @@ with GPU acceleration via JAX. Key features:
 import logging
 import subprocess
 import time
-from dataclasses import dataclass, asdict
 from collections.abc import Callable
+from dataclasses import asdict, dataclass
 
 import arviz as az
 import jax
-import jax.numpy as jnp
 from jax import random
 from numpyro.infer import MCMC, NUTS
 

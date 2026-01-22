@@ -1,10 +1,11 @@
 """Split manifest schema and I/O for reproducibility."""
 
 import json
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List
+
 import pandas as pd
 
 
