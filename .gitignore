@@ -37,3 +37,6 @@ configs/local.yaml
 
 # Legacy CLI backup (preserved locally, not tracked)
 scripts/legacy_cli.py
+
+# Windows reserved name artifacts
+nul
