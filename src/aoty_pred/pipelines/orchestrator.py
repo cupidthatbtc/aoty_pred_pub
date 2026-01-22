@@ -330,7 +330,7 @@ class PipelineOrchestrator:
                     if prev_manifest_path.exists():
                         previous_manifest = load_run_manifest(prev_manifest_path)
                 except Exception as e:
-                    log.debug("Could not load previous manifest, continuing without: %s", e)
+                    log.debug("could_not_load_previous_manifest", error=str(e), exc_info=True)
 
         # Set up progress display
         with Progress(
@@ -565,7 +565,7 @@ class PipelineOrchestrator:
                     # Validate paths don't contain shell metacharacters
                     link_str = str(latest_link)
                     target_str = str(self.run_dir)
-                    if any(c in link_str + target_str for c in '&|;<>`$'):
+                    if any(c in link_str + target_str for c in '&|;<>`$^%\r\n'):
                         log.warning("unsafe_path_characters", link=link_str, target=target_str)
                         return
                     result = subprocess.run(

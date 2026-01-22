@@ -29,15 +29,15 @@ outputs/
 
 # Env and local config
 .env
-configs/local.yaml
+/configs/local.yaml
 
 # IDE
 .vscode/
 .idea/
 
 # Legacy CLI backup (preserved locally, not tracked)
-scripts/legacy_cli.py
+/scripts/legacy_cli.py
 
 # Windows reserved name artifacts
 nul
-.planning/
+/.planning/

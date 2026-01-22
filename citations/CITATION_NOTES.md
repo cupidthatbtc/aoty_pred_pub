@@ -18,3 +18,9 @@ DOI | Status
 10.1098/rsta.2015.0202 | 200
 10.1214/09-AOS735 | 200
 10.1214/17-BA1091 | 200
+
+Verification command (requires curl and jq):
+```bash
+# Check a single DOI via Crossref API
+curl -s "https://api.crossref.org/works/10.1093/biomet/63.3.581" | jq '.status'
+```

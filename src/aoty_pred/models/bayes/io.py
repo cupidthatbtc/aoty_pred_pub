@@ -64,8 +64,8 @@ class ModelManifest:
     created_at: str
     model_type: str
     filename: str
-    mcmc_config: dict
-    priors: dict
+    mcmc_config: dict[str, Any]
+    priors: dict[str, Any]
     data_hash: str
     git_commit: str
     gpu_info: str
@@ -156,6 +156,13 @@ def get_git_commit() -> str:
         )
         if result.returncode == 0:
             return result.stdout.strip()
+        else:
+            logger.debug(
+                "git_commit_lookup_failed",
+                returncode=result.returncode,
+                output=result.stderr.strip(),
+                reason="git_nonzero_exit",
+            )
     except FileNotFoundError as e:
         logger.debug("git_commit_lookup_failed", error=str(e), reason="git_not_found")
     except subprocess.TimeoutExpired as e:
@@ -298,9 +305,12 @@ def load_manifest(output_dir: Path = Path("models")) -> ModelsManifest | None:
     if not manifest_path.exists():
         return None
 
-    with open(manifest_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.warning("manifest_parse_failed", path=str(manifest_path), error=str(e))
+        return None
     return ModelsManifest.from_dict(data)
 
 

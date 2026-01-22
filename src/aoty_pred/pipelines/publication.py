@@ -73,8 +73,12 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
 
     # Load evaluation results
     eval_dir = Path("outputs/evaluation")
-    with open(eval_dir / "metrics.json", "r", encoding="utf-8") as f:
-        metrics = json.load(f)
+    try:
+        with open(eval_dir / "metrics.json", "r", encoding="utf-8") as f:
+            metrics = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        log.warning("could_not_load_metrics", error=str(e))
+        metrics = {}
 
     artifacts = {"tables": [], "figures": [], "docs": []}
 

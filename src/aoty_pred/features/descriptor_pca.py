@@ -13,7 +13,7 @@ class DescriptorPCABlock(BaseFeatureBlock):
     name: ClassVar[str] = "descriptor_pca"
     requires: ClassVar[list[str]] = []
 
-    def transform(self, df, ctx: FeatureContext) -> FeatureOutput:
+    def transform(self, df: pd.DataFrame, ctx: FeatureContext) -> FeatureOutput:
         self.validate_columns(df)
         data = pd.DataFrame(index=df.index)
         metadata = {"block": self.name, "params": self.params}

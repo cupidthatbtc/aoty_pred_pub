@@ -123,9 +123,9 @@ def load_dashboard_data(run_dir: Path | None = None) -> DashboardData:
         model_files = []
         if run_dir is not None:
             # Look for NetCDF files in run directory
-            model_files = list(run_dir.glob("models/*.nc"))
+            model_files = sorted(run_dir.glob("models/*.nc"), key=lambda f: f.stat().st_mtime, reverse=True)
             if not model_files:
-                model_files = list(run_dir.glob("*.nc"))
+                model_files = sorted(run_dir.glob("*.nc"), key=lambda f: f.stat().st_mtime, reverse=True)
 
         # Fallback: check models/ directory relative to project root
         if not model_files:

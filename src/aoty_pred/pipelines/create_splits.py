@@ -3,7 +3,7 @@
 import hashlib
 import json
 import structlog
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -128,7 +128,7 @@ def create_splits(config: Optional[SplitConfig] = None) -> SplitResult:
     # Create manifest
     temporal_manifest = SplitManifest(
         version=config.version,
-        created_at=datetime.now().isoformat(),
+        created_at=datetime.now(timezone.utc).isoformat(),
         split_type="within_artist_temporal",
         parameters={
             "test_albums": config.test_albums,
@@ -217,7 +217,7 @@ def create_splits(config: Optional[SplitConfig] = None) -> SplitResult:
     # Create manifest
     disjoint_manifest = SplitManifest(
         version=config.version,
-        created_at=datetime.now().isoformat(),
+        created_at=datetime.now(timezone.utc).isoformat(),
         split_type="artist_disjoint",
         parameters={
             "test_size": config.disjoint_test_size,

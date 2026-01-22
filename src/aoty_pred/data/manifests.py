@@ -53,7 +53,7 @@ class SplitManifest:
     def from_dict(cls, d: Dict[str, Any]) -> "SplitManifest":
         """Create from dictionary."""
         d["splits"] = {k: SplitStats(**v) for k, v in d["splits"].items()}
-        d["assignments"] = [SplitAssignment(**a) for a in d["assignments"]]
+        d["assignments"] = [SplitAssignment(**a) for a in d.get("assignments", [])]
         return cls(**d)
 
 

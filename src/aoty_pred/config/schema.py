@@ -1,8 +1,8 @@
-"""Config schema definitions (stub)."""
+"""Config schema definitions."""
 
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -43,7 +43,7 @@ class ImputationMinCounts(BaseModel):
 
 class ImputationConfig(BaseModel):
     strategy: str = "hierarchical"
-    hierarchy: List[str] = Field(default_factory=lambda: ["artist", "genre", "decade", "global"])
+    hierarchy: list[str] = Field(default_factory=lambda: ["artist", "genre", "decade", "global"])
     min_counts: ImputationMinCounts = ImputationMinCounts()
 
 
@@ -64,7 +64,7 @@ class FeaturesConfig(BaseModel):
     include_temporal: bool = True
     include_album_type: bool = True
     pca: FeaturePCAConfig = FeaturePCAConfig()
-    blocks: List[FeatureBlockSpec] = Field(default_factory=list)
+    blocks: list[FeatureBlockSpec] = Field(default_factory=list)
 
 
 class ModelPriorsConfig(BaseModel):
@@ -92,20 +92,20 @@ class ModelConfig(BaseModel):
 
 
 class EvaluationConfig(BaseModel):
-    metrics: List[str] = Field(default_factory=lambda: ["r2", "rmse", "mae"])
-    calibration_intervals: List[float] = Field(default_factory=lambda: [0.80, 0.95])
+    metrics: list[str] = Field(default_factory=lambda: ["r2", "rmse", "mae"])
+    calibration_intervals: list[float] = Field(default_factory=lambda: [0.80, 0.95])
     coverage_tolerance: float = 0.03
-    model_comparison: List[str] = Field(default_factory=lambda: ["waic", "loo"])
+    model_comparison: list[str] = Field(default_factory=lambda: ["waic", "loo"])
 
 
 class SensitivityConfig(BaseModel):
-    min_ratings: List[int] = Field(default_factory=lambda: [10, 20, 30, 40])
-    dynamic_min_albums: List[int] = Field(default_factory=lambda: [2, 3])
-    prior_slope_sd: List[float] = Field(default_factory=lambda: [0.5, 1.0])
-    feature_ablations: List[str] = Field(
+    min_ratings: list[int] = Field(default_factory=lambda: [10, 20, 30, 40])
+    dynamic_min_albums: list[int] = Field(default_factory=lambda: [2, 3])
+    prior_slope_sd: list[float] = Field(default_factory=lambda: [0.5, 1.0])
+    feature_ablations: list[str] = Field(
         default_factory=lambda: ["no_genre", "no_artist", "no_temporal"]
     )
-    splits: List[str] = Field(default_factory=lambda: ["within_artist_last", "artist_group"])
+    splits: list[str] = Field(default_factory=lambda: ["within_artist_last", "artist_group"])
 
 
 class OutputsConfig(BaseModel):

@@ -1,7 +1,7 @@
 # Raw Schema Snapshot
 
 Source
-- `C:\Users\jcwen\Downloads\aoty full artist\all_albums_full.csv`
+- `path/to/your/dataset.csv` (set via DATASET_PATH environment variable)
 
 Observed columns (first rows)
 - Artist

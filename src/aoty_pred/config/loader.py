@@ -53,7 +53,13 @@ def load_config(paths: str | Path | list[str | Path]) -> AppConfig:
     data: dict = {}
     for path in path_list:
         with open(path, "r", encoding="utf-8") as f:
-            next_data = yaml.safe_load(f) or {}
+            next_data = yaml.safe_load(f)
+        if next_data is None:
+            next_data = {}
+        elif not isinstance(next_data, dict):
+            raise ValueError(
+                f"Config file {path} must be a YAML mapping, got {type(next_data).__name__}"
+            )
         data = _deep_merge(data, next_data)
 
     data = _expand_env_vars(data)

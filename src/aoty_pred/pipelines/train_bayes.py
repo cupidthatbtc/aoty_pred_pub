@@ -73,6 +73,8 @@ def prepare_model_data(
     MAX_SEQ_CAP = 50
     uncapped_max_seq = int(album_seq.max()) + 1
     max_seq = min(uncapped_max_seq, MAX_SEQ_CAP)
+    # Clamp album_seq to valid range for capped dimension
+    album_seq = np.minimum(album_seq, MAX_SEQ_CAP - 1).astype(np.int32)
 
     if uncapped_max_seq > MAX_SEQ_CAP:
         log.warning(

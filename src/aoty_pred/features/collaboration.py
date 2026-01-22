@@ -139,7 +139,8 @@ class CollaborationBlock(BaseFeatureBlock):
 
         # Encode collab_type as ordinal
         if self._collab_type_vocab_ is not None:
-            collab_types = df["collab_type"].fillna("solo").tolist()
+            default_type = self._collab_type_vocab_.categories[0]
+            collab_types = df["collab_type"].fillna(default_type).tolist()
             output_data["collab_type_ordinal"] = self._collab_type_vocab_.encode(collab_types)
 
         feature_names = ["is_collaboration", "num_artists", "collab_type_ordinal"]
