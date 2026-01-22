@@ -38,7 +38,6 @@ from typing import Callable
 import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
-from numpyro.contrib.control_flow import scan
 from numpyro.handlers import reparam
 from numpyro.infer.reparam import LocScaleReparam
 
@@ -177,24 +176,26 @@ def make_score_model(score_type: str) -> Callable:
             )
 
         # === Time-varying artist effects via random walk ===
-        def rw_step(carry, t):
-            """Single step of random walk for artist effects."""
-            prev_effects = carry
-            innovation = numpyro.sample(
-                f"{prefix}rw_innov_{t}",
-                dist.Normal(0, sigma_rw).expand([n_artists]).to_event(1),
-            )
-            curr_effects = prev_effects + innovation
-            return curr_effects, curr_effects
-
-        # Run random walk for (max_seq - 1) steps starting from initial effects
+        # Use GaussianRandomWalk distribution for memory efficiency:
+        # - Samples entire trajectory as single tensor instead of max_seq separate parameters
+        # - Shape: (n_artists, max_seq-1) for innovations, then cumsum to get trajectories
+        # - This reduces parameter count from max_seq*n_artists separate sites to ONE site
         if max_seq > 1:
-            _, effects_over_time = scan(
-                rw_step, init_artist_effect, jnp.arange(max_seq - 1)
+            # Sample random walk innovations as a single tensor
+            # Shape: (n_artists, max_seq - 1) representing innovations for each artist over time
+            rw_innovations = numpyro.sample(
+                f"{prefix}rw_innovations",
+                dist.Normal(0, sigma_rw).expand([n_artists, max_seq - 1]).to_event(2),
             )
-            # Stack: shape (max_seq, n_artists)
-            # First row is initial effects, subsequent rows are random walk
-            artist_effects = jnp.vstack([init_artist_effect[None, :], effects_over_time])
+            # Cumulative sum to get random walk trajectory from innovations
+            # Shape: (n_artists, max_seq - 1)
+            rw_trajectory = jnp.cumsum(rw_innovations, axis=1)
+            # Full artist effects: init_effect + trajectory
+            # Shape: (max_seq, n_artists) - transpose for [time, artist] indexing
+            artist_effects = jnp.vstack([
+                init_artist_effect[None, :],  # Shape: (1, n_artists)
+                (init_artist_effect[None, :] + rw_trajectory.T)  # Shape: (max_seq-1, n_artists)
+            ])
         else:
             # Only one time step, no random walk needed
             artist_effects = init_artist_effect[None, :]
@@ -269,7 +270,7 @@ Sample sites (all prefixed with "{prefix}"):
     - {prefix}sigma_rw: Random walk innovation scale
     - {prefix}rho: AR(1) coefficient
     - {prefix}init_artist_effect: Initial artist effects (partial pooling)
-    - {prefix}rw_innov_{{t}}: Random walk innovations at time t
+    - {prefix}rw_innovations: Random walk innovations tensor (n_artists x max_seq-1)
     - {prefix}beta: Fixed effect coefficients
     - {prefix}sigma_obs: Observation noise
     - {prefix}y: Observed/predicted scores
