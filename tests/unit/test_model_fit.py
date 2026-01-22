@@ -94,13 +94,14 @@ class TestMCMCConfig:
     """Tests for MCMCConfig dataclass."""
 
     def test_mcmc_config_defaults(self):
-        """MCMCConfig should have reasonable defaults."""
+        """MCMCConfig should have reasonable production defaults."""
         config = MCMCConfig()
 
-        assert config.num_warmup == 100
-        assert config.num_samples == 100
-        assert config.num_chains == 2
-        assert config.chain_method == "sequential"
+        # Production defaults: 1000/1000/4/vectorized for publication-quality runs
+        assert config.num_warmup == 1000
+        assert config.num_samples == 1000
+        assert config.num_chains == 4
+        assert config.chain_method == "vectorized"
         assert config.seed == 0
         assert config.max_tree_depth == 10
         assert config.target_accept_prob == 0.8
