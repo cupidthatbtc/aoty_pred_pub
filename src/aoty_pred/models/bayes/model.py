@@ -164,6 +164,9 @@ def make_score_model(score_type: str) -> Callable:
         n_artists: int | None = None,
         max_seq: int | None = None,
         priors: PriorConfig | None = None,
+        n_reviews: jnp.ndarray | None = None,
+        n_exponent: float = 0.0,
+        learn_n_exponent: bool = False,
     ) -> None:
         """Centered parameterization of score model (internal).
 
@@ -187,13 +190,21 @@ def make_score_model(score_type: str) -> Callable:
             max_seq: Maximum album sequence number in the data. Must be provided
                 for JAX tracing. Compute as int(album_seq.max()) before calling.
             priors: Prior configuration. If None, uses get_default_priors().
+            n_reviews: Optional array of shape (n_obs,) with per-observation
+                review counts. Used for heteroscedastic noise scaling. If None,
+                homoscedastic noise is used (scalar sigma_obs for all observations).
+            n_exponent: Fixed exponent for heteroscedastic noise scaling.
+                Default 0.0 gives homoscedastic (constant) noise. Higher values
+                give more noise reduction for albums with many reviews.
+            learn_n_exponent: If True, sample the exponent from a Beta prior
+                instead of using the fixed n_exponent value.
 
         Model structure:
             - Population-level hyperpriors for artist effect distribution
             - Time-varying artist effects via random walk
             - AR(1) term for album-to-album dependency
             - Fixed effects for covariates
-            - Observation-level noise
+            - Observation-level noise (optionally heteroscedastic)
         """
         # Get prior configuration
         if priors is None:
@@ -294,9 +305,25 @@ def make_score_model(score_type: str) -> Callable:
             dist.HalfNormal(priors.sigma_obs_scale),
         )
 
+        # === Exponent for heteroscedastic noise (fixed or learned) ===
+        if learn_n_exponent:
+            n_exp = numpyro.sample(
+                f"{prefix}n_exponent",
+                dist.Beta(priors.n_exponent_alpha, priors.n_exponent_beta),
+            )
+        else:
+            n_exp = n_exponent  # Use fixed value from config
+
+        # === Per-observation noise scaling ===
+        if n_reviews is not None and n_exp != 0:
+            sigma_scaled = compute_sigma_scaled(sigma_obs, n_reviews, n_exp)
+        else:
+            # Homoscedastic mode: use scalar sigma_obs for all observations
+            sigma_scaled = sigma_obs
+
         # === Likelihood ===
         with numpyro.plate(f"{prefix}obs", len(artist_idx)):
-            numpyro.sample(f"{prefix}y", dist.Normal(mu, sigma_obs), obs=y)
+            numpyro.sample(f"{prefix}y", dist.Normal(mu, sigma_scaled), obs=y)
 
     # Apply non-centered reparameterization to init_artist_effect
     reparam_config = {
@@ -312,6 +339,7 @@ This model includes:
 - AR(1) structure for album-to-album score dependencies
 - Hierarchical partial pooling of artist effects
 - Non-centered parameterization via LocScaleReparam
+- Optional heteroscedastic observation noise (per-observation sigma)
 
 All sample site names are prefixed with "{prefix}" (e.g., "{prefix}beta", "{prefix}rho").
 
@@ -330,6 +358,13 @@ Args:
     max_seq: Maximum album sequence number. Required for JAX tracing.
         Compute as int(album_seq.max()) before calling the model.
     priors: Prior configuration. If None, uses get_default_priors().
+    n_reviews: Optional array of shape (n_obs,) with per-observation
+        review counts. Used for heteroscedastic noise scaling. If None,
+        homoscedastic noise is used (scalar sigma_obs for all observations).
+    n_exponent: Fixed exponent for heteroscedastic noise scaling.
+        Default 0.0 gives homoscedastic (constant) noise.
+    learn_n_exponent: If True, sample the exponent from a Beta prior
+        instead of using the fixed n_exponent value.
 
 Returns:
     None. Model samples are tracked by NumPyro internally.
@@ -342,7 +377,8 @@ Sample sites (all prefixed with "{prefix}"):
     - {prefix}init_artist_effect: Initial artist effects (partial pooling)
     - {prefix}rw_innovations: Random walk innovations tensor (n_artists x max_seq-1)
     - {prefix}beta: Fixed effect coefficients
-    - {prefix}sigma_obs: Observation noise
+    - {prefix}sigma_obs: Observation noise (base scale for heteroscedastic)
+    - {prefix}n_exponent: Heteroscedastic scaling exponent (only when learn_n_exponent=True)
     - {prefix}y: Observed/predicted scores
 
 Example:
