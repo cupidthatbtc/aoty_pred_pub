@@ -266,8 +266,11 @@ def _run_splits_stage(ctx: StageContext) -> None:
     """Run splits creation stage."""
     from aoty_pred.pipelines.create_splits import create_splits, SplitConfig
 
-    # Pass seed from context for reproducibility
-    config = SplitConfig(random_state=ctx.seed)
+    # Pass seed and min_ratings from context for reproducibility
+    config = SplitConfig(
+        random_state=ctx.seed,
+        min_ratings=ctx.min_ratings,
+    )
     create_splits(config)
 
 
