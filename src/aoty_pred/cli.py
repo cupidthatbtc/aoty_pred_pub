@@ -97,6 +97,11 @@ def run(
         "--force-run",
         help="Override preflight failure and continue anyway (use with --preflight)",
     ),
+    preflight_full: bool = typer.Option(
+        False,
+        "--preflight-full",
+        help="Run mini-MCMC to measure actual peak memory (~30-60 seconds)",
+    ),
     resume: Optional[str] = typer.Option(
         None,
         "--resume",
@@ -222,7 +227,88 @@ def run(
     if stages:
         stage_list = [s.strip() for s in stages.split(",") if s.strip()]
 
-    # Run preflight check if requested
+    # Full preflight mode (--preflight-full) takes precedence over quick preflight
+    if preflight_full:
+        from pathlib import Path
+
+        import numpy as np
+        import pandas as pd
+        from rich.console import Console
+
+        from aoty_pred.pipelines.train_bayes import prepare_model_data
+        from aoty_pred.preflight import (
+            PreflightStatus,
+            render_full_preflight_result,
+            run_full_preflight_check,
+        )
+
+        console = Console()
+
+        # Check if required data exists
+        features_path = Path("data/features/train_features.parquet")
+        splits_path = Path("data/splits/within_artist_temporal/train.parquet")
+
+        if not features_path.exists() or not splits_path.exists():
+            console.print(
+                "[bold red]Error:[/bold red] --preflight-full requires processed data.\n"
+                "Missing files:\n"
+                f"  - {features_path}: {'exists' if features_path.exists() else 'MISSING'}\n"
+                f"  - {splits_path}: {'exists' if splits_path.exists() else 'MISSING'}\n\n"
+                "Run data stages first, or use [bold]--preflight[/bold] for quick estimation."
+            )
+            raise typer.Exit(2)  # CANNOT_CHECK exit code
+
+        # Load data and build model_args (following train_bayes.py pattern)
+        train_features = pd.read_parquet(features_path)
+        train_df = pd.read_parquet(splits_path)
+
+        # Drop overlapping columns and merge
+        overlap_cols = list(set(train_df.columns) & set(train_features.columns))
+        if overlap_cols:
+            train_df = train_df.drop(columns=overlap_cols)
+        train_df = train_df.join(train_features, how="left")
+
+        # Fill NaN values in features
+        feature_cols = list(train_features.columns)
+        train_df[feature_cols] = train_df[feature_cols].fillna(0)
+
+        # Prepare model arguments using existing function
+        model_args = prepare_model_data(
+            train_df,
+            feature_cols,
+            min_albums_filter=min_albums,  # Use CLI param
+        )
+
+        # Remove artist_album_counts (not needed for preflight)
+        model_args.pop("artist_album_counts", None)
+
+        # Apply max_albums cap to model_args["album_seq"]
+        album_seq = model_args["album_seq"]
+        model_args["album_seq"] = np.clip(album_seq, 1, max_albums)
+        model_args["max_seq"] = max_albums
+
+        # Add heteroscedastic params (use defaults)
+        model_args["n_exponent"] = -0.5
+        model_args["learn_n_exponent"] = False
+
+        # Show progress indicator
+        with console.status("[bold blue]Running mini-MCMC measurement...[/bold blue]"):
+            full_result = run_full_preflight_check(
+                model_args=model_args,
+                headroom_target=0.20,
+                timeout_seconds=120,
+            )
+
+        render_full_preflight_result(full_result, verbose=verbose)
+
+        if preflight_only:
+            raise typer.Exit(full_result.exit_code)
+
+        if full_result.status == PreflightStatus.FAIL and not force_run:
+            typer.echo("Use --force-run to override preflight failure")
+            raise typer.Exit(full_result.exit_code)
+
+    # Run preflight check if requested (quick estimation mode)
     # Note: Preflight runs BEFORE building PipelineConfig to fail fast
     if preflight or preflight_only:
         from aoty_pred.preflight import (
@@ -233,7 +319,7 @@ def run(
 
         # Estimate model dimensions for preflight
         # These are conservative estimates since actual data isn't loaded yet.
-        # For more accurate checking, use --preflight-full (future feature).
+        # For more accurate checking, use --preflight-full.
         estimated_observations = 1000  # Typical dataset size
         estimated_features = 20  # Typical feature count
         estimated_artists = 100  # Typical artist count
