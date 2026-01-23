@@ -59,6 +59,7 @@ class PreflightResult:
             Negative if estimate exceeds available.
         message: Human-readable summary message.
         suggestions: List of configuration adjustment suggestions.
+        device_name: GPU device name (None if cannot check).
     """
 
     status: PreflightStatus
@@ -68,6 +69,7 @@ class PreflightResult:
     headroom_percent: float
     message: str
     suggestions: list[str]
+    device_name: str | None = None
 
     @property
     def exit_code(self) -> int:
