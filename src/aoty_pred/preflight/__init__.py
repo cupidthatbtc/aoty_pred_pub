@@ -45,10 +45,13 @@ class PreflightStatus(Enum):
 
 @dataclass(frozen=True)
 class PreflightResult:
-    """Result of preflight memory check.
+    """Result of preflight memory check using ESTIMATED memory.
 
     Provides detailed information about memory availability and
     estimated requirements, with actionable suggestions if needed.
+
+    This class uses formula-based memory estimation (quick preflight).
+    For actual measured memory via mini-MCMC, see FullPreflightResult.
 
     Attributes:
         status: Overall pass/fail/warning status.
@@ -89,12 +92,68 @@ class PreflightResult:
                 return 2
 
 
+@dataclass(frozen=True)
+class FullPreflightResult:
+    """Result of full preflight check using MEASURED memory.
+
+    Provides detailed information about memory availability using
+    actual peak GPU memory measured from a mini-MCMC run.
+
+    This class uses actual memory measurement via subprocess mini-run
+    (full preflight, ~95% accuracy). For formula-based estimation
+    (quick preflight, ~70-80% accuracy), see PreflightResult.
+
+    The mini-run executes 1 chain, 10 warmup, 1 sample to capture
+    JIT compilation overhead, which is typically the peak memory usage.
+
+    Attributes:
+        status: Overall pass/fail/warning status.
+        measured_peak_gb: Actual peak GPU memory from mini-run (not estimate).
+        available_gb: Available (free) GPU memory in GB.
+        total_gpu_gb: Total GPU memory in GB.
+        headroom_percent: Remaining memory percentage after measured peak.
+            Negative if measured peak exceeds available.
+        mini_run_seconds: Time taken for mini-run in seconds.
+        message: Human-readable summary message.
+        suggestions: List of configuration adjustment suggestions.
+        device_name: GPU device name (None if cannot check).
+    """
+
+    status: PreflightStatus
+    measured_peak_gb: float
+    available_gb: float
+    total_gpu_gb: float
+    headroom_percent: float
+    mini_run_seconds: float
+    message: str
+    suggestions: list[str]
+    device_name: str | None = None
+
+    @property
+    def exit_code(self) -> int:
+        """Exit code for CLI usage.
+
+        Returns:
+            0 for PASS (safe to proceed).
+            1 for FAIL (do not proceed).
+            2 for WARNING or CANNOT_CHECK (proceed with caution).
+        """
+        match self.status:
+            case PreflightStatus.PASS:
+                return 0
+            case PreflightStatus.FAIL:
+                return 1
+            case PreflightStatus.WARNING | PreflightStatus.CANNOT_CHECK:
+                return 2
+
+
 from aoty_pred.preflight.check import run_preflight_check
 from aoty_pred.preflight.output import render_preflight_result
 
 __all__ = [
     "PreflightStatus",
     "PreflightResult",
+    "FullPreflightResult",
     "run_preflight_check",
     "render_preflight_result",
 ]
