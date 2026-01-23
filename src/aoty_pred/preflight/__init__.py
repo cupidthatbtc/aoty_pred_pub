@@ -89,7 +89,12 @@ class PreflightResult:
                 return 2
 
 
+from aoty_pred.preflight.check import run_preflight_check
+from aoty_pred.preflight.output import render_preflight_result
+
 __all__ = [
     "PreflightStatus",
     "PreflightResult",
+    "run_preflight_check",
+    "render_preflight_result",
 ]
