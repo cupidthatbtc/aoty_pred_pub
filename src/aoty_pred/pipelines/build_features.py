@@ -172,10 +172,23 @@ def build_features(ctx: "StageContext") -> dict:
     test_output = pipeline.transform(test_df, feature_ctx)
     test_features = test_output.data
 
-    # Add n_reviews to feature DataFrames (must align by index)
-    train_features["n_reviews"] = train_n_reviews
-    val_features["n_reviews"] = val_n_reviews
-    test_features["n_reviews"] = test_n_reviews
+    # Add n_reviews to feature DataFrames with index alignment validation
+    def _assign_n_reviews(features_df: pd.DataFrame, n_reviews: pd.Series, name: str) -> None:
+        """Assign n_reviews to features DataFrame with alignment validation."""
+        aligned = n_reviews.reindex(features_df.index)
+        null_count = aligned.isna().sum()
+        if null_count > 0:
+            missing_indices = features_df.index[aligned.isna()].tolist()[:5]
+            raise ValueError(
+                f"{name}_n_reviews has {null_count} null values after reindexing to "
+                f"{name}_features index. First missing indices: {missing_indices}. "
+                f"Ensure {name}_n_reviews index matches {name}_features index."
+            )
+        features_df["n_reviews"] = aligned
+
+    _assign_n_reviews(train_features, train_n_reviews, "train")
+    _assign_n_reviews(val_features, val_n_reviews, "val")
+    _assign_n_reviews(test_features, test_n_reviews, "test")
 
     # Save feature matrices
     train_path = features_dir / "train_features.parquet"
