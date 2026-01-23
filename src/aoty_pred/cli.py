@@ -127,8 +127,8 @@ def run(
     # Data Filtering
     min_ratings: Annotated[int, typer.Option(
         min=1,
-        help="Minimum user ratings per album (default 30)",
-    )] = 30,
+        help="Minimum user ratings per album (default 10)",
+    )] = 10,
     min_albums: Annotated[int, typer.Option(
         min=1,
         help="Minimum albums per artist for dynamic effects (default 2)",

@@ -77,7 +77,7 @@ class PipelineConfig:
         rhat_threshold: Maximum acceptable R-hat (default 1.01).
         ess_threshold: Minimum ESS per chain (default 400).
         allow_divergences: If True, don't fail on divergences (default False).
-        min_ratings: Minimum user ratings per album (default 30).
+        min_ratings: Minimum user ratings per album (default 10).
         min_albums_filter: Minimum albums per artist for dynamic effects (default 2).
         enable_genre: If False, disable genre features (default True).
         enable_artist: If False, disable artist features (default True).
@@ -107,7 +107,7 @@ class PipelineConfig:
     ess_threshold: int = 400
     allow_divergences: bool = False
     # Data filtering
-    min_ratings: int = 30
+    min_ratings: int = 10
     min_albums_filter: int = 2
     # Feature flags
     enable_genre: bool = True

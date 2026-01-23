@@ -71,7 +71,7 @@ class StageContext:
     ess_threshold: int = 400
     allow_divergences: bool = False
     # Data filtering
-    min_ratings: int = 30
+    min_ratings: int = 10
     min_albums_filter: int = 2
     # Feature flags
     enable_genre: bool = True

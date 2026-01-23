@@ -3,7 +3,7 @@
 Dataset
 - dataset.raw_csv: string path
 - dataset.encoding: string (default utf-8-sig)
-- dataset.min_ratings: int (default 30)
+- dataset.min_ratings: int (default 10)
 
 Splits
 - splits.strategy: string (within_artist_last | artist_group)
