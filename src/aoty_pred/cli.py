@@ -146,6 +146,25 @@ def run(
         " /--no-temporal",
         help="Disable temporal features",
     )] = True,
+    # Heteroscedastic noise configuration
+    n_exponent: Annotated[float, typer.Option(
+        min=0.0,
+        max=1.0,
+        help="Scaling exponent for review count noise adjustment (0.0=homoscedastic, 0.5=sqrt scaling)",
+    )] = 0.0,
+    learn_n_exponent: bool = typer.Option(
+        False,
+        "--learn-n-exponent",
+        help="Learn exponent from data using Beta prior (ignores --n-exponent if set)",
+    ),
+    n_exponent_alpha: Annotated[float, typer.Option(
+        min=0.01,
+        help="Beta prior alpha parameter for learned exponent (advanced, default 2.0)",
+    )] = 2.0,
+    n_exponent_beta: Annotated[float, typer.Option(
+        min=0.01,
+        help="Beta prior beta parameter for learned exponent (advanced, default 4.0)",
+    )] = 4.0,
 ) -> None:
     """Execute full pipeline from raw data to publication artifacts.
 
@@ -204,6 +223,11 @@ def run(
         enable_genre=enable_genre,
         enable_artist=enable_artist,
         enable_temporal=enable_temporal,
+        # Heteroscedastic noise
+        n_exponent=n_exponent,
+        learn_n_exponent=learn_n_exponent,
+        n_exponent_alpha=n_exponent_alpha,
+        n_exponent_beta=n_exponent_beta,
     )
 
     exit_code = run_pipeline(config)
