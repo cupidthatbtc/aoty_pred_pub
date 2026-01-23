@@ -17,6 +17,10 @@ from aoty_pred.gpu_memory.estimate import (
     MemoryEstimate,
     estimate_memory_gb,
 )
+from aoty_pred.gpu_memory.measure import (
+    JaxMemoryStats,
+    get_jax_memory_stats,
+)
 from aoty_pred.gpu_memory.platform import (
     PlatformInfo,
     PlatformType,
@@ -31,6 +35,9 @@ __all__ = [
     # Memory estimation
     "MemoryEstimate",
     "estimate_memory_gb",
+    # JAX memory measurement
+    "JaxMemoryStats",
+    "get_jax_memory_stats",
     # Platform detection
     "PlatformType",
     "PlatformInfo",
