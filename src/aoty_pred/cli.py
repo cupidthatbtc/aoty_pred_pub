@@ -287,9 +287,9 @@ def run(
         model_args["album_seq"] = np.clip(album_seq, 1, max_albums)
         model_args["max_seq"] = max_albums
 
-        # Add heteroscedastic params (use defaults)
-        model_args["n_exponent"] = -0.5
-        model_args["learn_n_exponent"] = False
+        # Add heteroscedastic params (use CLI-parsed values)
+        model_args["n_exponent"] = n_exponent
+        model_args["learn_n_exponent"] = learn_n_exponent
 
         # Show progress indicator
         with console.status("[bold blue]Running mini-MCMC measurement...[/bold blue]"):
@@ -310,17 +310,18 @@ def run(
 
     # Run preflight check if requested (quick estimation mode)
     # Note: Preflight runs BEFORE building PipelineConfig to fail fast
-    if preflight or preflight_only:
+    # Skip quick preflight when full preflight was already run (--preflight-full takes precedence)
+    if (preflight or preflight_only) and not preflight_full:
         from aoty_pred.preflight import (
             PreflightStatus,
             render_preflight_result,
             run_preflight_check,
         )
 
-        # Estimate model dimensions for preflight
-        # These are conservative estimates since actual data isn't loaded yet.
-        # For more accurate checking, use --preflight-full.
-        estimated_observations = 1000  # Typical dataset size
+        # Estimate model dimensions for quick preflight
+        # These are conservative hardcoded defaults since actual data isn't loaded yet.
+        # For accurate checking with real data dimensions, use --preflight-full.
+        estimated_observations = 1000  # Default for quick preflight
         estimated_features = 20  # Typical feature count
         estimated_artists = 100  # Typical artist count
 

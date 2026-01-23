@@ -55,7 +55,7 @@ class PreflightResult:
 
     Attributes:
         status: Overall pass/fail/warning status.
-        estimate: Memory estimate breakdown (None if cannot check).
+        estimate: Memory estimate breakdown.
         available_gb: Available (free) GPU memory in GB.
         total_gpu_gb: Total GPU memory in GB.
         headroom_percent: Remaining memory percentage after estimate.
@@ -152,11 +152,11 @@ from aoty_pred.preflight.full_check import run_full_preflight_check
 from aoty_pred.preflight.output import render_full_preflight_result, render_preflight_result
 
 __all__ = [
-    "PreflightStatus",
-    "PreflightResult",
     "FullPreflightResult",
-    "run_preflight_check",
+    "PreflightResult",
+    "PreflightStatus",
+    "render_full_preflight_result",
     "render_preflight_result",
     "run_full_preflight_check",
-    "render_full_preflight_result",
+    "run_preflight_check",
 ]

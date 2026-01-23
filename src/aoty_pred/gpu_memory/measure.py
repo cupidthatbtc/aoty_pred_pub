@@ -11,9 +11,12 @@ Example:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 import jax
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -98,6 +101,17 @@ def get_jax_memory_stats(device_index: int = 0) -> JaxMemoryStats:
         raise RuntimeError(
             f"Device {device_index} does not support memory_stats(). "
             "This may occur on non-CUDA backends."
+        )
+
+    # Check for missing expected keys and log debug info
+    expected_keys = {"bytes_in_use", "peak_bytes_in_use", "bytes_limit", "bytes_reserved"}
+    present_keys = set(stats.keys())
+    missing_keys = expected_keys - present_keys
+    if missing_keys:
+        logger.debug(
+            "Missing JAX memory stat keys: %s (present: %s)",
+            sorted(missing_keys),
+            sorted(present_keys),
         )
 
     return JaxMemoryStats(

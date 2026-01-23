@@ -30,8 +30,6 @@ def render_preflight_result(result: PreflightResult, verbose: bool = False) -> N
         >>> result = run_preflight_check(1000, 20, 50, 10, 4, 1000, 1000)
         >>> render_preflight_result(result, verbose=True)
     """
-    from aoty_pred.preflight import PreflightStatus
-
     console = Console()
 
     # Status line with color
@@ -79,6 +77,8 @@ def _format_status_line(status: PreflightStatus, message: str) -> str:
             return f"[red bold]FAIL[/red bold] {message}"
         case PreflightStatus.CANNOT_CHECK:
             return f"[yellow bold]CANNOT CHECK[/yellow bold] {message}"
+        case _:
+            return f"[dim]UNKNOWN[/dim] {message}"
 
 
 def render_full_preflight_result(
@@ -102,8 +102,6 @@ def render_full_preflight_result(
         >>> result = run_full_preflight_check(model_args)
         >>> render_full_preflight_result(result, verbose=True)
     """
-    from aoty_pred.preflight import PreflightStatus
-
     console = Console()
 
     # Status line with color

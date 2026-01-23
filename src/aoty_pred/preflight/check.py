@@ -7,7 +7,6 @@ pass/fail/warning results before committing to long-running MCMC jobs.
 from __future__ import annotations
 
 from aoty_pred.gpu_memory import (
-    GpuMemoryInfo,
     MemoryEstimate,
     estimate_memory_gb,
     query_gpu_memory,
@@ -104,7 +103,6 @@ def run_preflight_check(
     # Step 5: Generate suggestions for FAIL or WARNING
     suggestions = _generate_suggestions(
         status=status,
-        estimate=estimate,
         num_chains=num_chains,
         num_samples=num_samples,
         num_warmup=num_warmup,
@@ -137,7 +135,6 @@ def run_preflight_check(
 
 def _generate_suggestions(
     status: PreflightStatus,
-    estimate: MemoryEstimate,
     num_chains: int,
     num_samples: int,
     num_warmup: int,

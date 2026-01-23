@@ -67,8 +67,17 @@ def run_and_measure(model_args_path: Path) -> dict[str, Any]:
 
     # Load model args from JSON
     logger.info(f"Loading model args from {model_args_path}")
-    with open(model_args_path) as f:
+    with open(model_args_path, encoding="utf-8") as f:
         args_json = json.load(f)
+
+    # Validate required keys exist before building model_args
+    required_keys = ["artist_idx", "album_seq", "prev_score", "X", "y", "n_artists", "max_seq"]
+    missing_keys = [k for k in required_keys if k not in args_json]
+    if missing_keys:
+        raise ValueError(
+            f"Missing required keys in model args JSON: {missing_keys}. "
+            f"Present keys: {list(args_json.keys())}"
+        )
 
     # Convert lists to JAX arrays where needed
     model_args: dict[str, Any] = {
@@ -95,6 +104,7 @@ def run_and_measure(model_args_path: Path) -> dict[str, Any]:
         model_args["learn_n_exponent"] = args_json["learn_n_exponent"]
 
     # Create NUTS kernel with user score model
+    # Using "user" model: consistent with CLI default behavior, most common use case
     model = make_score_model("user")
     kernel = NUTS(model)
 

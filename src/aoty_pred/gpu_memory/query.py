@@ -127,13 +127,17 @@ def query_gpu_memory(device_index: int = 0) -> GpuMemoryInfo:
 
     Raises:
         GpuMemoryError: If NVML library not available, initialization fails,
-            no GPU detected, or device index out of range.
+            no GPU detected, device index out of range, or device_index is negative.
 
     Example:
         >>> info = query_gpu_memory()
         >>> print(f"Free: {info.free_gb:.1f} GB")
         Free: 6.2 GB
     """
+    # Validate device_index is non-negative
+    if device_index < 0:
+        raise GpuMemoryError("device_index must be non-negative")
+
     # Check if NVML is available
     if not _NVML_AVAILABLE:
         raise GpuMemoryError(
@@ -146,7 +150,7 @@ def query_gpu_memory(device_index: int = 0) -> GpuMemoryInfo:
             count = nvmlDeviceGetCount()
             if count == 0:
                 raise GpuMemoryError(
-                    "No NVIDIA GPU detected. Use --no-gpu-check to run on CPU."
+                    "No NVIDIA GPU detected. Use --force-run to run on CPU."
                 )
             if device_index >= count:
                 raise GpuMemoryError(
@@ -182,7 +186,7 @@ def query_gpu_memory(device_index: int = 0) -> GpuMemoryInfo:
         if "driver" in error_str.lower() or "not loaded" in error_str.lower():
             raise GpuMemoryError(
                 "NVIDIA driver not loaded. Check driver installation with 'nvidia-smi'. "
-                "Use --no-gpu-check to run on CPU."
+                "Use --force-run to run on CPU."
             ) from e
 
         if "permission" in error_str.lower():
