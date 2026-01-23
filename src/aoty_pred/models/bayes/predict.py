@@ -392,17 +392,19 @@ def predict_new_artist(
     mu_pred = new_artist_effect[:, None] + linear_term + ar_term
 
     # Compute per-observation sigma for predictions
+    # Note: At this point mu_pred has shape (n_samples, n_albums) even for single_album
+    # (where n_albums=1). We maintain this 2D shape until the final squeeze.
     if n_reviews_new is not None and has_n_exponent:
         # Learned mode: use per-sample exponent values
         # sigma_obs shape: (n_samples,), n_exponent shape: (n_samples,)
-        # For single album: sigma_scaled shape: (n_samples,)
-        # For multiple albums: sigma_scaled shape: (n_samples, n_albums)
+        # Output sigma_scaled shape: (n_samples, n_albums) to match mu_pred
         if single_album:
+            # n_reviews_new is scalar, expand for broadcast
             sigma_scaled = compute_sigma_scaled(
-                sigma_obs,
-                jnp.array([n_reviews_new]),  # scalar -> 1-element array
-                n_exponent_samples,
-            ).squeeze()  # Back to (n_samples,)
+                sigma_obs[:, None],  # (n_samples, 1)
+                jnp.array([[n_reviews_new]]),  # (1, 1)
+                n_exponent_samples[:, None],  # (n_samples, 1)
+            )  # Result: (n_samples, 1)
         else:
             # Vectorized: broadcast across albums
             # Use broadcasting: (n_samples, 1) op (1, n_albums) -> (n_samples, n_albums)
@@ -412,11 +414,8 @@ def predict_new_artist(
                 n_exponent_samples[:, None],
             )
     else:
-        # Homoscedastic fallback
-        if single_album:
-            sigma_scaled = sigma_obs
-        else:
-            sigma_scaled = sigma_obs[:, None]
+        # Homoscedastic fallback: (n_samples, 1) or (n_samples, n_albums)
+        sigma_scaled = sigma_obs[:, None]
 
     # Sample from observation distribution
     rng_key, subkey = random.split(rng_key)
@@ -426,9 +425,7 @@ def predict_new_artist(
     if single_album:
         mu_pred = mu_pred.squeeze(axis=1)
         y_pred = y_pred.squeeze(axis=1)
-        # sigma_scaled already squeezed in heteroscedastic branch, ensure consistency
-        if hasattr(sigma_scaled, 'squeeze') and sigma_scaled.ndim > 1:
-            sigma_scaled = sigma_scaled.squeeze(axis=1)
+        sigma_scaled = sigma_scaled.squeeze(axis=1)
 
     return {
         "y": y_pred,
