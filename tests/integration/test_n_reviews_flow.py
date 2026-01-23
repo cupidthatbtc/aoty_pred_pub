@@ -19,23 +19,39 @@ class TestNReviewsDataFlow:
         """Test that User_Ratings is preserved as n_reviews in feature output.
 
         Verifies DATA-01: User_Ratings flows through feature pipeline.
+        Uses actual FeaturePipeline to verify real pipeline behavior.
         """
-        # This test verifies the column preservation from 21-01-PLAN
+        from aoty_pred.features.album_type import AlbumTypeBlock
+        from aoty_pred.features.artist import ArtistHistoryBlock
+        from aoty_pred.features.base import FeatureContext
+        from aoty_pred.features.pipeline import FeaturePipeline
+        from aoty_pred.features.temporal import TemporalBlock
+
         # Create synthetic data with known User_Ratings
         df = generate_synthetic_albums(n_artists=5, albums_per_artist=3, seed=42)
 
-        # Verify source has User_Ratings (from conftest fixture)
-        assert "User_Ratings" in df.columns
+        # Preserve n_reviews before transformation (as build_features does)
+        expected_n_reviews = df["User_Ratings"].values.copy()
 
-        # Simulate the n_reviews extraction logic from build_features
-        n_reviews = df["User_Ratings"].rename("n_reviews")
+        # Run actual feature pipeline with blocks that work with synthetic data
+        # (excludes GenreBlock and CollaborationBlock which need additional columns)
+        feature_ctx = FeatureContext(config={}, random_state=42)
+        blocks = [TemporalBlock({}), AlbumTypeBlock({}), ArtistHistoryBlock({})]
+        pipeline = FeaturePipeline(blocks)
+        pipeline.fit(df, feature_ctx)
+        features_output = pipeline.transform(df, feature_ctx)
 
-        # n_reviews should have same length as source
-        assert len(n_reviews) == len(df)
+        # Add n_reviews as build_features does
+        features = features_output.data
+        features["n_reviews"] = df["User_Ratings"].rename("n_reviews")
 
+        # Verify n_reviews column exists and is correct
+        assert "n_reviews" in features.columns
+        assert len(features["n_reviews"]) == len(df)
+        assert (features["n_reviews"].values == expected_n_reviews).all()
         # n_reviews should be positive integers
-        assert (n_reviews > 0).all()
-        assert n_reviews.dtype in [np.int32, np.int64, int]
+        assert (features["n_reviews"] > 0).all()
+        assert features["n_reviews"].dtype in [np.int32, np.int64, int]
 
     def test_n_reviews_corresponds_to_y(self):
         """Test that n_reviews[i] corresponds to y[i] observation.
@@ -67,21 +83,28 @@ class TestNReviewsDataFlow:
         assert y[4] == 90.0 and n_reviews[4] == 500  # C1
 
     def test_n_reviews_validation_rejects_missing(self):
-        """Test that validation rejects data with >50% missing n_reviews."""
+        """Test that validation rejects data with >50% missing n_reviews.
+
+        Uses actual prepare_model_data to verify real validation behavior.
+        """
+        from aoty_pred.pipelines.train_bayes import prepare_model_data
+
+        # Create data with >50% invalid n_reviews (90% zeros)
         df = pd.DataFrame({
             "Artist": ["A"] * 10,
             "Album": [f"A{i}" for i in range(10)],
             "Year": [2010 + i for i in range(10)],
             "User_Score": [70.0] * 10,
             "User_Ratings": [100, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 90% invalid
+            "Release_Date_Parsed": pd.to_datetime([f"201{i}-01-01" for i in range(10)]),
+            "prev_score": [0.0] * 10,
+            "album_seq": list(range(10)),
         })
+        df["feat_1"] = np.random.randn(10)
 
-        n_reviews = df["User_Ratings"].values
-        invalid_mask = (pd.isna(n_reviews)) | (n_reviews <= 0)
-        invalid_pct = invalid_mask.sum() / len(n_reviews) * 100
-
-        # Should exceed 50% threshold
-        assert invalid_pct > 50
+        # Should raise ValueError for >50% invalid
+        with pytest.raises(ValueError, match="Too many invalid n_reviews"):
+            prepare_model_data(df, ["feat_1"], min_albums_filter=1)
 
     def test_n_reviews_filtering_drops_invalid_rows(self):
         """Test that prepare_model_data drops rows with invalid n_reviews.
