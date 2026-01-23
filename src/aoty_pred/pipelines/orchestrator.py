@@ -201,6 +201,8 @@ class PipelineOrchestrator:
                 "config_conflict",
                 message="Both --n-exponent and --learn-n-exponent provided; using learned mode (--n-exponent ignored)",
             )
+            # Clear the fixed exponent to prevent manifest recording stale value
+            self.config.n_exponent = 0.0
 
         log.info(
             "pipeline_started",
@@ -412,8 +414,8 @@ class PipelineOrchestrator:
             parts.append("--no-artist")
         if not self.config.enable_temporal:
             parts.append("--no-temporal")
-        # Heteroscedastic noise (only if non-default)
-        if self.config.n_exponent != 0.0:
+        # Heteroscedastic noise (only if non-default and not learning)
+        if self.config.n_exponent != 0.0 and not self.config.learn_n_exponent:
             parts.append(f"--n-exponent {self.config.n_exponent}")
         if self.config.learn_n_exponent:
             parts.append("--learn-n-exponent")
