@@ -320,7 +320,7 @@ def make_stage_data() -> PipelineStage:
     )
 
 
-def make_stage_splits(min_ratings: int = 30) -> PipelineStage:
+def make_stage_splits(min_ratings: int = 10) -> PipelineStage:
     """Create splits stage.
 
     Args:
