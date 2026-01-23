@@ -218,6 +218,7 @@ def predict_new_artist(
     X_new: jnp.ndarray,
     prev_score: float | jnp.ndarray,
     n_reviews_new: jnp.ndarray | None = None,
+    fixed_n_exponent: float | None = None,
     prefix: str = "user_",
     seed: int = 3,
     n_predictions: int | None = None,
@@ -253,10 +254,17 @@ def predict_new_artist(
         - Use their last known score if available from external data
         - For multiple albums, provide array of shape (n_albums,)
     n_reviews_new : jnp.ndarray or None, default None
-        Review counts for the new album(s). Required when the model was
-        trained with heteroscedastic noise (i.e., posterior contains
-        {prefix}n_exponent). Shape: scalar for single album or (n_albums,)
-        for multiple albums. Used to compute per-observation sigma_scaled.
+        Review counts for the new album(s). Required when the model uses
+        heteroscedastic noise (either learned exponent in posterior or
+        fixed_n_exponent provided). Shape: scalar for single album or
+        (n_albums,) for multiple albums. Used to compute per-observation
+        sigma_scaled.
+    fixed_n_exponent : float or None, default None
+        Fixed exponent for heteroscedastic noise scaling. Use this when the
+        model was trained with a fixed non-zero n_exponent (i.e., the exponent
+        is not in the posterior samples). When provided and non-zero,
+        n_reviews_new must also be provided. Set to None or 0.0 for
+        homoscedastic predictions.
     prefix : str, default "user_"
         Parameter name prefix ("user_" or "critic_" depending on model).
     seed : int, default 3
@@ -282,8 +290,8 @@ def predict_new_artist(
     Raises
     ------
     ValueError
-        If the model was trained with heteroscedastic noise (has learned
-        n_exponent in posterior) but n_reviews_new is not provided.
+        If heteroscedastic noise is active (learned exponent in posterior or
+        non-zero fixed_n_exponent) but n_reviews_new is not provided.
 
     Example
     -------
@@ -309,10 +317,11 @@ def predict_new_artist(
     so the prediction is purely based on features and the population effect.
 
     Heteroscedastic noise: If the model was trained with learn_n_exponent=True,
-    the posterior will contain {prefix}n_exponent samples. In this case,
-    n_reviews_new must be provided so that sigma_scaled can be computed
-    per-observation as sigma_obs / n_reviews^exponent. This allows predictions
-    to have appropriately calibrated uncertainty based on review count.
+    the posterior will contain {prefix}n_exponent samples. Alternatively, if
+    the model was trained with a fixed non-zero exponent, pass fixed_n_exponent.
+    In either case, n_reviews_new must be provided so that sigma_scaled can be
+    computed per-observation as sigma_obs / n_reviews^exponent. This allows
+    predictions to have appropriately calibrated uncertainty based on review count.
     """
     # Extract population parameters with prefix
     mu_artist = posterior_samples[f"{prefix}mu_artist"]
@@ -323,14 +332,17 @@ def predict_new_artist(
 
     n_samples = mu_artist.shape[0]
 
-    # Check if model was trained with learned n_exponent
-    has_n_exponent = f"{prefix}n_exponent" in posterior_samples
+    # Check if model uses heteroscedastic noise (learned OR fixed exponent)
+    has_learned_exponent = f"{prefix}n_exponent" in posterior_samples
+    has_fixed_exponent = fixed_n_exponent is not None and fixed_n_exponent != 0
+    has_n_exponent = has_learned_exponent or has_fixed_exponent
 
     # Validate n_reviews_new when required
     if has_n_exponent and n_reviews_new is None:
+        mode = "learned" if has_learned_exponent else f"fixed (n_exponent={fixed_n_exponent})"
         raise ValueError(
             "n_reviews_new is required for predictions with heteroscedastic noise. "
-            f"Model was trained with learned n_exponent but no n_reviews_new provided. "
+            f"Model uses {mode} n_exponent but no n_reviews_new provided. "
             "Pass n_reviews_new as array of review counts (same length as X_new)."
         )
 
@@ -344,17 +356,25 @@ def predict_new_artist(
         beta = beta[indices]
         rho = rho[indices]
         sigma_obs = sigma_obs[indices]
-        if has_n_exponent:
+        # Handle exponent samples based on learned vs fixed mode
+        if has_learned_exponent:
             n_exponent_samples = posterior_samples[f"{prefix}n_exponent"]
             n_exponent_samples = n_exponent_samples[indices]
+        elif has_fixed_exponent:
+            # Create constant array matching subsampled sample count
+            n_exponent_samples = jnp.full((n_predictions,), fixed_n_exponent)
         else:
             n_exponent_samples = None
         n_samples = n_predictions
         seed = seed + 1  # Use different key for subsequent sampling
     else:
         rng_key = random.key(seed)
-        if has_n_exponent:
+        # Handle exponent samples based on learned vs fixed mode
+        if has_learned_exponent:
             n_exponent_samples = posterior_samples[f"{prefix}n_exponent"]
+        elif has_fixed_exponent:
+            # Create constant array matching full sample count
+            n_exponent_samples = jnp.full((n_samples,), fixed_n_exponent)
         else:
             n_exponent_samples = None
 
@@ -395,7 +415,7 @@ def predict_new_artist(
     # Note: At this point mu_pred has shape (n_samples, n_albums) even for single_album
     # (where n_albums=1). We maintain this 2D shape until the final squeeze.
     if n_reviews_new is not None and has_n_exponent:
-        # Learned mode: use per-sample exponent values
+        # Heteroscedastic mode: use per-sample exponent values (learned or fixed)
         # sigma_obs shape: (n_samples,), n_exponent shape: (n_samples,)
         # Output sigma_scaled shape: (n_samples, n_albums) to match mu_pred
         if single_album:

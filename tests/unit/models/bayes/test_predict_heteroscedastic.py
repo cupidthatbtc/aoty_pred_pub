@@ -188,6 +188,106 @@ class TestPredictHeteroscedastic:
         assert result["y"].shape[0] == n_predictions
         assert result["sigma_scaled"].shape[0] == n_predictions
 
+    def test_fixed_exponent_prediction(self, homoscedastic_posterior_samples):
+        """Test prediction with fixed (non-learned) exponent."""
+        X_new = jnp.array([0.5, -0.2, 0.1])
+        prev_score = 0.0
+        n_reviews = jnp.array([100])
+
+        result = predict_new_artist(
+            homoscedastic_posterior_samples,  # No n_exponent in posterior
+            X_new,
+            prev_score,
+            n_reviews_new=n_reviews,
+            fixed_n_exponent=0.5,  # Use fixed exponent
+            prefix="user_",
+        )
+
+        assert "y" in result
+        assert "mu" in result
+        assert "sigma_scaled" in result
+        # Single album output
+        assert result["y"].ndim == 1
+        assert result["sigma_scaled"].ndim == 1
+
+    def test_fixed_exponent_requires_n_reviews(self, homoscedastic_posterior_samples):
+        """Test that fixed non-zero exponent requires n_reviews_new."""
+        X_new = jnp.array([0.5, -0.2, 0.1])
+        prev_score = 0.0
+
+        with pytest.raises(ValueError, match="n_reviews_new is required"):
+            predict_new_artist(
+                homoscedastic_posterior_samples,
+                X_new,
+                prev_score,
+                n_reviews_new=None,  # Missing!
+                fixed_n_exponent=0.5,  # Fixed non-zero exponent
+                prefix="user_",
+            )
+
+    def test_fixed_exponent_sigma_differs_by_review_count(self, homoscedastic_posterior_samples):
+        """Test that sigma_scaled differs by review count with fixed exponent."""
+        X_new = jnp.array([[0.5, -0.2, 0.1], [0.5, -0.2, 0.1]])  # Same features
+        prev_score = jnp.zeros(2)
+        n_reviews = jnp.array([10, 1000])
+
+        result = predict_new_artist(
+            homoscedastic_posterior_samples,
+            X_new,
+            prev_score,
+            n_reviews_new=n_reviews,
+            fixed_n_exponent=0.5,  # sqrt scaling
+            prefix="user_",
+        )
+
+        # sigma_scaled for low reviews (n=10) should be higher than high reviews (n=1000)
+        sigma_low_reviews = result["sigma_scaled"][:, 0].mean()  # n=10
+        sigma_high_reviews = result["sigma_scaled"][:, 1].mean()  # n=1000
+
+        assert sigma_low_reviews > sigma_high_reviews, (
+            f"Expected sigma at n=10 ({sigma_low_reviews:.4f}) > "
+            f"sigma at n=1000 ({sigma_high_reviews:.4f})"
+        )
+
+    def test_fixed_exponent_zero_treated_as_homoscedastic(self, homoscedastic_posterior_samples):
+        """Test that fixed_n_exponent=0 is treated as homoscedastic."""
+        X_new = jnp.array([0.5, -0.2, 0.1])
+        prev_score = 0.0
+
+        # fixed_n_exponent=0 should NOT require n_reviews_new
+        result = predict_new_artist(
+            homoscedastic_posterior_samples,
+            X_new,
+            prev_score,
+            n_reviews_new=None,
+            fixed_n_exponent=0.0,  # Zero exponent = homoscedastic
+            prefix="user_",
+        )
+
+        assert "y" in result
+        assert "sigma_scaled" in result
+
+    def test_fixed_exponent_with_subsampling(self, homoscedastic_posterior_samples):
+        """Test that n_predictions subsampling works with fixed exponent."""
+        X_new = jnp.array([0.5, -0.2, 0.1])
+        prev_score = 0.0
+        n_reviews = jnp.array([100])
+        n_predictions = 50
+
+        result = predict_new_artist(
+            homoscedastic_posterior_samples,
+            X_new,
+            prev_score,
+            n_reviews_new=n_reviews,
+            fixed_n_exponent=0.33,
+            prefix="user_",
+            n_predictions=n_predictions,
+        )
+
+        # Should have exactly n_predictions samples
+        assert result["y"].shape[0] == n_predictions
+        assert result["sigma_scaled"].shape[0] == n_predictions
+
 
 class TestGetTracePlotVars:
     """Tests for dynamic trace plot variable selection."""
