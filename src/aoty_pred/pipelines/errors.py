@@ -115,6 +115,22 @@ class EnvironmentError(PipelineError):
         super().__init__(message, stage=stage, exit_code=5)
 
 
+class GpuMemoryError(PipelineError):
+    """GPU memory check failure.
+
+    Raised when:
+    - NVML initialization fails (no GPU, driver not loaded)
+    - Insufficient GPU memory for planned operation
+    - GPU memory query fails unexpectedly
+
+    Exit code: 6
+    """
+
+    def __init__(self, message: str, stage: str = "gpu_check") -> None:
+        """Initialize GPU memory error with exit code 6."""
+        super().__init__(message, stage=stage, exit_code=6)
+
+
 class StageSkipped(Exception):
     """Control flow exception for skipped stages.
 
