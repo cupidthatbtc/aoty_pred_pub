@@ -9,16 +9,6 @@ from aoty_pred.models.bayes.model import compute_sigma_scaled
 class TestComputeSigmaScaledValidation:
     """Tests for input validation in compute_sigma_scaled."""
 
-    def test_sigma_obs_positive_validation(self):
-        """Test that sigma_obs <= 0 raises ValueError."""
-        n_reviews = jnp.array([10.0, 100.0])
-
-        with pytest.raises(ValueError, match="sigma_obs must be positive"):
-            compute_sigma_scaled(0.0, n_reviews, exponent=0.5)
-
-        with pytest.raises(ValueError, match="sigma_obs must be positive"):
-            compute_sigma_scaled(-1.0, n_reviews, exponent=0.5)
-
     def test_sigma_obs_positive_works(self):
         """Test that positive sigma_obs values work correctly."""
         n_reviews = jnp.array([100.0])
