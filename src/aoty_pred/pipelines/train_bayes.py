@@ -233,29 +233,41 @@ def train_models(ctx: "StageContext") -> dict:
         gpu_info=fit_result.gpu_info,
     )
 
-    # Check convergence
-    diagnostics = check_convergence(fit_result.idata)
+    # Check convergence using CLI-provided thresholds
+    diagnostics = check_convergence(
+        fit_result.idata,
+        rhat_threshold=ctx.rhat_threshold,
+        ess_threshold=ctx.ess_threshold,
+        allow_divergences=ctx.allow_divergences,
+    )
 
     log.info(
         "convergence_check",
         passed=diagnostics.passed,
         rhat_max=diagnostics.rhat_max,
+        rhat_threshold=ctx.rhat_threshold,
         ess_bulk_min=diagnostics.ess_bulk_min,
+        ess_threshold=ctx.ess_threshold,
         divergences=diagnostics.divergences,
+        allow_divergences=ctx.allow_divergences,
     )
 
     # Handle strict mode
-    if ctx.strict and fit_result.divergences > 0:
+    # Note: allow_divergences is already passed to check_convergence above,
+    # so diagnostics.passed accounts for it. But we need to check divergences
+    # separately when strict=True and allow_divergences=False.
+    if ctx.strict and fit_result.divergences > 0 and not ctx.allow_divergences:
         raise ConvergenceError(
             f"Model had {fit_result.divergences} divergent transitions. "
-            "Re-run without --strict or increase target_accept_prob.",
+            "Re-run without --strict, use --allow-divergences, or increase --target-accept.",
             stage="train",
         )
 
     if ctx.strict and not diagnostics.passed:
         raise ConvergenceError(
             f"Convergence diagnostics failed: "
-            f"rhat_max={diagnostics.rhat_max:.4f}, ess_bulk_min={diagnostics.ess_bulk_min:.0f}",
+            f"rhat_max={diagnostics.rhat_max:.4f} (threshold {ctx.rhat_threshold}), "
+            f"ess_bulk_min={diagnostics.ess_bulk_min:.0f} (threshold {ctx.ess_threshold * ctx.num_chains})",
             stage="train",
         )
 
