@@ -21,6 +21,8 @@ import jax.numpy as jnp
 from jax import random
 from numpyro.infer import MCMC, Predictive
 
+from aoty_pred.models.bayes.model import compute_sigma_scaled
+
 __all__ = [
     "PredictionResult",
     "generate_posterior_predictive",
@@ -215,6 +217,7 @@ def predict_new_artist(
     posterior_samples: dict,
     X_new: jnp.ndarray,
     prev_score: float | jnp.ndarray,
+    n_reviews_new: jnp.ndarray | None = None,
     prefix: str = "user_",
     seed: int = 3,
     n_predictions: int | None = None,
@@ -240,6 +243,7 @@ def predict_new_artist(
         - {prefix}beta: Fixed effect coefficients
         - {prefix}rho: AR(1) coefficient
         - {prefix}sigma_obs: Observation noise
+        - {prefix}n_exponent (optional): Heteroscedastic scaling exponent
     X_new : jnp.ndarray
         Feature vector for the new album. Shape: (n_features,) for single
         prediction or (n_albums, n_features) for multiple albums.
@@ -248,6 +252,11 @@ def predict_new_artist(
         - Use 0.0 for debut albums (artist has no prior releases)
         - Use their last known score if available from external data
         - For multiple albums, provide array of shape (n_albums,)
+    n_reviews_new : jnp.ndarray or None, default None
+        Review counts for the new album(s). Required when the model was
+        trained with heteroscedastic noise (i.e., posterior contains
+        {prefix}n_exponent). Shape: scalar for single album or (n_albums,)
+        for multiple albums. Used to compute per-observation sigma_scaled.
     prefix : str, default "user_"
         Parameter name prefix ("user_" or "critic_" depending on model).
     seed : int, default 3
@@ -266,6 +275,15 @@ def predict_new_artist(
                Shape: same as y
         - "artist_effect": Sampled artist effects from population distribution
                Shape: (n_samples,)
+        - "sigma_scaled": Per-observation noise scale used for predictions
+               Shape: same as y. For homoscedastic models, this is sigma_obs
+               broadcast to match y shape.
+
+    Raises
+    ------
+    ValueError
+        If the model was trained with heteroscedastic noise (has learned
+        n_exponent in posterior) but n_reviews_new is not provided.
 
     Example
     -------
@@ -285,10 +303,16 @@ def predict_new_artist(
     The prediction incorporates three sources of uncertainty:
     1. Parameter uncertainty (spread of beta, rho, etc. across samples)
     2. New artist uncertainty (sampled from population distribution)
-    3. Observation noise (sigma_obs)
+    3. Observation noise (sigma_obs or sigma_scaled for heteroscedastic)
 
     For a debut album (prev_score=0.0), the AR(1) term contributes nothing,
     so the prediction is purely based on features and the population effect.
+
+    Heteroscedastic noise: If the model was trained with learn_n_exponent=True,
+    the posterior will contain {prefix}n_exponent samples. In this case,
+    n_reviews_new must be provided so that sigma_scaled can be computed
+    per-observation as sigma_obs / n_reviews^exponent. This allows predictions
+    to have appropriately calibrated uncertainty based on review count.
     """
     # Extract population parameters with prefix
     mu_artist = posterior_samples[f"{prefix}mu_artist"]
@@ -298,6 +322,17 @@ def predict_new_artist(
     sigma_obs = posterior_samples[f"{prefix}sigma_obs"]
 
     n_samples = mu_artist.shape[0]
+
+    # Check if model was trained with learned n_exponent
+    has_n_exponent = f"{prefix}n_exponent" in posterior_samples
+
+    # Validate n_reviews_new when required
+    if has_n_exponent and n_reviews_new is None:
+        raise ValueError(
+            "n_reviews_new is required for predictions with heteroscedastic noise. "
+            f"Model was trained with learned n_exponent but no n_reviews_new provided. "
+            "Pass n_reviews_new as array of review counts (same length as X_new)."
+        )
 
     # Optionally subsample the posterior
     if n_predictions is not None and n_predictions < n_samples:
@@ -309,10 +344,19 @@ def predict_new_artist(
         beta = beta[indices]
         rho = rho[indices]
         sigma_obs = sigma_obs[indices]
+        if has_n_exponent:
+            n_exponent_samples = posterior_samples[f"{prefix}n_exponent"]
+            n_exponent_samples = n_exponent_samples[indices]
+        else:
+            n_exponent_samples = None
         n_samples = n_predictions
         seed = seed + 1  # Use different key for subsequent sampling
     else:
         rng_key = random.key(seed)
+        if has_n_exponent:
+            n_exponent_samples = posterior_samples[f"{prefix}n_exponent"]
+        else:
+            n_exponent_samples = None
 
     # Handle X_new shape: ensure 2D for matmul
     X_new = jnp.atleast_1d(X_new)
