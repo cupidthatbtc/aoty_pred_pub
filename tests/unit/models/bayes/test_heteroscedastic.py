@@ -239,6 +239,53 @@ class TestModelLearnedExponent:
         assert np.all(samples["user_n_exponent"] >= 0)
         assert np.all(samples["user_n_exponent"] <= 1)
 
+    def test_model_raises_when_heteroscedastic_without_n_reviews(self, sample_data):
+        """Test ValueError when heteroscedastic mode requested without n_reviews."""
+        data_no_n_reviews = {k: v for k, v in sample_data.items() if k != "n_reviews"}
+
+        mcmc = MCMC(
+            NUTS(user_score_model),
+            num_warmup=10,
+            num_samples=10,
+            num_chains=1,
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            mcmc.run(
+                random.PRNGKey(0),
+                n_exponent=0.0,
+                learn_n_exponent=True,  # Requesting heteroscedastic mode
+                **data_no_n_reviews,  # But no n_reviews
+            )
+
+        # Verify descriptive error message
+        error_msg = str(exc_info.value)
+        assert "n_reviews" in error_msg
+        assert "heteroscedastic" in error_msg.lower() or "Heteroscedastic" in error_msg
+
+    def test_model_raises_when_fixed_exponent_without_n_reviews(self, sample_data):
+        """Test ValueError when fixed non-zero exponent requested without n_reviews."""
+        data_no_n_reviews = {k: v for k, v in sample_data.items() if k != "n_reviews"}
+
+        mcmc = MCMC(
+            NUTS(user_score_model),
+            num_warmup=10,
+            num_samples=10,
+            num_chains=1,
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            mcmc.run(
+                random.PRNGKey(0),
+                n_exponent=0.5,  # Non-zero fixed exponent
+                learn_n_exponent=False,
+                **data_no_n_reviews,  # But no n_reviews
+            )
+
+        # Verify descriptive error message
+        error_msg = str(exc_info.value)
+        assert "n_reviews" in error_msg
+
 
 @pytest.mark.slow
 class TestHomoscedasticEquivalence:

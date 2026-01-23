@@ -325,9 +325,17 @@ def make_score_model(score_type: str) -> Callable:
         # flag to determine if we should apply heteroscedastic scaling.
         # When learning, we always apply scaling (that's why we're learning it).
         # When fixed, we can check if n_exp != 0 to skip unnecessary computation.
-        use_heteroscedastic = n_reviews is not None and (
-            learn_n_exponent or n_exponent != 0
-        )
+
+        # Validate: if heteroscedastic mode is requested, n_reviews must be provided
+        heteroscedastic_requested = learn_n_exponent or n_exponent != 0
+        if heteroscedastic_requested and n_reviews is None:
+            raise ValueError(
+                f"Heteroscedastic noise scaling requires n_reviews data. "
+                f"Got learn_n_exponent={learn_n_exponent}, n_exponent={n_exponent}, "
+                f"but n_reviews is None. Either provide n_reviews or set both "
+                f"learn_n_exponent=False and n_exponent=0 for homoscedastic mode."
+            )
+        use_heteroscedastic = heteroscedastic_requested  # n_reviews guaranteed non-None here
         if use_heteroscedastic:
             sigma_scaled = compute_sigma_scaled(sigma_obs, n_reviews, n_exp)
         else:
