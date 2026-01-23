@@ -43,6 +43,10 @@ class StageContext:
         enable_genre: If False, disable genre features.
         enable_artist: If False, disable artist features.
         enable_temporal: If False, disable temporal features.
+        n_exponent: Scaling exponent for review count noise adjustment.
+        learn_n_exponent: If True, learn exponent from data using Beta prior.
+        n_exponent_alpha: Beta prior alpha parameter for learned exponent.
+        n_exponent_beta: Beta prior beta parameter for learned exponent.
 
     Example:
         >>> ctx = StageContext(
@@ -77,6 +81,11 @@ class StageContext:
     enable_genre: bool = True
     enable_artist: bool = True
     enable_temporal: bool = True
+    # Heteroscedastic noise configuration
+    n_exponent: float = 0.0
+    learn_n_exponent: bool = False
+    n_exponent_alpha: float = 2.0
+    n_exponent_beta: float = 4.0
 
 
 @dataclass

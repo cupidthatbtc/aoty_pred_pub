@@ -194,12 +194,22 @@ class PipelineOrchestrator:
 
         # 4. Set random seeds
         set_seeds(self.config.seed)
+
+        # Check for config conflicts
+        if self.config.learn_n_exponent and self.config.n_exponent != 0.0:
+            log.warning(
+                "config_conflict",
+                message="Both --n-exponent and --learn-n-exponent provided; using learned mode (--n-exponent ignored)",
+            )
+
         log.info(
             "pipeline_started",
             run_id=self.manifest.run_id if self.manifest else "unknown",
             seed=self.config.seed,
             dry_run=self.config.dry_run,
             stages=self.config.stages,
+            n_exponent=self.config.n_exponent,
+            learn_n_exponent=self.config.learn_n_exponent,
         )
 
         # 5. Get execution order (pass min_ratings for correct input_paths)
@@ -505,6 +515,11 @@ class PipelineOrchestrator:
             enable_genre=self.config.enable_genre,
             enable_artist=self.config.enable_artist,
             enable_temporal=self.config.enable_temporal,
+            # Heteroscedastic noise configuration
+            n_exponent=self.config.n_exponent,
+            learn_n_exponent=self.config.learn_n_exponent,
+            n_exponent_alpha=self.config.n_exponent_alpha,
+            n_exponent_beta=self.config.n_exponent_beta,
         )
 
     def _execute_stage(self, stage: PipelineStage) -> None:
