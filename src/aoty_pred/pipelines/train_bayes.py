@@ -32,6 +32,7 @@ log = structlog.get_logger()
 def prepare_model_data(
     train_df: pd.DataFrame,
     feature_cols: list[str],
+    min_albums_filter: int = 2,
 ) -> dict:
     """Prepare data for NumPyro model fitting.
 
@@ -41,6 +42,8 @@ def prepare_model_data(
     Args:
         train_df: Training data with features and target.
         feature_cols: List of feature column names.
+        min_albums_filter: Minimum albums for dynamic effects. Artists with
+            fewer albums have all their albums treated as sequence 1 (static effect only).
 
     Returns:
         Dictionary with model arguments.
@@ -52,6 +55,12 @@ def prepare_model_data(
 
     # Album sequence (within artist, 1-indexed to match model expectations)
     album_seq = (train_df.groupby("Artist").cumcount() + 1).values
+
+    # Apply min_albums_filter: artists below threshold get static effect only
+    # by clamping their album_seq to 1
+    artist_counts = train_df.groupby("Artist").size()
+    below_threshold = train_df["Artist"].map(artist_counts < min_albums_filter).values
+    album_seq = np.where(below_threshold, 1, album_seq)
 
     # Previous score (shifted within artist, using mean for first album)
     train_df = train_df.copy()
@@ -154,6 +163,7 @@ def train_models(ctx: "StageContext") -> dict:
         seed=ctx.seed,
         strict=ctx.strict,
         max_albums=ctx.max_albums,
+        min_albums_filter=ctx.min_albums_filter,
         num_chains=ctx.num_chains,
         num_samples=ctx.num_samples,
         num_warmup=ctx.num_warmup,
@@ -189,8 +199,23 @@ def train_models(ctx: "StageContext") -> dict:
         n_features=len(train_features.columns),
     )
 
-    # Prepare model data
-    model_args = prepare_model_data(train_df, feature_cols)
+    # Prepare model data with min_albums filtering
+    model_args = prepare_model_data(
+        train_df,
+        feature_cols,
+        min_albums_filter=ctx.min_albums_filter,
+    )
+
+    # Log how many artists are below min_albums threshold
+    artist_counts = train_df.groupby("Artist").size()
+    n_below_threshold = (artist_counts < ctx.min_albums_filter).sum()
+    if n_below_threshold > 0:
+        log.info(
+            "min_albums_filter_applied",
+            min_albums=ctx.min_albums_filter,
+            artists_below_threshold=int(n_below_threshold),
+            message=f"{n_below_threshold} artists have static effects only (fewer than {ctx.min_albums_filter} albums)",
+        )
 
     # Apply max_albums cap from CLI/config (uses most recent albums per artist)
     artist_album_counts = model_args.pop("artist_album_counts")
@@ -296,6 +321,8 @@ def train_models(ctx: "StageContext") -> dict:
             "ess_threshold": ctx.ess_threshold,
             "allow_divergences": ctx.allow_divergences,
         },
+        "min_albums_filter": ctx.min_albums_filter,
+        "n_artists_below_threshold": int(n_below_threshold),
         "priors": asdict(priors),
         "data_hash": data_hash,
         "n_observations": len(model_args["y"]),
