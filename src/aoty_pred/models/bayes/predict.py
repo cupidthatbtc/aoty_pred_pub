@@ -422,7 +422,7 @@ def predict_new_artist(
             # n_reviews_new is scalar, expand for broadcast
             sigma_scaled = compute_sigma_scaled(
                 sigma_obs[:, None],  # (n_samples, 1)
-                jnp.array([[n_reviews_new]]),  # (1, 1)
+                jnp.asarray(n_reviews_new)[None, None],  # (1, 1)
                 n_exponent_samples[:, None],  # (n_samples, 1)
             )  # Result: (n_samples, 1)
         else:
