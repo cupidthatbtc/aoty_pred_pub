@@ -31,6 +31,7 @@ from aoty_pred.pipelines.manifest import (
 from aoty_pred.pipelines.stages import (
     PIPELINE_STAGES,
     PipelineStage,
+    build_pipeline_stages,
     get_execution_order,
     get_stage,
 )
@@ -57,6 +58,7 @@ __all__ = [
     # Stages
     "PIPELINE_STAGES",
     "PipelineStage",
+    "build_pipeline_stages",
     "get_execution_order",
     "get_stage",
     # Errors

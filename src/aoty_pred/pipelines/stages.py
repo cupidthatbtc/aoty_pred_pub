@@ -418,24 +418,42 @@ def make_stage_report() -> PipelineStage:
     )
 
 
-# Build stages list using factory functions
-PIPELINE_STAGES: list[PipelineStage] = [
-    make_stage_data(),
-    make_stage_splits(),
-    make_stage_features(),
-    make_stage_train(),
-    make_stage_evaluate(),
-    make_stage_report(),
-]
+def build_pipeline_stages(min_ratings: int = 10) -> list[PipelineStage]:
+    """Build pipeline stages list with runtime configuration.
+
+    Args:
+        min_ratings: Minimum user ratings per album. Passed to make_stage_splits()
+            to ensure input_paths point to the correct parquet file.
+
+    Returns:
+        List of PipelineStage objects configured for the given min_ratings.
+    """
+    return [
+        make_stage_data(),
+        make_stage_splits(min_ratings=min_ratings),
+        make_stage_features(),
+        make_stage_train(),
+        make_stage_evaluate(),
+        make_stage_report(),
+    ]
 
 
-def get_execution_order(stages: list[str] | None = None) -> list[PipelineStage]:
+# Default stages list for backward compatibility (uses default min_ratings=10)
+PIPELINE_STAGES: list[PipelineStage] = build_pipeline_stages()
+
+
+def get_execution_order(
+    stages: list[str] | None = None,
+    min_ratings: int = 10,
+) -> list[PipelineStage]:
     """Get stages in dependency-respecting execution order.
 
     Args:
         stages: List of stage names to include, or None for all stages.
             If provided, stages are returned in topological order respecting
             dependencies between the specified stages.
+        min_ratings: Minimum user ratings per album. Determines which parquet
+            file the splits stage uses as input.
 
     Returns:
         List of PipelineStage objects in execution order.
@@ -449,29 +467,34 @@ def get_execution_order(stages: list[str] | None = None) -> list[PipelineStage]:
         >>> [s.name for s in order]
         ['data', 'splits', 'features', 'train', 'evaluate', 'report']
 
-        >>> order = get_execution_order(["features", "splits"])
+        >>> order = get_execution_order(["features", "splits"], min_ratings=30)
         >>> [s.name for s in order]
         ['splits', 'features']
     """
+    # Build stages with runtime min_ratings to ensure correct input_paths
+    pipeline_stages = build_pipeline_stages(min_ratings=min_ratings)
+
     if stages is None:
-        return _topological_sort(PIPELINE_STAGES)
+        return _topological_sort(pipeline_stages)
 
     # Validate stage names
-    valid_names = {s.name for s in PIPELINE_STAGES}
+    valid_names = {s.name for s in pipeline_stages}
     for name in stages:
         if name not in valid_names:
             raise KeyError(f"Unknown stage: '{name}'. Valid stages: {sorted(valid_names)}")
 
     # Filter and sort
     stage_set = set(stages)
-    return _topological_sort(PIPELINE_STAGES, stage_set)
+    return _topological_sort(pipeline_stages, stage_set)
 
 
-def get_stage(name: str) -> PipelineStage:
+def get_stage(name: str, min_ratings: int = 10) -> PipelineStage:
     """Look up a stage by name.
 
     Args:
         name: Stage name to look up.
+        min_ratings: Minimum user ratings per album. Determines which parquet
+            file the splits stage uses as input.
 
     Returns:
         PipelineStage with the given name.
@@ -484,9 +507,10 @@ def get_stage(name: str) -> PipelineStage:
         >>> stage.description
         'Fit Bayesian models on training data'
     """
-    for stage in PIPELINE_STAGES:
+    pipeline_stages = build_pipeline_stages(min_ratings=min_ratings)
+    for stage in pipeline_stages:
         if stage.name == name:
             return stage
 
-    valid_names = sorted(s.name for s in PIPELINE_STAGES)
+    valid_names = sorted(s.name for s in pipeline_stages)
     raise KeyError(f"Unknown stage: '{name}'. Valid stages: {valid_names}")

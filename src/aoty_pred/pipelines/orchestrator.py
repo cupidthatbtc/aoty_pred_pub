@@ -193,9 +193,9 @@ class PipelineOrchestrator:
             stages=self.config.stages,
         )
 
-        # 5. Get execution order
+        # 5. Get execution order (pass min_ratings for correct input_paths)
         try:
-            stages = get_execution_order(self.config.stages)
+            stages = get_execution_order(self.config.stages, min_ratings=self.config.min_ratings)
         except KeyError as e:
             log.error("invalid_stage", error=str(e))
             return 1
