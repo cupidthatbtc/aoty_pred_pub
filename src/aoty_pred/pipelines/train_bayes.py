@@ -110,7 +110,7 @@ def _apply_max_albums_cap(
     # Guard against non-positive max_albums_cap to ensure valid shapes
     max_albums_cap = max(1, int(max_albums_cap))
 
-    uncapped_max_seq = model_args.pop("uncapped_max_seq")
+    model_args.pop("uncapped_max_seq", None)
     album_seq = model_args["album_seq"]
     artist_idx = model_args["artist_idx"]
 
@@ -124,8 +124,8 @@ def _apply_max_albums_cap(
     album_seq = np.maximum(1, album_seq - artist_offsets).astype(np.int32)
 
     # Compute max_seq from actual capped album_seq values for consistency.
-    # The +1 accounts for 1-indexed album_seq when sizing downstream arrays.
-    max_seq = int(album_seq.max()) + 1
+    # Since album_seq is 1-indexed and model converts to 0-indexed, max_seq = album_seq.max().
+    max_seq = int(album_seq.max())
 
     n_capped_artists = (artist_album_counts > max_albums_cap).sum()
     if n_capped_artists > 0:
