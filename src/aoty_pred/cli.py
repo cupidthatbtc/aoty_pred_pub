@@ -82,6 +82,21 @@ def run(
         "-v",
         help="Enable DEBUG logging",
     ),
+    preflight: bool = typer.Option(
+        False,
+        "--preflight",
+        help="Run memory check before starting; abort if insufficient",
+    ),
+    preflight_only: bool = typer.Option(
+        False,
+        "--preflight-only",
+        help="Run memory check and exit (0=pass, 1=fail, 2=warning/cannot-check)",
+    ),
+    force_run: bool = typer.Option(
+        False,
+        "--force-run",
+        help="Override preflight failure and continue anyway (use with --preflight)",
+    ),
     resume: Optional[str] = typer.Option(
         None,
         "--resume",
@@ -190,6 +205,15 @@ def run(
 
         # Resume a failed run
         aoty-pipeline run --resume 2026-01-19_143052
+
+        # Check memory before running
+        aoty-pipeline run --preflight
+
+        # Check memory only (CI/scripting)
+        aoty-pipeline run --preflight-only
+
+        # Force run despite preflight failure
+        aoty-pipeline run --preflight --force-run
     """
     from aoty_pred.pipelines.orchestrator import PipelineConfig, run_pipeline
 
