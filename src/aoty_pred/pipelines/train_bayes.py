@@ -66,11 +66,9 @@ def prepare_model_data(
     # Target
     y = train_df["User_Score"].values.astype(np.float32)
 
-    # Max sequence for JAX tracing, capped to limit rw_innovations tensor size.
-    # This prevents memory issues for prolific artists. Albums beyond the cap
-    # will use the same artist effect as the max position, which may slightly
-    # reduce temporal resolution for those rare cases but keeps memory bounded.
-    # Default cap is 50, configurable via --max-albums CLI option.
+    # Record the true maximum sequence length from album_seq (uncapped).
+    # Any cap on album sequence values is applied later by _apply_max_albums_cap,
+    # which is configurable via the --max-albums CLI option.
     uncapped_max_seq = int(album_seq.max()) + 1
 
     # Compute album counts per artist (indexed by artist_idx, not artist name)
@@ -96,8 +94,8 @@ def _apply_max_albums_cap(
     """Apply max_albums cap to model arguments, keeping most recent albums.
 
     For artists with more than max_albums_cap albums, renumbers so that the
-    most recent albums get distinct positions (0 to max_albums_cap-1) and
-    older albums share position 0. This is appropriate because:
+    most recent albums get distinct positions (1 to max_albums_cap) and
+    older albums share position 1. This is appropriate because:
     - Recent albums are more predictive of future albums
     - No leakage since album_seq is calculated on training data only
 
@@ -117,15 +115,17 @@ def _apply_max_albums_cap(
     artist_idx = model_args["artist_idx"]
 
     # For each artist, compute offset to shift album_seq so most recent albums
-    # get positions 0 to max_albums_cap-1, and older albums share position 0
+    # get positions 1 to max_albums_cap, and older albums share position 1
     # offset = max(0, n_albums - max_albums_cap)
     offsets = np.maximum(0, artist_album_counts.values - max_albums_cap)
 
-    # Apply per-artist offset: new_seq = max(0, original_seq - offset[artist])
+    # Apply per-artist offset: new_seq = max(1, original_seq - offset[artist])
     artist_offsets = offsets[artist_idx]
-    album_seq = np.maximum(0, album_seq - artist_offsets).astype(np.int32)
+    album_seq = np.maximum(1, album_seq - artist_offsets).astype(np.int32)
 
-    max_seq = min(uncapped_max_seq, max_albums_cap)
+    # Compute max_seq from actual capped album_seq values for consistency.
+    # The +1 accounts for 1-indexed album_seq when sizing downstream arrays.
+    max_seq = int(album_seq.max()) + 1
 
     n_capped_artists = (artist_album_counts > max_albums_cap).sum()
     if n_capped_artists > 0:
@@ -133,7 +133,7 @@ def _apply_max_albums_cap(
             "max_albums_applied",
             max_albums=max_albums_cap,
             artists_capped=int(n_capped_artists),
-            message=f"Using {max_albums_cap} most recent albums per artist; older albums share position 0",
+            message=f"Using {max_albums_cap} most recent albums per artist; older albums share position 1",
         )
 
     model_args["album_seq"] = album_seq
