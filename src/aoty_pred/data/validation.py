@@ -70,7 +70,6 @@ def validate_raw_dataframe(df: pd.DataFrame, lazy: bool = True) -> pd.DataFrame:
         return validated
     except pa.errors.SchemaErrors as e:
         # Re-raise with helpful context
-        n_failures = len(e.failure_cases)
         raise pa.errors.SchemaErrors(
             schema_errors=e.schema_errors, data=e.data
         ) from None

@@ -339,7 +339,7 @@ def create_diagnostics_table(
         rhat = summary.loc[row_name, "r_hat"]
         ess_bulk = summary.loc[row_name, "ess_bulk"]
 
-        rhat_ok = rhat < rhat_threshold
+        rhat_ok = rhat <= rhat_threshold
         ess_ok = ess_bulk >= total_ess_threshold
 
         if rhat_ok and ess_ok:
@@ -406,7 +406,7 @@ def create_comparison_table(
 
     # Handle single model case
     if len(model_dict) == 1:
-        name = list(model_dict.keys())[0]
+        name = next(iter(model_dict.keys()))
         idata = model_dict[name]
 
         # Compute LOO/WAIC for single model

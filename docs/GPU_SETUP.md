@@ -230,7 +230,7 @@ memory=32GB
 
 ## Performance Tips
 
-1. **Use vectorized chain method:** `chain_method='vectorized'` runs chains on GPU efficiently
+1. **Use vectorized chain method:** MCMCConfig defaults to `chain_method='sequential'` for stability. For GPU efficiency, explicitly set `chain_method='vectorized'` when constructing MCMCConfig.
 2. **Monitor GPU memory:** `nvidia-smi` during runs to check utilization
 3. **Batch size:** Start with defaults; adjust if running out of GPU memory
 4. **Close other GPU apps:** Games, browsers with hardware acceleration can compete for GPU

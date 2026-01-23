@@ -1,0 +1,5 @@
+# Developer overrides for quick iteration
+model:
+  tune: 500
+  draws: 500
+  chains: 2

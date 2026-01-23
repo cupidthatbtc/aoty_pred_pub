@@ -1,0 +1,78 @@
+# Base configuration (edit as needed)
+dataset:
+  raw_csv: "${AOTY_DATASET_PATH}"
+  encoding: "utf-8-sig"
+  min_ratings: 30
+splits:
+  strategy: "within_artist_last"
+  group_col: "Artist"
+  seed: 42
+  train_frac: 0.65
+  val_frac: 0.15
+  test_frac: 0.20
+  k_folds: 5
+  time_holdout: true
+imputation:
+  strategy: "hierarchical"
+  hierarchy: ["artist", "genre", "decade", "global"]
+  min_counts:
+    artist: 2
+    genre: 5
+    decade: 20
+features:
+  include_genre: true
+  include_artist: true
+  include_temporal: true
+  include_album_type: true
+  pca:
+    core: false
+    genres_components: 30
+    descriptors_components: 30
+  blocks:
+    - name: core_numeric
+      params: {}
+    - name: temporal
+      params: {}
+    - name: artist_reputation
+      params: {}
+    - name: genre_pca
+      params:
+        n_components: 30
+    - name: descriptor_pca
+      params:
+        n_components: 30
+    - name: album_type
+      params: {}
+model:
+  sampler: "pymc"
+  tune: 2000
+  draws: 2000
+  chains: 4
+  target_accept: 0.90
+  max_treedepth: 12
+  target_scale: "standardized"
+  priors:
+    intercept_sd: 1.0
+    slope_sd: 1.0
+    group_sd: 1.0
+    sigma_sd: 1.0
+  dynamic:
+    enabled: true
+    min_albums: 2
+evaluation:
+  metrics: ["r2", "rmse", "mae"]
+  calibration_intervals: [0.80, 0.95]
+  coverage_tolerance: 0.03
+  model_comparison: ["waic", "loo"]
+sensitivity:
+  min_ratings: [10, 20, 30, 40]
+  dynamic_min_albums: [2, 3]
+  prior_slope_sd: [0.5, 1.0]
+  feature_ablations: ["no_genre", "no_artist", "no_temporal"]
+  splits: ["within_artist_last", "artist_group"]
+outputs:
+  save_traces: true
+  run_dir: "runs"
+  processed_path: "data/processed/regression_ready.csv"
+  features_dir: "data/features"
+  features_manifest: "data/features/features_manifest.json"

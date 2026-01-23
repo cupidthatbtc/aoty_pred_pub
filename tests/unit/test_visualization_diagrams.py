@@ -275,7 +275,7 @@ class TestGenerateAllDiagrams:
     def test_each_set_has_four_formats(self, tmp_path):
         """Each diagram set should have svg, png, pdf, dot files."""
         results = generate_all_diagrams(tmp_path, levels=["high"])
-        for name, paths in results.items():
+        for _name, paths in results.items():
             extensions = {p.suffix for p in paths}
             assert extensions == {".svg", ".png", ".pdf", ".dot"}
 
@@ -572,7 +572,7 @@ class TestDetailLevelType:
 
     def test_all_level_functions_accept_theme(self):
         """All level functions should accept a theme parameter."""
-        for level, func in LEVEL_FUNCTIONS.items():
+        for _level, func in LEVEL_FUNCTIONS.items():
             # Should not raise
             diagram = func("light")
             assert diagram is not None
@@ -581,7 +581,7 @@ class TestDetailLevelType:
         """All level functions should return graphviz.Digraph."""
         import graphviz
 
-        for level, func in LEVEL_FUNCTIONS.items():
+        for _level, func in LEVEL_FUNCTIONS.items():
             diagram = func("light")
             assert isinstance(diagram, graphviz.Digraph)
 
@@ -619,7 +619,7 @@ class TestGenerateAllDiagramsWithLevels:
     def test_each_set_has_four_files(self, tmp_path):
         """Each diagram set should have 4 files (svg, png, pdf, dot)."""
         results = generate_all_diagrams(tmp_path, levels=["intermediate"])
-        for name, paths in results.items():
+        for _name, paths in results.items():
             assert len(paths) == 4
             extensions = {p.suffix for p in paths}
             assert extensions == {".svg", ".png", ".pdf", ".dot"}
@@ -627,13 +627,13 @@ class TestGenerateAllDiagramsWithLevels:
     def test_high_level_files_exist(self, tmp_path):
         """High-level diagram files should exist after generation."""
         results = generate_all_diagrams(tmp_path, levels=["high"])
-        for name, paths in results.items():
+        for _name, paths in results.items():
             for path in paths:
                 assert path.exists(), f"{path} should exist"
 
     def test_detailed_level_files_exist(self, tmp_path):
         """Detailed diagram files should exist after generation."""
         results = generate_all_diagrams(tmp_path, levels=["detailed"])
-        for name, paths in results.items():
+        for _name, paths in results.items():
             for path in paths:
                 assert path.exists(), f"{path} should exist"

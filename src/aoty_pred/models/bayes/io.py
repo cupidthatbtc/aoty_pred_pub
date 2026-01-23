@@ -8,27 +8,34 @@ them via a manifest file. Key features:
 - Git commit hash captured for version control integration
 """
 
+from __future__ import annotations
+
 import json
 import subprocess
-from dataclasses import dataclass, asdict, field
-from datetime import datetime
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import arviz as az
+import structlog
 
-from aoty_pred.models.bayes.fit import MCMCConfig
 from aoty_pred.models.bayes.priors import PriorConfig
 
+if TYPE_CHECKING:
+    from aoty_pred.models.bayes.fit import FitResult
+
+logger = structlog.get_logger(__name__)
+
 __all__ = [
-    "ModelManifest",
-    "ModelsManifest",
-    "save_model",
-    "load_model",
     "generate_model_filename",
     "get_git_commit",
     "load_manifest",
+    "load_model",
+    "ModelManifest",
+    "ModelsManifest",
     "save_manifest",
+    "save_model",
 ]
 
 
@@ -57,8 +64,8 @@ class ModelManifest:
     created_at: str
     model_type: str
     filename: str
-    mcmc_config: dict
-    priors: dict
+    mcmc_config: dict[str, Any]
+    priors: dict[str, Any]
     data_hash: str
     git_commit: str
     gpu_info: str
@@ -126,7 +133,7 @@ def generate_model_filename(model_type: str) -> str:
     str
         Filename with timestamp in format YYYYMMDD_HHMMSS.
     """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     return f"{model_type}_{timestamp}.nc"
 
 
@@ -149,13 +156,24 @@ def get_git_commit() -> str:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
-        pass
+        else:
+            logger.debug(
+                "git_commit_lookup_failed",
+                returncode=result.returncode,
+                output=result.stderr.strip(),
+                reason="git_nonzero_exit",
+            )
+    except FileNotFoundError as e:
+        logger.debug("git_commit_lookup_failed", error=str(e), reason="git_not_found")
+    except subprocess.TimeoutExpired as e:
+        logger.debug("git_commit_lookup_failed", error=str(e), reason="timeout")
+    except OSError as e:
+        logger.debug("git_commit_lookup_failed", error=str(e), reason="os_error")
     return "unknown"
 
 
 def save_model(
-    fit_result: "FitResult",  # Forward reference to avoid circular import
+    fit_result: FitResult,
     model_type: str,
     priors: PriorConfig,
     data_hash: str,
@@ -199,9 +217,6 @@ def save_model(
     ... )
     >>> print(f"Saved to: {path}")
     """
-    # Import here to avoid circular import
-    from aoty_pred.models.bayes.fit import FitResult, MCMCConfig
-
     # Create output directory if needed
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -214,12 +229,17 @@ def save_model(
     fit_result.idata.to_netcdf(filepath)
 
     # Create manifest entry
+    mcmc_config = (
+        fit_result.mcmc._kernel_params
+        if hasattr(fit_result.mcmc, "_kernel_params")
+        else {}
+    )
     manifest = ModelManifest(
         version="1.0",
-        created_at=datetime.utcnow().isoformat() + "Z",
+        created_at=datetime.now(timezone.utc).isoformat(),
         model_type=model_type,
         filename=filename,
-        mcmc_config=fit_result.mcmc._kernel_params if hasattr(fit_result.mcmc, "_kernel_params") else {},
+        mcmc_config=mcmc_config,
         priors=asdict(priors),
         data_hash=data_hash,
         git_commit=get_git_commit(),
@@ -285,9 +305,12 @@ def load_manifest(output_dir: Path = Path("models")) -> ModelsManifest | None:
     if not manifest_path.exists():
         return None
 
-    with open(manifest_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.warning("manifest_parse_failed", path=str(manifest_path), error=str(e))
+        return None
     return ModelsManifest.from_dict(data)
 
 

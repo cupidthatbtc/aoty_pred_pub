@@ -1,4 +1,5 @@
 # COMPREHENSIVE DATA LINEAGE DOCUMENTATION
+
 ## Album Analysis Pipeline - Every Operation Documented
 
 **Input File:** `all_albums_full.csv` (130,023 albums)
@@ -1113,7 +1114,7 @@
 │ Code Location: analyze_albums.py lines 5025-5034, 3030-3154                         │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │ SHAPE: (130,023 × 18) → (~129,790 × 18)                                             │
-│ Removes approximately 3,000 duplicate rows                                          │
+│ Removes approximately 230 duplicate rows                                            │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │ OPERATIONS:                                                                         │
 │                                                                                      │

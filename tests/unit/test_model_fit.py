@@ -11,18 +11,19 @@ These tests actually run MCMC sampling with minimal settings to verify
 the fit_model function works end-to-end.
 """
 
+from dataclasses import FrozenInstanceError
+
+import jax.numpy as jnp
 import numpy as np
 import pytest
-import jax.numpy as jnp
 
 from aoty_pred.models.bayes.fit import (
-    fit_model,
-    MCMCConfig,
     FitResult,
+    MCMCConfig,
+    fit_model,
     get_gpu_info,
 )
 from aoty_pred.models.bayes.model import user_score_model
-
 
 # =============================================================================
 # Test Fixtures
@@ -97,11 +98,11 @@ class TestMCMCConfig:
         """MCMCConfig should have reasonable production defaults."""
         config = MCMCConfig()
 
-        # Production defaults: 1000/1000/4/vectorized for publication-quality runs
+        # Production defaults: 1000/1000/4/sequential for stable runs
         assert config.num_warmup == 1000
         assert config.num_samples == 1000
         assert config.num_chains == 4
-        assert config.chain_method == "vectorized"
+        assert config.chain_method == "sequential"
         assert config.seed == 0
         assert config.max_tree_depth == 10
         assert config.target_accept_prob == 0.8
@@ -110,7 +111,7 @@ class TestMCMCConfig:
         """MCMCConfig should be immutable (frozen)."""
         config = MCMCConfig()
 
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(FrozenInstanceError):
             config.num_warmup = 500
 
     def test_mcmc_config_to_dict(self):

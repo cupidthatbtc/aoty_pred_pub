@@ -12,11 +12,15 @@ Usage:
 
 from __future__ import annotations
 
+import html
+import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 from aoty_pred.visualization.charts import (
     create_forest_plot,
@@ -136,8 +140,8 @@ def create_dashboard_figures(
                         include_plotlyjs=first_figure,
                     )
                     first_figure = False
-        except Exception:
-            pass  # Skip if idata format is unexpected
+        except Exception as e:
+            logger.debug("Skipping trace plot due to unexpected idata format: %s", e)
 
     # Predictions scatter plot
     if data.predictions is not None:
@@ -253,7 +257,7 @@ def create_artist_view(
     artist_df = artist_data[artist_mask].copy()
 
     if artist_df.empty:
-        return f'<div class="not-found">Artist "{artist_name}" not found.</div>'
+        return f'<div class="not-found">Artist "{html.escape(artist_name)}" not found.</div>'
 
     # Auto-detect columns
     time_col = _find_column(artist_df, ["date", "year", "release_date", "time"])
@@ -399,7 +403,7 @@ def create_coefficients_table(coefficients: pd.DataFrame) -> str:
 
     for _, row in coefficients.iterrows():
         html_parts.append("<tr>")
-        html_parts.append(f"    <td>{row[label_col]}</td>")
+        html_parts.append(f"    <td>{html.escape(str(row[label_col]))}</td>")
         html_parts.append(f'    <td data-value="{row[estimate_col]:.6f}">{row[estimate_col]:.3f}</td>')
         html_parts.append(f'    <td data-value="{row[lower_col]:.6f}">{row[lower_col]:.3f}</td>')
         html_parts.append(f'    <td data-value="{row[upper_col]:.6f}">{row[upper_col]:.3f}</td>')

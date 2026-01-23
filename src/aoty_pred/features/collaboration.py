@@ -6,13 +6,12 @@ is_collaboration, num_artists, collab_type.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 import pandas as pd
 
 from .base import BaseFeatureBlock, FeatureContext, FeatureOutput
 from .errors import FittedVocabulary
-
 
 # Default collab_type ordering for ordinal encoding
 DEFAULT_COLLAB_TYPES = ("solo", "duo", "small_group", "ensemble")
@@ -52,9 +51,9 @@ class CollaborationBlock(BaseFeatureBlock):
     ['is_collaboration', 'num_artists', 'collab_type_ordinal']
     """
 
-    name = "collaboration"
-    requires: list[str] = []
-    required_columns: list[str] = ["is_collaboration", "collab_type", "num_artists"]
+    name: ClassVar[str] = "collaboration"
+    requires: ClassVar[list[str]] = []
+    required_columns: ClassVar[list[str]] = ["is_collaboration", "collab_type", "num_artists"]
 
     def __init__(self, params: dict[str, Any] | None = None) -> None:
         super().__init__(params)
@@ -140,7 +139,8 @@ class CollaborationBlock(BaseFeatureBlock):
 
         # Encode collab_type as ordinal
         if self._collab_type_vocab_ is not None:
-            collab_types = df["collab_type"].fillna("solo").tolist()
+            default_type = self._collab_type_vocab_.categories[0]
+            collab_types = df["collab_type"].fillna(default_type).tolist()
             output_data["collab_type_ordinal"] = self._collab_type_vocab_.encode(collab_types)
 
         feature_names = ["is_collaboration", "num_artists", "collab_type_ordinal"]

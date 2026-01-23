@@ -1,10 +1,11 @@
 """Split manifest schema and I/O for reproducibility."""
 
 import json
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List
+
 import pandas as pd
 
 
@@ -41,18 +42,18 @@ class SplitManifest:
     content_hash: str = ""  # Combined hash of all splits
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        d = asdict(self)
-        # Convert SplitStats and SplitAssignment dataclasses
-        d["splits"] = {k: asdict(v) for k, v in self.splits.items()}
-        d["assignments"] = [asdict(a) for a in self.assignments]
-        return d
+        """Convert to dictionary for JSON serialization.
+
+        Uses dataclasses.asdict() which recursively converts nested
+        dataclasses (SplitStats, SplitAssignment) to dicts automatically.
+        """
+        return asdict(self)
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "SplitManifest":
         """Create from dictionary."""
         d["splits"] = {k: SplitStats(**v) for k, v in d["splits"].items()}
-        d["assignments"] = [SplitAssignment(**a) for a in d["assignments"]]
+        d["assignments"] = [SplitAssignment(**a) for a in d.get("assignments", [])]
         return cls(**d)
 
 
@@ -147,9 +148,6 @@ def create_split_assignments(
                 reason=f"earlier_album_for_{row[artist_col][:50]}"
             ))
     else:  # artist_disjoint
-        test_artists = set(test_df[artist_col])
-        val_artists = set(val_df[artist_col])
-
         for _, row in test_df.iterrows():
             assignments.append(SplitAssignment(
                 original_row_id=int(row["original_row_id"]),

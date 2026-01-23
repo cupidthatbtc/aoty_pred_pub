@@ -66,9 +66,23 @@ def prepare_model_data(
     # Target
     y = train_df["User_Score"].values.astype(np.float32)
 
-    # Max sequence for JAX tracing (capped to limit rw_innovations tensor size)
-    max_seq = min(int(album_seq.max()) + 1, 50)
-    # max_seq = int(album_seq.max()) + 1  # uncapped
+    # Max sequence for JAX tracing, capped at 50 to limit rw_innovations tensor size.
+    # This prevents memory issues for prolific artists (>50 albums). Albums beyond
+    # position 50 will use the same artist effect as position 50, which may slightly
+    # reduce temporal resolution for those rare cases but keeps memory bounded.
+    MAX_SEQ_CAP = 50
+    uncapped_max_seq = int(album_seq.max()) + 1
+    max_seq = min(uncapped_max_seq, MAX_SEQ_CAP)
+    # Clamp album_seq to valid range for capped dimension
+    album_seq = np.minimum(album_seq, MAX_SEQ_CAP - 1).astype(np.int32)
+
+    if uncapped_max_seq > MAX_SEQ_CAP:
+        log.warning(
+            "max_seq_capped",
+            uncapped=uncapped_max_seq,
+            capped=MAX_SEQ_CAP,
+            message=f"Albums beyond position {MAX_SEQ_CAP} will share artist effects",
+        )
 
     return {
         "artist_idx": artist_idx,

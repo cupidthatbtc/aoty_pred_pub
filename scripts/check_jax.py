@@ -25,7 +25,7 @@ def check_jax():
     except ImportError as e:
         print(f"Import error: {e}")
         return 1
-    except Exception as e:
+    except Exception as e:  # Broad catch: JAX init can fail many ways (device, driver, etc.)
         print(f"Error: {e}")
         return 1
 
