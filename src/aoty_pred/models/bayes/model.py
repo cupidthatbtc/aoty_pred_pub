@@ -111,8 +111,13 @@ def compute_sigma_scaled(
     sigma_scaled = jnp.exp(log_sigma)
 
     # Apply single-review penalty (n=1 is unreliable)
+    # Use robust comparison instead of exact float equality
+    is_single_review = jnp.isclose(n_safe, 1.0, rtol=1e-6, atol=1e-6)
+    # Only apply single-review penalty in heteroscedastic mode (exponent > 0)
+    # In homoscedastic mode, sigma_scaled already equals sigma_obs, so no penalty needed
+    apply_penalty = jnp.logical_and(is_single_review, exponent > 0)
     sigma_scaled = jnp.where(
-        n_reviews == 1, sigma_obs * single_review_multiplier, sigma_scaled
+        apply_penalty, sigma_obs * single_review_multiplier, sigma_scaled
     )
 
     # Apply minimum floor for numerical stability
