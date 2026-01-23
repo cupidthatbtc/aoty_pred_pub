@@ -10,17 +10,32 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from pynvml import (
-    NVMLError,
-    nvmlDeviceGetCount,
-    nvmlDeviceGetHandleByIndex,
-    nvmlDeviceGetMemoryInfo,
-    nvmlDeviceGetName,
-    nvmlInit,
-    nvmlShutdown,
-)
-
 from aoty_pred.pipelines.errors import GpuMemoryError
+
+# NVML imports are optional - handle gracefully when not available
+_NVML_AVAILABLE = False
+_NVML_IMPORT_ERROR: str | None = None
+
+try:
+    from pynvml import (
+        NVMLError,
+        nvmlDeviceGetCount,
+        nvmlDeviceGetHandleByIndex,
+        nvmlDeviceGetMemoryInfo,
+        nvmlDeviceGetName,
+        nvmlInit,
+        nvmlShutdown,
+    )
+
+    _NVML_AVAILABLE = True
+except ImportError as e:
+    _NVML_IMPORT_ERROR = str(e)
+
+    # Define placeholder types for when pynvml is not available
+    class NVMLError(Exception):  # type: ignore[no-redef]
+        """Placeholder for NVMLError when pynvml is not installed."""
+
+        pass
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -111,14 +126,21 @@ def query_gpu_memory(device_index: int = 0) -> GpuMemoryInfo:
         GpuMemoryInfo with total/used/free VRAM in bytes.
 
     Raises:
-        GpuMemoryError: If NVML initialization fails, no GPU detected,
-            or device index out of range.
+        GpuMemoryError: If NVML library not available, initialization fails,
+            no GPU detected, or device index out of range.
 
     Example:
         >>> info = query_gpu_memory()
         >>> print(f"Free: {info.free_gb:.1f} GB")
         Free: 6.2 GB
     """
+    # Check if NVML is available
+    if not _NVML_AVAILABLE:
+        raise GpuMemoryError(
+            f"NVML library not available: {_NVML_IMPORT_ERROR}. "
+            "Install nvidia-ml-py with 'pip install nvidia-ml-py' or use --force-run."
+        )
+
     try:
         with _nvml_context():
             count = nvmlDeviceGetCount()

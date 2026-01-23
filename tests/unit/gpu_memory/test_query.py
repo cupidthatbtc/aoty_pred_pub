@@ -9,6 +9,13 @@ import pytest
 from aoty_pred.gpu_memory.query import GpuMemoryInfo, query_gpu_memory
 from aoty_pred.pipelines.errors import GpuMemoryError
 
+# Check if NVML is available (for conditional test skipping)
+try:
+    import pynvml
+    NVML_AVAILABLE = True
+except ImportError:
+    NVML_AVAILABLE = False
+
 
 class TestGpuMemoryInfo:
     """Tests for GpuMemoryInfo dataclass."""
@@ -89,8 +96,30 @@ class TestGpuMemoryInfo:
         assert "6.2 GB free" in display
 
 
+class TestQueryGpuMemoryNvmlNotAvailable:
+    """Tests for query_gpu_memory() when NVML is not available."""
+
+    def test_raises_when_nvml_not_available(self):
+        """query_gpu_memory raises GpuMemoryError when NVML is not available."""
+        with mock.patch("aoty_pred.gpu_memory.query._NVML_AVAILABLE", False):
+            with mock.patch(
+                "aoty_pred.gpu_memory.query._NVML_IMPORT_ERROR",
+                "No module named 'pynvml'",
+            ):
+                with pytest.raises(GpuMemoryError) as exc_info:
+                    query_gpu_memory()
+
+                assert "NVML library not available" in str(exc_info.value)
+                assert "nvidia-ml-py" in str(exc_info.value)
+
+
+@pytest.mark.skipif(not NVML_AVAILABLE, reason="pynvml not installed")
 class TestQueryGpuMemory:
-    """Tests for query_gpu_memory() function."""
+    """Tests for query_gpu_memory() function.
+
+    These tests require pynvml to be installed so the NVML functions
+    exist in the module namespace for patching.
+    """
 
     @pytest.fixture
     def mock_nvml(self):
@@ -222,8 +251,12 @@ class _MockNVMLError(Exception):
         return self.message
 
 
+@pytest.mark.skipif(not NVML_AVAILABLE, reason="pynvml not installed")
 class TestQueryGpuMemoryErrorHandling:
-    """Tests for NVML error handling in query_gpu_memory()."""
+    """Tests for NVML error handling in query_gpu_memory().
+
+    These tests require pynvml to be installed for patching.
+    """
 
     def test_library_not_found_error(self):
         """query_gpu_memory converts library not found to GpuMemoryError."""

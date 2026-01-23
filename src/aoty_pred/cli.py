@@ -222,6 +222,44 @@ def run(
     if stages:
         stage_list = [s.strip() for s in stages.split(",") if s.strip()]
 
+    # Run preflight check if requested
+    # Note: Preflight runs BEFORE building PipelineConfig to fail fast
+    if preflight or preflight_only:
+        from aoty_pred.preflight import (
+            PreflightStatus,
+            render_preflight_result,
+            run_preflight_check,
+        )
+
+        # Estimate model dimensions for preflight
+        # These are conservative estimates since actual data isn't loaded yet.
+        # For more accurate checking, use --preflight-full (future feature).
+        estimated_observations = 1000  # Typical dataset size
+        estimated_features = 20  # Typical feature count
+        estimated_artists = 100  # Typical artist count
+
+        result = run_preflight_check(
+            n_observations=estimated_observations,
+            n_features=estimated_features,
+            n_artists=estimated_artists,
+            max_seq=max_albums,
+            num_chains=num_chains,
+            num_samples=num_samples,
+            num_warmup=num_warmup,
+        )
+
+        render_preflight_result(result, verbose=verbose)
+
+        if preflight_only:
+            raise typer.Exit(code=result.exit_code)
+
+        if result.status == PreflightStatus.FAIL:
+            if force_run:
+                typer.echo("Warning: Continuing despite preflight failure (--force-run)")
+            else:
+                typer.echo("Aborting. Use --force-run to override.")
+                raise typer.Exit(code=result.exit_code)
+
     config = PipelineConfig(
         seed=seed,
         skip_existing=skip_existing,
