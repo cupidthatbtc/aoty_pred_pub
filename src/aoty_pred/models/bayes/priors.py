@@ -15,6 +15,10 @@ Prior Roles:
   - Captures momentum: positive rho -> hot streaks, negative -> regression to mean
 - beta: Fixed effect coefficients for covariates (genre PCA, release year, etc.)
 - sigma_obs: Observation-level noise (unexplained variance per album)
+- n_exponent: Scaling exponent for heteroscedastic observation noise
+  - sigma_scaled = sigma_obs / n_reviews^exponent
+  - Higher exponent -> more noise reduction for albums with many reviews
+  - exponent=0 -> homoscedastic (constant noise)
 """
 
 from dataclasses import dataclass
@@ -49,6 +53,12 @@ class PriorConfig:
             Default 1.0 is weakly informative for standardized features.
         sigma_obs_scale: Scale for HalfNormal prior on observation noise.
             Default 1.0 allows moderate observation-level variance.
+        n_exponent_alpha: Alpha (concentration1) parameter for Beta prior on
+            learned n_exponent. Default 2.0.
+        n_exponent_beta: Beta (concentration0) parameter for Beta prior on
+            learned n_exponent. Default 4.0.
+            Note: Beta(2, 4) has mode at 0.25 and mean at 0.33, centering
+            prior mass on cube-root-like scaling for heteroscedastic noise.
     """
 
     mu_artist_loc: float = 0.0
@@ -60,6 +70,8 @@ class PriorConfig:
     beta_loc: float = 0.0
     beta_scale: float = 1.0
     sigma_obs_scale: float = 1.0
+    n_exponent_alpha: float = 2.0
+    n_exponent_beta: float = 4.0
 
 
 def get_default_priors() -> PriorConfig:
