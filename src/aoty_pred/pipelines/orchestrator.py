@@ -377,7 +377,7 @@ class PipelineOrchestrator:
         if self.config.allow_divergences:
             parts.append("--allow-divergences")
         # Data filtering
-        if self.config.min_ratings != 30:
+        if self.config.min_ratings != 10:
             parts.append(f"--min-ratings {self.config.min_ratings}")
         if self.config.min_albums_filter != 2:
             parts.append(f"--min-albums {self.config.min_albums_filter}")
