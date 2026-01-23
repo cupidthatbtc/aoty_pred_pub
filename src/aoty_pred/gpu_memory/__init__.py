@@ -13,6 +13,10 @@ Example:
     ...     print(info.format_display())
 """
 
+from aoty_pred.gpu_memory.estimate import (
+    MemoryEstimate,
+    estimate_memory_gb,
+)
 from aoty_pred.gpu_memory.platform import (
     PlatformInfo,
     PlatformType,
@@ -24,6 +28,9 @@ from aoty_pred.gpu_memory.query import (
 )
 
 __all__ = [
+    # Memory estimation
+    "MemoryEstimate",
+    "estimate_memory_gb",
     # Platform detection
     "PlatformType",
     "PlatformInfo",
