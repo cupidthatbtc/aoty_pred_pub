@@ -281,6 +281,23 @@ def train_models(ctx: "StageContext") -> dict:
         n_reviews_shape=model_args["n_reviews"].shape,
     )
 
+    # Add heteroscedastic noise configuration to model_args
+    model_args["n_exponent"] = ctx.n_exponent
+    model_args["learn_n_exponent"] = ctx.learn_n_exponent
+
+    # Log heteroscedastic mode
+    if ctx.learn_n_exponent:
+        log.info(
+            "heteroscedastic_mode",
+            mode="learned",
+            prior_alpha=ctx.n_exponent_alpha,
+            prior_beta=ctx.n_exponent_beta,
+        )
+    elif ctx.n_exponent != 0.0:
+        log.info("heteroscedastic_mode", mode="fixed", exponent=ctx.n_exponent)
+    else:
+        log.info("heteroscedastic_mode", mode="homoscedastic")
+
     # Configure MCMC from CLI args
     mcmc_config = MCMCConfig(
         num_warmup=ctx.num_warmup,
@@ -291,8 +308,12 @@ def train_models(ctx: "StageContext") -> dict:
         max_tree_depth=10,  # Keep hardcoded - not commonly adjusted
     )
 
-    # Get priors
-    priors = get_default_priors()
+    # Get priors with heteroscedastic config from CLI
+    priors = PriorConfig(
+        n_exponent_alpha=ctx.n_exponent_alpha,
+        n_exponent_beta=ctx.n_exponent_beta,
+    )
+    model_args["priors"] = priors
 
     # Fit model
     log.info("fitting_model", model="user_score")
