@@ -369,6 +369,12 @@ def predict_new_artist(
     if single_album and prev_score.shape[0] == 1:
         prev_score = prev_score[0]  # Scalar for broadcasting
 
+    # Handle n_reviews_new shape
+    if n_reviews_new is not None:
+        n_reviews_new = jnp.atleast_1d(jnp.asarray(n_reviews_new))
+        if single_album and n_reviews_new.shape[0] == 1:
+            n_reviews_new = n_reviews_new[0]  # Scalar for broadcasting
+
     # Sample new artist effect from population distribution
     rng_key, subkey = random.split(rng_key)
     new_artist_effect = mu_artist + sigma_artist * random.normal(subkey, (n_samples,))
@@ -385,17 +391,48 @@ def predict_new_artist(
     # Combine terms
     mu_pred = new_artist_effect[:, None] + linear_term + ar_term
 
+    # Compute per-observation sigma for predictions
+    if n_reviews_new is not None and has_n_exponent:
+        # Learned mode: use per-sample exponent values
+        # sigma_obs shape: (n_samples,), n_exponent shape: (n_samples,)
+        # For single album: sigma_scaled shape: (n_samples,)
+        # For multiple albums: sigma_scaled shape: (n_samples, n_albums)
+        if single_album:
+            sigma_scaled = compute_sigma_scaled(
+                sigma_obs,
+                jnp.array([n_reviews_new]),  # scalar -> 1-element array
+                n_exponent_samples,
+            ).squeeze()  # Back to (n_samples,)
+        else:
+            # Vectorized: broadcast across albums
+            # Use broadcasting: (n_samples, 1) op (1, n_albums) -> (n_samples, n_albums)
+            sigma_scaled = compute_sigma_scaled(
+                sigma_obs[:, None],
+                n_reviews_new[None, :],
+                n_exponent_samples[:, None],
+            )
+    else:
+        # Homoscedastic fallback
+        if single_album:
+            sigma_scaled = sigma_obs
+        else:
+            sigma_scaled = sigma_obs[:, None]
+
     # Sample from observation distribution
     rng_key, subkey = random.split(rng_key)
-    y_pred = mu_pred + sigma_obs[:, None] * random.normal(subkey, mu_pred.shape)
+    y_pred = mu_pred + sigma_scaled * random.normal(subkey, mu_pred.shape)
 
     # Squeeze if single album
     if single_album:
         mu_pred = mu_pred.squeeze(axis=1)
         y_pred = y_pred.squeeze(axis=1)
+        # sigma_scaled already squeezed in heteroscedastic branch, ensure consistency
+        if hasattr(sigma_scaled, 'squeeze') and sigma_scaled.ndim > 1:
+            sigma_scaled = sigma_scaled.squeeze(axis=1)
 
     return {
         "y": y_pred,
         "mu": mu_pred,
         "artist_effect": new_artist_effect,
+        "sigma_scaled": sigma_scaled,
     }
