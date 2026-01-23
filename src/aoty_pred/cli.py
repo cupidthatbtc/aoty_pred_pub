@@ -87,6 +87,12 @@ def run(
         "--resume",
         help="Resume failed run by run-id (e.g., '2026-01-19_143052')",
     ),
+    max_albums: int = typer.Option(
+        50,
+        "--max-albums",
+        min=1,
+        help="Maximum albums per artist for model training. Albums beyond this use the same artist effect.",
+    ),
 ) -> None:
     """Execute full pipeline from raw data to publication artifacts.
 
@@ -116,6 +122,7 @@ def run(
         strict=strict,
         verbose=verbose,
         resume=resume,
+        max_albums=max_albums,
     )
 
     exit_code = run_pipeline(config)

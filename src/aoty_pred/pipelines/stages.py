@@ -30,6 +30,8 @@ class StageContext:
         strict: If True, fail on convergence warnings.
         verbose: If True, enable verbose logging.
         manifest: Current run manifest for tracking progress.
+        max_albums: Maximum albums per artist for model training.
+            Albums beyond this limit use the same artist effect as the max position.
 
     Example:
         >>> ctx = StageContext(
@@ -38,6 +40,7 @@ class StageContext:
         ...     strict=False,
         ...     verbose=True,
         ...     manifest=manifest,
+        ...     max_albums=50,
         ... )
     """
 
@@ -46,6 +49,7 @@ class StageContext:
     strict: bool
     verbose: bool
     manifest: "RunManifest"
+    max_albums: int = 50
 
 
 @dataclass

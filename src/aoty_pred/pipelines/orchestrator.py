@@ -69,6 +69,8 @@ class PipelineConfig:
         strict: If True, fail if pixi.lock missing (default False).
         verbose: If True, enable DEBUG logging (default False).
         resume: Run ID to resume, or None for fresh run.
+        max_albums: Maximum albums per artist for model training (default 50).
+            Albums beyond this limit use the same artist effect as the max position.
 
     Example:
         >>> config = PipelineConfig(seed=42, dry_run=True)
@@ -83,6 +85,7 @@ class PipelineConfig:
     strict: bool = False
     verbose: bool = False
     resume: str | None = None
+    max_albums: int = 50
 
 
 class PipelineOrchestrator:
@@ -243,6 +246,7 @@ class PipelineOrchestrator:
                 "strict": self.config.strict,
                 "verbose": self.config.verbose,
                 "resume": self.config.resume,
+                "max_albums": self.config.max_albums,
             },
             seed=self.config.seed,
             git=GitStateModel.from_git_state(git_state),
@@ -311,6 +315,8 @@ class PipelineOrchestrator:
             parts.append("--strict")
         if self.config.verbose:
             parts.append("--verbose")
+        if self.config.max_albums != 50:
+            parts.append(f"--max-albums {self.config.max_albums}")
 
         return " ".join(parts)
 
@@ -388,6 +394,7 @@ class PipelineOrchestrator:
             strict=self.config.strict,
             verbose=self.config.verbose,
             manifest=self.manifest,
+            max_albums=self.config.max_albums,
         )
 
     def _execute_stage(self, stage: PipelineStage) -> None:

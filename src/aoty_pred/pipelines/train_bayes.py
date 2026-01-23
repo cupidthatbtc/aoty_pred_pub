@@ -50,8 +50,8 @@ def prepare_model_data(
     artist_to_idx = {a: i for i, a in enumerate(artists)}
     artist_idx = train_df["Artist"].map(artist_to_idx).values
 
-    # Album sequence (within artist)
-    album_seq = train_df.groupby("Artist").cumcount().values
+    # Album sequence (within artist, 1-indexed to match model expectations)
+    album_seq = (train_df.groupby("Artist").cumcount() + 1).values
 
     # Previous score (shifted within artist, using mean for first album)
     train_df = train_df.copy()
@@ -66,23 +66,8 @@ def prepare_model_data(
     # Target
     y = train_df["User_Score"].values.astype(np.float32)
 
-    # Max sequence for JAX tracing, capped at 50 to limit rw_innovations tensor size.
-    # This prevents memory issues for prolific artists (>50 albums). Albums beyond
-    # position 50 will use the same artist effect as position 50, which may slightly
-    # reduce temporal resolution for those rare cases but keeps memory bounded.
-    MAX_SEQ_CAP = 50
-    uncapped_max_seq = int(album_seq.max()) + 1
-    max_seq = min(uncapped_max_seq, MAX_SEQ_CAP)
-    # Clamp album_seq to valid range for capped dimension
-    album_seq = np.minimum(album_seq, MAX_SEQ_CAP - 1).astype(np.int32)
-
-    if uncapped_max_seq > MAX_SEQ_CAP:
-        log.warning(
-            "max_seq_capped",
-            uncapped=uncapped_max_seq,
-            capped=MAX_SEQ_CAP,
-            message=f"Albums beyond position {MAX_SEQ_CAP} will share artist effects",
-        )
+    # Compute album counts per artist (indexed by artist_idx, not artist name)
+    artist_album_counts = pd.Series(artist_idx).value_counts().sort_index()
 
     return {
         "artist_idx": artist_idx,
@@ -91,8 +76,62 @@ def prepare_model_data(
         "X": X,
         "y": y,
         "n_artists": len(artists),
-        "max_seq": max_seq,
+        "artist_album_counts": artist_album_counts,
     }
+
+
+def _apply_max_albums_cap(
+    model_args: dict,
+    max_albums_cap: int,
+    artist_album_counts: pd.Series,
+) -> dict:
+    """Apply max_albums cap to model arguments, keeping most recent albums.
+
+    For artists with more than max_albums_cap albums, renumbers so that the
+    most recent albums get distinct positions (1 to max_albums_cap) and
+    older albums share position 1. This is appropriate because:
+    - Recent albums are more predictive of future albums
+    - No leakage since album_seq is calculated on training data only
+
+    Args:
+        model_args: Dictionary from prepare_model_data.
+        max_albums_cap: Maximum albums per artist (from ctx.max_albums).
+        artist_album_counts: Series mapping artist index to album count.
+
+    Returns:
+        Updated model_args with adjusted album_seq and max_seq.
+    """
+    # Guard against non-positive max_albums_cap to ensure valid shapes
+    max_albums_cap = max(1, int(max_albums_cap))
+
+    album_seq = model_args["album_seq"]
+    artist_idx = model_args["artist_idx"]
+
+    # For each artist, compute offset to shift album_seq so most recent albums
+    # get positions 1 to max_albums_cap, and older albums share position 1
+    # offset = max(0, n_albums - max_albums_cap)
+    offsets = np.maximum(0, artist_album_counts.values - max_albums_cap)
+
+    # Apply per-artist offset: new_seq = max(1, original_seq - offset[artist])
+    artist_offsets = offsets[artist_idx]
+    album_seq = np.maximum(1, album_seq - artist_offsets).astype(np.int32)
+
+    # Compute max_seq from actual capped album_seq values for consistency.
+    # Since album_seq is 1-indexed and model converts to 0-indexed, max_seq = album_seq.max().
+    max_seq = int(album_seq.max())
+
+    n_capped_artists = (artist_album_counts > max_albums_cap).sum()
+    if n_capped_artists > 0:
+        log.info(
+            "max_albums_applied",
+            max_albums=max_albums_cap,
+            artists_capped=int(n_capped_artists),
+            message=f"Using {max_albums_cap} most recent albums per artist; older albums share position 1",
+        )
+
+    model_args["album_seq"] = album_seq
+    model_args["max_seq"] = max_seq
+    return model_args
 
 
 def train_models(ctx: "StageContext") -> dict:
@@ -110,7 +149,7 @@ def train_models(ctx: "StageContext") -> dict:
     Raises:
         ConvergenceError: If strict mode and divergences > 0.
     """
-    log.info("train_pipeline_start", seed=ctx.seed, strict=ctx.strict)
+    log.info("train_pipeline_start", seed=ctx.seed, strict=ctx.strict, max_albums=ctx.max_albums)
 
     # Load feature data
     features_dir = Path("data/features")
@@ -143,6 +182,10 @@ def train_models(ctx: "StageContext") -> dict:
 
     # Prepare model data
     model_args = prepare_model_data(train_df, feature_cols)
+
+    # Apply max_albums cap from CLI/config (uses most recent albums per artist)
+    artist_album_counts = model_args.pop("artist_album_counts")
+    model_args = _apply_max_albums_cap(model_args, ctx.max_albums, artist_album_counts)
 
     log.info(
         "model_data_prepared",
