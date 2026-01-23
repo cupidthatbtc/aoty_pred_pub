@@ -2,7 +2,7 @@
 dataset:
   raw_csv: "${AOTY_DATASET_PATH}"
   encoding: "utf-8-sig"
-  min_ratings: 30
+  min_ratings: 10
 splits:
   strategy: "within_artist_last"
   group_col: "Artist"

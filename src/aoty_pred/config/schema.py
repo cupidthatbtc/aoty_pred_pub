@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 class DatasetConfig(BaseModel):
     raw_csv: str
     encoding: str = "utf-8-sig"
-    min_ratings: int = 30
+    min_ratings: int = 10
 
 
 class SplitConfig(BaseModel):

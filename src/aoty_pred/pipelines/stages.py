@@ -31,7 +31,18 @@ class StageContext:
         verbose: If True, enable verbose logging.
         manifest: Current run manifest for tracking progress.
         max_albums: Maximum albums per artist for model training.
-            Albums beyond this limit use the same artist effect as the max position.
+        num_chains: Number of parallel MCMC chains.
+        num_samples: Post-warmup samples per chain.
+        num_warmup: Warmup iterations per chain.
+        target_accept: Target acceptance probability.
+        rhat_threshold: Maximum acceptable R-hat.
+        ess_threshold: Minimum ESS per chain.
+        allow_divergences: If True, don't fail on divergences.
+        min_ratings: Minimum user ratings per album.
+        min_albums_filter: Minimum albums per artist for dynamic effects.
+        enable_genre: If False, disable genre features.
+        enable_artist: If False, disable artist features.
+        enable_temporal: If False, disable temporal features.
 
     Example:
         >>> ctx = StageContext(
@@ -50,6 +61,22 @@ class StageContext:
     verbose: bool
     manifest: "RunManifest"
     max_albums: int = 50
+    # MCMC configuration
+    num_chains: int = 4
+    num_samples: int = 1000
+    num_warmup: int = 1000
+    target_accept: float = 0.8
+    # Convergence thresholds
+    rhat_threshold: float = 1.01
+    ess_threshold: int = 400
+    allow_divergences: bool = False
+    # Data filtering
+    min_ratings: int = 10
+    min_albums_filter: int = 2
+    # Feature flags
+    enable_genre: bool = True
+    enable_artist: bool = True
+    enable_temporal: bool = True
 
 
 @dataclass
@@ -239,8 +266,11 @@ def _run_splits_stage(ctx: StageContext) -> None:
     """Run splits creation stage."""
     from aoty_pred.pipelines.create_splits import create_splits, SplitConfig
 
-    # Pass seed from context for reproducibility
-    config = SplitConfig(random_state=ctx.seed)
+    # Pass seed and min_ratings from context for reproducibility
+    config = SplitConfig(
+        random_state=ctx.seed,
+        min_ratings=ctx.min_ratings,
+    )
     create_splits(config)
 
 
@@ -290,13 +320,17 @@ def make_stage_data() -> PipelineStage:
     )
 
 
-def make_stage_splits() -> PipelineStage:
-    """Create splits stage."""
+def make_stage_splits(min_ratings: int = 10) -> PipelineStage:
+    """Create splits stage.
+
+    Args:
+        min_ratings: Minimum user ratings per album. Determines input file path.
+    """
     return PipelineStage(
         name="splits",
         description="Create train/validation/test splits",
         run_fn=_run_splits_stage,
-        input_paths=[Path("data/processed/user_score_minratings_10.parquet")],
+        input_paths=[Path(f"data/processed/user_score_minratings_{min_ratings}.parquet")],
         output_paths=[
             Path("data/splits/within_artist_temporal/train.parquet"),
             Path("data/splits/within_artist_temporal/validation.parquet"),
@@ -384,24 +418,42 @@ def make_stage_report() -> PipelineStage:
     )
 
 
-# Build stages list using factory functions
-PIPELINE_STAGES: list[PipelineStage] = [
-    make_stage_data(),
-    make_stage_splits(),
-    make_stage_features(),
-    make_stage_train(),
-    make_stage_evaluate(),
-    make_stage_report(),
-]
+def build_pipeline_stages(min_ratings: int = 10) -> list[PipelineStage]:
+    """Build pipeline stages list with runtime configuration.
+
+    Args:
+        min_ratings: Minimum user ratings per album. Passed to make_stage_splits()
+            to ensure input_paths point to the correct parquet file.
+
+    Returns:
+        List of PipelineStage objects configured for the given min_ratings.
+    """
+    return [
+        make_stage_data(),
+        make_stage_splits(min_ratings=min_ratings),
+        make_stage_features(),
+        make_stage_train(),
+        make_stage_evaluate(),
+        make_stage_report(),
+    ]
 
 
-def get_execution_order(stages: list[str] | None = None) -> list[PipelineStage]:
+# Default stages list for backward compatibility (uses default min_ratings=10)
+PIPELINE_STAGES: list[PipelineStage] = build_pipeline_stages()
+
+
+def get_execution_order(
+    stages: list[str] | None = None,
+    min_ratings: int = 10,
+) -> list[PipelineStage]:
     """Get stages in dependency-respecting execution order.
 
     Args:
         stages: List of stage names to include, or None for all stages.
             If provided, stages are returned in topological order respecting
             dependencies between the specified stages.
+        min_ratings: Minimum user ratings per album. Determines which parquet
+            file the splits stage uses as input.
 
     Returns:
         List of PipelineStage objects in execution order.
@@ -415,29 +467,34 @@ def get_execution_order(stages: list[str] | None = None) -> list[PipelineStage]:
         >>> [s.name for s in order]
         ['data', 'splits', 'features', 'train', 'evaluate', 'report']
 
-        >>> order = get_execution_order(["features", "splits"])
+        >>> order = get_execution_order(["features", "splits"], min_ratings=30)
         >>> [s.name for s in order]
         ['splits', 'features']
     """
+    # Build stages with runtime min_ratings to ensure correct input_paths
+    pipeline_stages = build_pipeline_stages(min_ratings=min_ratings)
+
     if stages is None:
-        return _topological_sort(PIPELINE_STAGES)
+        return _topological_sort(pipeline_stages)
 
     # Validate stage names
-    valid_names = {s.name for s in PIPELINE_STAGES}
+    valid_names = {s.name for s in pipeline_stages}
     for name in stages:
         if name not in valid_names:
             raise KeyError(f"Unknown stage: '{name}'. Valid stages: {sorted(valid_names)}")
 
     # Filter and sort
     stage_set = set(stages)
-    return _topological_sort(PIPELINE_STAGES, stage_set)
+    return _topological_sort(pipeline_stages, stage_set)
 
 
-def get_stage(name: str) -> PipelineStage:
+def get_stage(name: str, min_ratings: int = 10) -> PipelineStage:
     """Look up a stage by name.
 
     Args:
         name: Stage name to look up.
+        min_ratings: Minimum user ratings per album. Determines which parquet
+            file the splits stage uses as input.
 
     Returns:
         PipelineStage with the given name.
@@ -450,9 +507,10 @@ def get_stage(name: str) -> PipelineStage:
         >>> stage.description
         'Fit Bayesian models on training data'
     """
-    for stage in PIPELINE_STAGES:
+    pipeline_stages = build_pipeline_stages(min_ratings=min_ratings)
+    for stage in pipeline_stages:
         if stage.name == name:
             return stage
 
-    valid_names = sorted(s.name for s in PIPELINE_STAGES)
+    valid_names = sorted(s.name for s in pipeline_stages)
     raise KeyError(f"Unknown stage: '{name}'. Valid stages: {valid_names}")

@@ -13,7 +13,7 @@ Usage:
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Annotated, Optional
 
 import typer
 
@@ -87,12 +87,65 @@ def run(
         "--resume",
         help="Resume failed run by run-id (e.g., '2026-01-19_143052')",
     ),
-    max_albums: int = typer.Option(
-        50,
-        "--max-albums",
+    max_albums: Annotated[int, typer.Option(
         min=1,
         help="Maximum albums per artist for model training. Albums beyond this use the same artist effect.",
+    )] = 50,
+    # MCMC Configuration
+    num_chains: Annotated[int, typer.Option(
+        min=1,
+        help="Number of parallel MCMC chains (default 4)",
+    )] = 4,
+    num_samples: Annotated[int, typer.Option(
+        min=100,
+        help="Post-warmup samples per chain (default 1000)",
+    )] = 1000,
+    num_warmup: Annotated[int, typer.Option(
+        min=50,
+        help="Warmup iterations per chain (default 1000)",
+    )] = 1000,
+    target_accept: Annotated[float, typer.Option(
+        min=0.5,
+        max=0.999,
+        help="Target acceptance probability (default 0.8, increase to 0.9-0.95 if divergences)",
+    )] = 0.8,
+    # Convergence Thresholds
+    rhat_threshold: Annotated[float, typer.Option(
+        min=1.0,
+        max=1.1,
+        help="Maximum acceptable R-hat (default 1.01)",
+    )] = 1.01,
+    ess_threshold: Annotated[int, typer.Option(
+        min=100,
+        help="Minimum ESS per chain (default 400)",
+    )] = 400,
+    allow_divergences: bool = typer.Option(
+        False,
+        "--allow-divergences",
+        help="Don't fail on divergences (for exploratory runs)",
     ),
+    # Data Filtering
+    min_ratings: Annotated[int, typer.Option(
+        min=1,
+        help="Minimum user ratings per album (default 10)",
+    )] = 10,
+    min_albums: Annotated[int, typer.Option(
+        min=1,
+        help="Minimum albums per artist for dynamic effects (default 2)",
+    )] = 2,
+    # Feature Ablation flags
+    enable_genre: Annotated[bool, typer.Option(
+        " /--no-genre",
+        help="Disable genre features",
+    )] = True,
+    enable_artist: Annotated[bool, typer.Option(
+        " /--no-artist",
+        help="Disable artist reputation features",
+    )] = True,
+    enable_temporal: Annotated[bool, typer.Option(
+        " /--no-temporal",
+        help="Disable temporal features",
+    )] = True,
 ) -> None:
     """Execute full pipeline from raw data to publication artifacts.
 
@@ -101,10 +154,22 @@ def run(
     manifest for reproducibility.
 
     Examples:
+        # Default run
         aoty-pipeline run
-        aoty-pipeline run --seed 123 --verbose
-        aoty-pipeline run --dry-run
-        aoty-pipeline run --stages data,splits
+
+        # High-accuracy run with more chains and samples
+        aoty-pipeline run --num-chains 8 --num-samples 2000 --target-accept 0.95
+
+        # Fast exploratory run
+        aoty-pipeline run --num-chains 1 --num-samples 500 --num-warmup 500
+
+        # Feature ablation
+        aoty-pipeline run --no-genre --no-temporal
+
+        # Relaxed convergence for testing
+        aoty-pipeline run --rhat-threshold 1.05 --allow-divergences
+
+        # Resume a failed run
         aoty-pipeline run --resume 2026-01-19_143052
     """
     from aoty_pred.pipelines.orchestrator import PipelineConfig, run_pipeline
@@ -123,6 +188,22 @@ def run(
         verbose=verbose,
         resume=resume,
         max_albums=max_albums,
+        # MCMC config
+        num_chains=num_chains,
+        num_samples=num_samples,
+        num_warmup=num_warmup,
+        target_accept=target_accept,
+        # Convergence thresholds
+        rhat_threshold=rhat_threshold,
+        ess_threshold=ess_threshold,
+        allow_divergences=allow_divergences,
+        # Data filtering
+        min_ratings=min_ratings,
+        min_albums_filter=min_albums,
+        # Feature flags
+        enable_genre=enable_genre,
+        enable_artist=enable_artist,
+        enable_temporal=enable_temporal,
     )
 
     exit_code = run_pipeline(config)
@@ -201,6 +282,20 @@ def stage_train(
         "--strict",
         help="Fail on convergence warnings",
     ),
+    rhat_threshold: Annotated[float, typer.Option(
+        min=1.0,
+        max=1.1,
+        help="Maximum acceptable R-hat (default 1.01)",
+    )] = 1.01,
+    ess_threshold: Annotated[int, typer.Option(
+        min=100,
+        help="Minimum ESS per chain (default 400)",
+    )] = 400,
+    allow_divergences: bool = typer.Option(
+        False,
+        "--allow-divergences",
+        help="Don't fail on divergences (for exploratory runs)",
+    ),
 ) -> None:
     """Run model training stage only.
 
@@ -213,6 +308,9 @@ def stage_train(
         stages=["train"],
         strict=strict,
         verbose=verbose,
+        rhat_threshold=rhat_threshold,
+        ess_threshold=ess_threshold,
+        allow_divergences=allow_divergences,
     )
     exit_code = run_pipeline(config)
     raise typer.Exit(code=exit_code)

@@ -24,7 +24,7 @@ from aoty_pred.utils.hashing import hash_dataframe
 @dataclass
 class SplitConfig:
     """Configuration for split pipeline."""
-    source_path: Path = Path("data/processed/user_score_minratings_10.parquet")
+    min_ratings: int = 10
     output_dir: Path = Path("data/splits")
     version: str = "v1"
     random_state: int = 42
@@ -37,6 +37,16 @@ class SplitConfig:
     # Artist-disjoint parameters
     disjoint_test_size: float = 0.15
     disjoint_val_size: float = 0.15
+
+    # Computed source path based on min_ratings (set in __post_init__)
+    source_path: Path | None = None
+
+    def __post_init__(self):
+        """Compute source_path from min_ratings if not provided."""
+        if self.source_path is None:
+            self.source_path = Path(
+                f"data/processed/user_score_minratings_{self.min_ratings}.parquet"
+            )
 
 
 @dataclass
@@ -76,7 +86,11 @@ def create_splits(config: Optional[SplitConfig] = None) -> SplitResult:
         config = SplitConfig()
 
     log = structlog.get_logger()
-    log.info("split_pipeline_start", source=str(config.source_path))
+    log.info(
+        "split_pipeline_start",
+        source=str(config.source_path),
+        min_ratings=config.min_ratings,
+    )
 
     # Load source dataset
     source_df = pd.read_parquet(config.source_path)

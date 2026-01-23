@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from aoty_pred.pipelines.stages import (
-    PIPELINE_STAGES,
     PipelineStage,
+    build_pipeline_stages,
     get_execution_order,
     get_stage,
 )
@@ -232,23 +232,25 @@ class TestShouldSkip:
 
 
 class TestPipelineStages:
-    """Tests for PIPELINE_STAGES registry."""
+    """Tests for build_pipeline_stages registry."""
 
     def test_all_stages_defined(self):
         """All expected stages are defined."""
-        stage_names = {s.name for s in PIPELINE_STAGES}
+        stages = build_pipeline_stages()
+        stage_names = {s.name for s in stages}
         expected = {"data", "splits", "features", "train", "evaluate", "report"}
         assert stage_names == expected
 
     def test_stages_have_descriptions(self):
         """All stages have non-empty descriptions."""
-        for stage in PIPELINE_STAGES:
+        for stage in build_pipeline_stages():
             assert stage.description, f"Stage {stage.name} missing description"
 
     def test_stages_have_valid_dependencies(self):
         """All stage dependencies reference existing stages."""
-        valid_names = {s.name for s in PIPELINE_STAGES}
-        for stage in PIPELINE_STAGES:
+        stages = build_pipeline_stages()
+        valid_names = {s.name for s in stages}
+        for stage in stages:
             for dep in stage.depends_on:
                 assert dep in valid_names, f"Stage {stage.name} has invalid dependency: {dep}"
 
@@ -262,6 +264,19 @@ class TestPipelineStages:
         report_stage = get_stage("report")
         assert "evaluate" in report_stage.depends_on
 
+    def test_splits_input_path_reflects_min_ratings(self):
+        """Splits stage input_paths use the correct min_ratings parquet file."""
+        from pathlib import Path
+
+        stages_10 = build_pipeline_stages(min_ratings=10)
+        stages_30 = build_pipeline_stages(min_ratings=30)
+
+        splits_10 = next(s for s in stages_10 if s.name == "splits")
+        splits_30 = next(s for s in stages_30 if s.name == "splits")
+
+        assert splits_10.input_paths == [Path("data/processed/user_score_minratings_10.parquet")]
+        assert splits_30.input_paths == [Path("data/processed/user_score_minratings_30.parquet")]
+
 
 class TestGetExecutionOrder:
     """Tests for get_execution_order function."""
@@ -269,7 +284,7 @@ class TestGetExecutionOrder:
     def test_returns_all_stages_by_default(self):
         """Returns all stages when no filter provided."""
         order = get_execution_order()
-        assert len(order) == len(PIPELINE_STAGES)
+        assert len(order) == len(build_pipeline_stages())
 
     def test_respects_dependencies(self):
         """Stages come after their dependencies."""
@@ -336,6 +351,6 @@ class TestGetStage:
 
     def test_all_defined_stages_findable(self):
         """All defined stages can be found by name."""
-        for stage in PIPELINE_STAGES:
+        for stage in build_pipeline_stages():
             found = get_stage(stage.name)
             assert found.name == stage.name

@@ -70,7 +70,18 @@ class PipelineConfig:
         verbose: If True, enable DEBUG logging (default False).
         resume: Run ID to resume, or None for fresh run.
         max_albums: Maximum albums per artist for model training (default 50).
-            Albums beyond this limit use the same artist effect as the max position.
+        num_chains: Number of parallel MCMC chains (default 4).
+        num_samples: Post-warmup samples per chain (default 1000).
+        num_warmup: Warmup iterations per chain (default 1000).
+        target_accept: Target acceptance probability (default 0.8).
+        rhat_threshold: Maximum acceptable R-hat (default 1.01).
+        ess_threshold: Minimum ESS per chain (default 400).
+        allow_divergences: If True, don't fail on divergences (default False).
+        min_ratings: Minimum user ratings per album (default 10).
+        min_albums_filter: Minimum albums per artist for dynamic effects (default 2).
+        enable_genre: If False, disable genre features (default True).
+        enable_artist: If False, disable artist features (default True).
+        enable_temporal: If False, disable temporal features (default True).
 
     Example:
         >>> config = PipelineConfig(seed=42, dry_run=True)
@@ -86,6 +97,22 @@ class PipelineConfig:
     verbose: bool = False
     resume: str | None = None
     max_albums: int = 50
+    # MCMC configuration
+    num_chains: int = 4
+    num_samples: int = 1000
+    num_warmup: int = 1000
+    target_accept: float = 0.8
+    # Convergence thresholds
+    rhat_threshold: float = 1.01
+    ess_threshold: int = 400
+    allow_divergences: bool = False
+    # Data filtering
+    min_ratings: int = 10
+    min_albums_filter: int = 2
+    # Feature flags
+    enable_genre: bool = True
+    enable_artist: bool = True
+    enable_temporal: bool = True
 
 
 class PipelineOrchestrator:
@@ -166,9 +193,9 @@ class PipelineOrchestrator:
             stages=self.config.stages,
         )
 
-        # 5. Get execution order
+        # 5. Get execution order (pass min_ratings for correct input_paths)
         try:
-            stages = get_execution_order(self.config.stages)
+            stages = get_execution_order(self.config.stages, min_ratings=self.config.min_ratings)
         except KeyError as e:
             log.error("invalid_stage", error=str(e))
             return 1
@@ -247,6 +274,22 @@ class PipelineOrchestrator:
                 "verbose": self.config.verbose,
                 "resume": self.config.resume,
                 "max_albums": self.config.max_albums,
+                # MCMC config
+                "num_chains": self.config.num_chains,
+                "num_samples": self.config.num_samples,
+                "num_warmup": self.config.num_warmup,
+                "target_accept": self.config.target_accept,
+                # Convergence thresholds
+                "rhat_threshold": self.config.rhat_threshold,
+                "ess_threshold": self.config.ess_threshold,
+                "allow_divergences": self.config.allow_divergences,
+                # Data filtering
+                "min_ratings": self.config.min_ratings,
+                "min_albums_filter": self.config.min_albums_filter,
+                # Feature flags
+                "enable_genre": self.config.enable_genre,
+                "enable_artist": self.config.enable_artist,
+                "enable_temporal": self.config.enable_temporal,
             },
             seed=self.config.seed,
             git=GitStateModel.from_git_state(git_state),
@@ -317,6 +360,34 @@ class PipelineOrchestrator:
             parts.append("--verbose")
         if self.config.max_albums != 50:
             parts.append(f"--max-albums {self.config.max_albums}")
+        # MCMC config
+        if self.config.num_chains != 4:
+            parts.append(f"--num-chains {self.config.num_chains}")
+        if self.config.num_samples != 1000:
+            parts.append(f"--num-samples {self.config.num_samples}")
+        if self.config.num_warmup != 1000:
+            parts.append(f"--num-warmup {self.config.num_warmup}")
+        if self.config.target_accept != 0.8:
+            parts.append(f"--target-accept {self.config.target_accept}")
+        # Convergence thresholds
+        if self.config.rhat_threshold != 1.01:
+            parts.append(f"--rhat-threshold {self.config.rhat_threshold}")
+        if self.config.ess_threshold != 400:
+            parts.append(f"--ess-threshold {self.config.ess_threshold}")
+        if self.config.allow_divergences:
+            parts.append("--allow-divergences")
+        # Data filtering
+        if self.config.min_ratings != 10:
+            parts.append(f"--min-ratings {self.config.min_ratings}")
+        if self.config.min_albums_filter != 2:
+            parts.append(f"--min-albums {self.config.min_albums_filter}")
+        # Feature flags
+        if not self.config.enable_genre:
+            parts.append("--no-genre")
+        if not self.config.enable_artist:
+            parts.append("--no-artist")
+        if not self.config.enable_temporal:
+            parts.append("--no-temporal")
 
         return " ".join(parts)
 
@@ -395,6 +466,22 @@ class PipelineOrchestrator:
             verbose=self.config.verbose,
             manifest=self.manifest,
             max_albums=self.config.max_albums,
+            # MCMC configuration
+            num_chains=self.config.num_chains,
+            num_samples=self.config.num_samples,
+            num_warmup=self.config.num_warmup,
+            target_accept=self.config.target_accept,
+            # Convergence thresholds
+            rhat_threshold=self.config.rhat_threshold,
+            ess_threshold=self.config.ess_threshold,
+            allow_divergences=self.config.allow_divergences,
+            # Data filtering
+            min_ratings=self.config.min_ratings,
+            min_albums_filter=self.config.min_albums_filter,
+            # Feature flags
+            enable_genre=self.config.enable_genre,
+            enable_artist=self.config.enable_artist,
+            enable_temporal=self.config.enable_temporal,
         )
 
     def _execute_stage(self, stage: PipelineStage) -> None:

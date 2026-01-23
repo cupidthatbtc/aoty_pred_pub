@@ -27,29 +27,65 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 
+def get_feature_blocks(
+    enable_genre: bool = True,
+    enable_artist: bool = True,
+    enable_temporal: bool = True,
+) -> list:
+    """Get feature blocks filtered by enabled flags.
+
+    Args:
+        enable_genre: Include GenreBlock if True.
+        enable_artist: Include ArtistHistoryBlock if True.
+        enable_temporal: Include TemporalBlock if True.
+
+    Returns:
+        List of enabled feature blocks in dependency order.
+    """
+    blocks = []
+
+    # Conditional blocks - temporal first for dependency order
+    if enable_temporal:
+        blocks.append(TemporalBlock({}))
+
+    # Core blocks that are always included
+    blocks.append(AlbumTypeBlock({}))
+
+    # Conditional artist history block
+    if enable_artist:
+        blocks.append(ArtistHistoryBlock({}))
+
+    # Conditional genre block
+    if enable_genre:
+        blocks.append(GenreBlock({"min_genre_count": 20, "n_components": 10}))
+
+    # Core collaboration block always included
+    blocks.append(CollaborationBlock({}))
+
+    return blocks
+
+
 def get_default_feature_blocks() -> list:
     """Get the default feature blocks for the pipeline.
 
-    Returns ordered list of feature blocks configured with default parameters.
-    Order matters for dependency resolution.
+    Legacy function for backward compatibility. Prefer get_feature_blocks()
+    with explicit flags for new code.
 
     Returns:
-        List of feature blocks in dependency order.
+        List of all feature blocks in dependency order.
     """
-    return [
-        TemporalBlock({}),
-        AlbumTypeBlock({}),
-        ArtistHistoryBlock({}),
-        GenreBlock({"min_genre_count": 20, "n_components": 10}),
-        CollaborationBlock({}),
-    ]
+    return get_feature_blocks(
+        enable_genre=True,
+        enable_artist=True,
+        enable_temporal=True,
+    )
 
 
 def build_features(ctx: "StageContext") -> dict:
     """Build feature matrices for all splits.
 
     Fits feature pipeline on training data only, then transforms all splits
-    to prevent data leakage.
+    to prevent data leakage. Respects feature ablation flags from CLI.
 
     Args:
         ctx: Stage context with run configuration.
@@ -57,7 +93,13 @@ def build_features(ctx: "StageContext") -> dict:
     Returns:
         Dictionary with paths to created feature matrices and metadata.
     """
-    log.info("feature_pipeline_start", seed=ctx.seed)
+    log.info(
+        "feature_pipeline_start",
+        seed=ctx.seed,
+        enable_genre=ctx.enable_genre,
+        enable_artist=ctx.enable_artist,
+        enable_temporal=ctx.enable_temporal,
+    )
 
     # Define paths
     splits_dir = Path("data/splits/within_artist_temporal")
@@ -82,11 +124,23 @@ def build_features(ctx: "StageContext") -> dict:
         random_state=ctx.seed,
     )
 
-    # Build and fit pipeline on training data only
-    blocks = get_default_feature_blocks()
+    # Build feature blocks based on ablation flags
+    blocks = get_feature_blocks(
+        enable_genre=ctx.enable_genre,
+        enable_artist=ctx.enable_artist,
+        enable_temporal=ctx.enable_temporal,
+    )
     pipeline = FeaturePipeline(blocks)
 
-    log.info("fitting_features", blocks=[b.name for b in blocks])
+    log.info(
+        "fitting_features",
+        blocks=[b.name for b in blocks],
+        ablated={
+            "genre": not ctx.enable_genre,
+            "artist": not ctx.enable_artist,
+            "temporal": not ctx.enable_temporal,
+        },
+    )
     pipeline.fit(train_df, feature_ctx)
 
     # Transform all splits
@@ -123,6 +177,11 @@ def build_features(ctx: "StageContext") -> dict:
     manifest = {
         "seed": ctx.seed,
         "blocks": [b.name for b in blocks],
+        "feature_ablation": {
+            "enable_genre": ctx.enable_genre,
+            "enable_artist": ctx.enable_artist,
+            "enable_temporal": ctx.enable_temporal,
+        },
         "feature_names": train_output.feature_names,
         "splits": {
             "train": {

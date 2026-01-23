@@ -32,6 +32,7 @@ log = structlog.get_logger()
 def prepare_model_data(
     train_df: pd.DataFrame,
     feature_cols: list[str],
+    min_albums_filter: int = 2,
 ) -> dict:
     """Prepare data for NumPyro model fitting.
 
@@ -41,6 +42,8 @@ def prepare_model_data(
     Args:
         train_df: Training data with features and target.
         feature_cols: List of feature column names.
+        min_albums_filter: Minimum albums for dynamic effects. Artists with
+            fewer albums have all their albums treated as sequence 1 (static effect only).
 
     Returns:
         Dictionary with model arguments.
@@ -52,6 +55,12 @@ def prepare_model_data(
 
     # Album sequence (within artist, 1-indexed to match model expectations)
     album_seq = (train_df.groupby("Artist").cumcount() + 1).values
+
+    # Apply min_albums_filter: artists below threshold get static effect only
+    # by clamping their album_seq to 1
+    artist_counts = train_df.groupby("Artist").size()
+    below_threshold = train_df["Artist"].map(artist_counts < min_albums_filter).values
+    album_seq = np.where(below_threshold, 1, album_seq)
 
     # Previous score (shifted within artist, using mean for first album)
     train_df = train_df.copy()
@@ -149,7 +158,17 @@ def train_models(ctx: "StageContext") -> dict:
     Raises:
         ConvergenceError: If strict mode and divergences > 0.
     """
-    log.info("train_pipeline_start", seed=ctx.seed, strict=ctx.strict, max_albums=ctx.max_albums)
+    log.info(
+        "train_pipeline_start",
+        seed=ctx.seed,
+        strict=ctx.strict,
+        max_albums=ctx.max_albums,
+        min_albums_filter=ctx.min_albums_filter,
+        num_chains=ctx.num_chains,
+        num_samples=ctx.num_samples,
+        num_warmup=ctx.num_warmup,
+        target_accept=ctx.target_accept,
+    )
 
     # Load feature data
     features_dir = Path("data/features")
@@ -180,8 +199,23 @@ def train_models(ctx: "StageContext") -> dict:
         n_features=len(train_features.columns),
     )
 
-    # Prepare model data
-    model_args = prepare_model_data(train_df, feature_cols)
+    # Prepare model data with min_albums filtering
+    model_args = prepare_model_data(
+        train_df,
+        feature_cols,
+        min_albums_filter=ctx.min_albums_filter,
+    )
+
+    # Log how many artists are below min_albums threshold
+    artist_counts = train_df.groupby("Artist").size()
+    n_below_threshold = (artist_counts < ctx.min_albums_filter).sum()
+    if n_below_threshold > 0:
+        log.info(
+            "min_albums_filter_applied",
+            min_albums=ctx.min_albums_filter,
+            artists_below_threshold=int(n_below_threshold),
+            message=f"{n_below_threshold} artists have static effects only (fewer than {ctx.min_albums_filter} albums)",
+        )
 
     # Apply max_albums cap from CLI/config (uses most recent albums per artist)
     artist_album_counts = model_args.pop("artist_album_counts")
@@ -195,14 +229,14 @@ def train_models(ctx: "StageContext") -> dict:
         max_seq=model_args["max_seq"],
     )
 
-    # Configure MCMC
+    # Configure MCMC from CLI args
     mcmc_config = MCMCConfig(
-        num_warmup=1000,
-        num_samples=1000,
-        num_chains=4,
+        num_warmup=ctx.num_warmup,
+        num_samples=ctx.num_samples,
+        num_chains=ctx.num_chains,
         seed=ctx.seed,
-        target_accept_prob=0.8,
-        max_tree_depth=10,
+        target_accept_prob=ctx.target_accept,
+        max_tree_depth=10,  # Keep hardcoded - not commonly adjusted
     )
 
     # Get priors
@@ -224,29 +258,41 @@ def train_models(ctx: "StageContext") -> dict:
         gpu_info=fit_result.gpu_info,
     )
 
-    # Check convergence
-    diagnostics = check_convergence(fit_result.idata)
+    # Check convergence using CLI-provided thresholds
+    diagnostics = check_convergence(
+        fit_result.idata,
+        rhat_threshold=ctx.rhat_threshold,
+        ess_threshold=ctx.ess_threshold,
+        allow_divergences=ctx.allow_divergences,
+    )
 
     log.info(
         "convergence_check",
         passed=diagnostics.passed,
         rhat_max=diagnostics.rhat_max,
+        rhat_threshold=ctx.rhat_threshold,
         ess_bulk_min=diagnostics.ess_bulk_min,
+        ess_threshold=ctx.ess_threshold,
         divergences=diagnostics.divergences,
+        allow_divergences=ctx.allow_divergences,
     )
 
     # Handle strict mode
-    if ctx.strict and fit_result.divergences > 0:
+    # Note: allow_divergences is already passed to check_convergence above,
+    # so diagnostics.passed accounts for it. But we need to check divergences
+    # separately when strict=True and allow_divergences=False.
+    if ctx.strict and fit_result.divergences > 0 and not ctx.allow_divergences:
         raise ConvergenceError(
             f"Model had {fit_result.divergences} divergent transitions. "
-            "Re-run without --strict or increase target_accept_prob.",
+            "Re-run without --strict, use --allow-divergences, or increase --target-accept.",
             stage="train",
         )
 
     if ctx.strict and not diagnostics.passed:
         raise ConvergenceError(
             f"Convergence diagnostics failed: "
-            f"rhat_max={diagnostics.rhat_max:.4f}, ess_bulk_min={diagnostics.ess_bulk_min:.0f}",
+            f"rhat_max={diagnostics.rhat_max:.4f} (threshold {ctx.rhat_threshold}), "
+            f"ess_bulk_min={diagnostics.ess_bulk_min:.0f} (threshold {ctx.ess_threshold * ctx.num_chains})",
             stage="train",
         )
 
@@ -270,6 +316,13 @@ def train_models(ctx: "StageContext") -> dict:
         "model_type": "user_score",
         "model_path": str(model_path),
         "mcmc_config": mcmc_config.to_dict(),
+        "convergence_thresholds": {
+            "rhat_threshold": ctx.rhat_threshold,
+            "ess_threshold": ctx.ess_threshold,
+            "allow_divergences": ctx.allow_divergences,
+        },
+        "min_albums_filter": ctx.min_albums_filter,
+        "n_artists_below_threshold": int(n_below_threshold),
         "priors": asdict(priors),
         "data_hash": data_hash,
         "n_observations": len(model_args["y"]),
@@ -281,6 +334,8 @@ def train_models(ctx: "StageContext") -> dict:
             "passed": diagnostics.passed,
             "rhat_max": float(diagnostics.rhat_max),
             "ess_bulk_min": float(diagnostics.ess_bulk_min),
+            "rhat_threshold": float(diagnostics.rhat_threshold),
+            "ess_threshold": int(diagnostics.ess_threshold),
         },
     }
 
