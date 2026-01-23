@@ -315,7 +315,15 @@ def make_score_model(score_type: str) -> Callable:
             n_exp = n_exponent  # Use fixed value from config
 
         # === Per-observation noise scaling ===
-        if n_reviews is not None and n_exp != 0:
+        # Note: When learn_n_exponent=True, n_exp is a traced JAX value and cannot
+        # be used in Python conditionals. We use the Python-level learn_n_exponent
+        # flag to determine if we should apply heteroscedastic scaling.
+        # When learning, we always apply scaling (that's why we're learning it).
+        # When fixed, we can check if n_exp != 0 to skip unnecessary computation.
+        use_heteroscedastic = n_reviews is not None and (
+            learn_n_exponent or n_exponent != 0
+        )
+        if use_heteroscedastic:
             sigma_scaled = compute_sigma_scaled(sigma_obs, n_reviews, n_exp)
         else:
             # Homoscedastic mode: use scalar sigma_obs for all observations

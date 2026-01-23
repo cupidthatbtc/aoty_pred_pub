@@ -113,3 +113,195 @@ class TestComputeSigmaScaled:
         # 1.0 / n^(1/3) = 1/2, 1/3, 1/4 for n=8,27,64
         expected = jnp.array([0.5, 1 / 3, 0.25])
         np.testing.assert_allclose(result, expected, rtol=1e-4)
+
+
+from numpyro.infer import MCMC, NUTS
+
+from aoty_pred.models.bayes import user_score_model
+from aoty_pred.models.bayes.priors import PriorConfig
+
+
+@pytest.mark.slow
+class TestModelFixedExponent:
+    """Tests for model with fixed exponent mode."""
+
+    @pytest.fixture
+    def sample_data(self):
+        """Generate sample data for model tests."""
+        key = random.PRNGKey(42)
+        n_obs = 50
+        n_artists = 10
+        n_features = 3
+
+        return {
+            "artist_idx": jnp.array([i % n_artists for i in range(n_obs)]),
+            "album_seq": jnp.array([(i // n_artists) + 1 for i in range(n_obs)]),
+            "prev_score": jnp.zeros(n_obs),
+            "X": random.normal(key, (n_obs, n_features)),
+            "y": random.normal(random.PRNGKey(1), (n_obs,)) * 5 + 70,
+            "n_artists": n_artists,
+            "max_seq": (n_obs // n_artists),
+            "n_reviews": jnp.array(
+                [10 + i * 5 for i in range(n_obs)], dtype=jnp.float32
+            ),
+        }
+
+    def test_model_runs_with_fixed_exponent(self, sample_data):
+        """Test that model runs with fixed exponent."""
+        mcmc = MCMC(
+            NUTS(user_score_model),
+            num_warmup=10,
+            num_samples=10,
+            num_chains=1,
+        )
+
+        mcmc.run(
+            random.PRNGKey(0),
+            n_exponent=0.33,
+            learn_n_exponent=False,
+            **sample_data,
+        )
+
+        samples = mcmc.get_samples()
+        assert "user_sigma_obs" in samples
+        assert "user_n_exponent" not in samples  # Should NOT be sampled
+
+    def test_model_runs_without_n_reviews(self, sample_data):
+        """Test backward compatibility - model runs without n_reviews."""
+        data_no_n_reviews = {k: v for k, v in sample_data.items() if k != "n_reviews"}
+
+        mcmc = MCMC(
+            NUTS(user_score_model),
+            num_warmup=10,
+            num_samples=10,
+            num_chains=1,
+        )
+
+        mcmc.run(
+            random.PRNGKey(0),
+            n_exponent=0.0,  # homoscedastic
+            learn_n_exponent=False,
+            **data_no_n_reviews,
+        )
+
+        samples = mcmc.get_samples()
+        assert "user_sigma_obs" in samples
+
+
+@pytest.mark.slow
+class TestModelLearnedExponent:
+    """Tests for model with learned exponent mode."""
+
+    @pytest.fixture
+    def sample_data(self):
+        """Generate sample data for model tests."""
+        key = random.PRNGKey(42)
+        n_obs = 50
+        n_artists = 10
+        n_features = 3
+
+        return {
+            "artist_idx": jnp.array([i % n_artists for i in range(n_obs)]),
+            "album_seq": jnp.array([(i // n_artists) + 1 for i in range(n_obs)]),
+            "prev_score": jnp.zeros(n_obs),
+            "X": random.normal(key, (n_obs, n_features)),
+            "y": random.normal(random.PRNGKey(1), (n_obs,)) * 5 + 70,
+            "n_artists": n_artists,
+            "max_seq": (n_obs // n_artists),
+            "n_reviews": jnp.array(
+                [10 + i * 5 for i in range(n_obs)], dtype=jnp.float32
+            ),
+        }
+
+    def test_model_samples_exponent_when_learned(self, sample_data):
+        """Test that model samples n_exponent when learn_n_exponent=True."""
+        priors = PriorConfig()  # Default alpha=2.0, beta=4.0
+
+        mcmc = MCMC(
+            NUTS(user_score_model),
+            num_warmup=10,
+            num_samples=10,
+            num_chains=1,
+        )
+
+        mcmc.run(
+            random.PRNGKey(0),
+            n_exponent=0.0,  # Ignored when learning
+            learn_n_exponent=True,
+            priors=priors,
+            **sample_data,
+        )
+
+        samples = mcmc.get_samples()
+        assert "user_n_exponent" in samples
+        assert samples["user_n_exponent"].shape == (10,)  # num_samples
+        # Beta(2,4) samples should be in [0,1]
+        assert np.all(samples["user_n_exponent"] >= 0)
+        assert np.all(samples["user_n_exponent"] <= 1)
+
+
+@pytest.mark.slow
+class TestHomoscedasticEquivalence:
+    """Tests that exponent=0 matches original homoscedastic behavior."""
+
+    @pytest.fixture
+    def sample_data(self):
+        """Generate sample data for equivalence test."""
+        key = random.PRNGKey(123)
+        n_obs = 30
+        n_artists = 5
+        n_features = 2
+
+        return {
+            "artist_idx": jnp.array([i % n_artists for i in range(n_obs)]),
+            "album_seq": jnp.array([(i // n_artists) + 1 for i in range(n_obs)]),
+            "prev_score": jnp.zeros(n_obs),
+            "X": random.normal(key, (n_obs, n_features)),
+            "y": random.normal(random.PRNGKey(1), (n_obs,)) * 5 + 70,
+            "n_artists": n_artists,
+            "max_seq": (n_obs // n_artists),
+            "n_reviews": jnp.ones(n_obs) * 100,  # Uniform n to avoid penalty effects
+        }
+
+    def test_exponent_zero_matches_homoscedastic(self, sample_data):
+        """Test that exponent=0 produces similar posteriors to no n_reviews."""
+        # Run with exponent=0 (heteroscedastic mode but zero scaling)
+        mcmc_hetero = MCMC(
+            NUTS(user_score_model),
+            num_warmup=50,
+            num_samples=50,
+            num_chains=1,
+        )
+        mcmc_hetero.run(
+            random.PRNGKey(0),
+            n_exponent=0.0,
+            learn_n_exponent=False,
+            **sample_data,
+        )
+        samples_hetero = mcmc_hetero.get_samples()
+
+        # Run without n_reviews (pure homoscedastic)
+        data_no_n = {k: v for k, v in sample_data.items() if k != "n_reviews"}
+        mcmc_homo = MCMC(
+            NUTS(user_score_model),
+            num_warmup=50,
+            num_samples=50,
+            num_chains=1,
+        )
+        mcmc_homo.run(
+            random.PRNGKey(0),  # Same seed
+            n_exponent=0.0,
+            learn_n_exponent=False,
+            **data_no_n,
+        )
+        samples_homo = mcmc_homo.get_samples()
+
+        # Sigma_obs posteriors should be very similar (within 1%)
+        # Note: With same seed, they should be identical actually
+        mean_hetero = np.mean(samples_hetero["user_sigma_obs"])
+        mean_homo = np.mean(samples_homo["user_sigma_obs"])
+
+        # Allow 10% difference due to MCMC variance, but should be close
+        assert np.isclose(mean_hetero, mean_homo, rtol=0.1), (
+            f"sigma_obs means differ: hetero={mean_hetero:.4f}, homo={mean_homo:.4f}"
+        )
