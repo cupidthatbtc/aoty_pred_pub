@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import arviz as az
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import structlog
@@ -77,27 +78,29 @@ def prepare_model_data(
     y = train_df["User_Score"].values.astype(np.float32)
 
     # Extract n_reviews for heteroscedastic noise
+    # Keep as raw values (may be float with NaN) for proper NaN detection before int cast
     if "n_reviews" in train_df.columns:
-        n_reviews = train_df["n_reviews"].values.astype(np.int32)
+        n_reviews_raw = train_df["n_reviews"].values
     else:
         # Fallback: if n_reviews not in features, try User_Ratings from source
         if "User_Ratings" in train_df.columns:
-            n_reviews = train_df["User_Ratings"].values.astype(np.int32)
+            n_reviews_raw = train_df["User_Ratings"].values
         else:
             raise ValueError(
                 "n_reviews column not found. Feature parquet must include n_reviews "
                 "or source data must include User_Ratings."
             )
 
-    # Validate n_reviews: identify missing or invalid values
-    invalid_mask = (pd.isna(n_reviews)) | (n_reviews <= 0)
+    # Validate n_reviews: identify missing or invalid values BEFORE int cast
+    # NaN cannot be represented in int32, so detection must happen on raw values
+    invalid_mask = pd.isna(n_reviews_raw) | (n_reviews_raw <= 0)
     n_invalid = invalid_mask.sum()
 
     if n_invalid > 0:
-        invalid_pct = n_invalid / len(n_reviews) * 100
+        invalid_pct = n_invalid / len(n_reviews_raw) * 100
         if invalid_pct > 50:
             raise ValueError(
-                f"Too many invalid n_reviews: {n_invalid}/{len(n_reviews)} ({invalid_pct:.1f}%). "
+                f"Too many invalid n_reviews: {n_invalid}/{len(n_reviews_raw)} ({invalid_pct:.1f}%). "
                 "This indicates a data problem. Check source data for missing User_Ratings."
             )
         # Log warning about rows that will be dropped
@@ -109,12 +112,15 @@ def prepare_model_data(
         )
         # Filter out invalid rows from all arrays
         valid_mask = ~invalid_mask
-        n_reviews = n_reviews[valid_mask]
+        n_reviews_raw = n_reviews_raw[valid_mask]
         y = y[valid_mask]
         X = X[valid_mask]
         artist_idx = artist_idx[valid_mask]
         album_seq = album_seq[valid_mask]
         prev_score = prev_score[valid_mask]
+
+    # Cast to int32 AFTER filtering (NaN-free at this point)
+    n_reviews = n_reviews_raw.astype(np.int32)
 
     # Compute album counts per artist (indexed by artist_idx, not artist name)
     artist_album_counts = pd.Series(artist_idx).value_counts().sort_index()
@@ -440,11 +446,12 @@ def train_models(ctx: "StageContext") -> dict:
         n_reviews = model_args["n_reviews"]
         sigma_obs_mean = float(fit_result.idata.posterior["user_sigma_obs"].mean())
         # Min sigma at max n_reviews, max sigma at min n_reviews
+        # Wrap numpy scalars in JAX arrays for compute_sigma_scaled compatibility
         sigma_at_max_n = float(
-            compute_sigma_scaled(sigma_obs_mean, np.max(n_reviews), n_exp_mean)
+            compute_sigma_scaled(sigma_obs_mean, jnp.array(np.max(n_reviews)), jnp.array(n_exp_mean))
         )
         sigma_at_min_n = float(
-            compute_sigma_scaled(sigma_obs_mean, np.min(n_reviews), n_exp_mean)
+            compute_sigma_scaled(sigma_obs_mean, jnp.array(np.min(n_reviews)), jnp.array(n_exp_mean))
         )
 
         # Reference scaling values for interpretation
@@ -486,11 +493,12 @@ def train_models(ctx: "StageContext") -> dict:
         # Fixed heteroscedastic mode
         n_reviews = model_args["n_reviews"]
         sigma_obs_mean = float(fit_result.idata.posterior["user_sigma_obs"].mean())
+        # Wrap numpy scalars in JAX arrays for compute_sigma_scaled compatibility
         sigma_at_max_n = float(
-            compute_sigma_scaled(sigma_obs_mean, np.max(n_reviews), ctx.n_exponent)
+            compute_sigma_scaled(sigma_obs_mean, jnp.array(np.max(n_reviews)), jnp.array(ctx.n_exponent))
         )
         sigma_at_min_n = float(
-            compute_sigma_scaled(sigma_obs_mean, np.min(n_reviews), ctx.n_exponent)
+            compute_sigma_scaled(sigma_obs_mean, jnp.array(np.min(n_reviews)), jnp.array(ctx.n_exponent))
         )
 
         summary["heteroscedastic_mode"] = {
