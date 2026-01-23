@@ -75,6 +75,46 @@ def prepare_model_data(
     # Target
     y = train_df["User_Score"].values.astype(np.float32)
 
+    # Extract n_reviews for heteroscedastic noise
+    if "n_reviews" in train_df.columns:
+        n_reviews = train_df["n_reviews"].values.astype(np.int32)
+    else:
+        # Fallback: if n_reviews not in features, try User_Ratings from source
+        if "User_Ratings" in train_df.columns:
+            n_reviews = train_df["User_Ratings"].values.astype(np.int32)
+        else:
+            raise ValueError(
+                "n_reviews column not found. Feature parquet must include n_reviews "
+                "or source data must include User_Ratings."
+            )
+
+    # Validate n_reviews: identify missing or invalid values
+    invalid_mask = (pd.isna(n_reviews)) | (n_reviews <= 0)
+    n_invalid = invalid_mask.sum()
+
+    if n_invalid > 0:
+        invalid_pct = n_invalid / len(n_reviews) * 100
+        if invalid_pct > 50:
+            raise ValueError(
+                f"Too many invalid n_reviews: {n_invalid}/{len(n_reviews)} ({invalid_pct:.1f}%). "
+                "This indicates a data problem. Check source data for missing User_Ratings."
+            )
+        # Log warning about rows that will be dropped
+        log.warning(
+            "n_reviews_invalid_rows",
+            n_invalid=n_invalid,
+            pct_invalid=round(invalid_pct, 1),
+            action="dropping_invalid_rows",
+        )
+        # Filter out invalid rows from all arrays
+        valid_mask = ~invalid_mask
+        n_reviews = n_reviews[valid_mask]
+        y = y[valid_mask]
+        X = X[valid_mask]
+        artist_idx = artist_idx[valid_mask]
+        album_seq = album_seq[valid_mask]
+        prev_score = prev_score[valid_mask]
+
     # Compute album counts per artist (indexed by artist_idx, not artist name)
     artist_album_counts = pd.Series(artist_idx).value_counts().sort_index()
 
@@ -84,6 +124,7 @@ def prepare_model_data(
         "prev_score": prev_score,
         "X": X,
         "y": y,
+        "n_reviews": n_reviews,
         "n_artists": len(artists),
         "artist_album_counts": artist_album_counts,
     }
