@@ -143,13 +143,13 @@ class TestPackageExports:
     def test_stages_import(self):
         """Stage-related exports work."""
         from aoty_pred.pipelines import (
-            PIPELINE_STAGES,
             PipelineStage,
+            build_pipeline_stages,
             get_execution_order,
             get_stage,
         )
 
-        assert len(PIPELINE_STAGES) > 0
+        assert len(build_pipeline_stages()) > 0
         assert callable(get_execution_order)
         assert callable(get_stage)
 
