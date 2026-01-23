@@ -262,12 +262,23 @@ def train_models(ctx: "StageContext") -> dict:
     artist_album_counts = model_args.pop("artist_album_counts")
     model_args = _apply_max_albums_cap(model_args, ctx.max_albums, artist_album_counts)
 
+    # Log n_reviews statistics for diagnostics
+    n_reviews = model_args["n_reviews"]
+    log.info(
+        "n_reviews_distribution",
+        min=int(np.min(n_reviews)),
+        max=int(np.max(n_reviews)),
+        median=int(np.median(n_reviews)),
+        mean=float(np.mean(n_reviews)),
+    )
+
     log.info(
         "model_data_prepared",
         n_artists=model_args["n_artists"],
         n_observations=len(model_args["y"]),
         n_features=model_args["X"].shape[1],
         max_seq=model_args["max_seq"],
+        n_reviews_shape=model_args["n_reviews"].shape,
     )
 
     # Configure MCMC from CLI args
@@ -369,6 +380,12 @@ def train_models(ctx: "StageContext") -> dict:
         "n_observations": len(model_args["y"]),
         "n_artists": model_args["n_artists"],
         "n_features": model_args["X"].shape[1],
+        "n_reviews_stats": {
+            "min": int(np.min(model_args["n_reviews"])),
+            "max": int(np.max(model_args["n_reviews"])),
+            "median": int(np.median(model_args["n_reviews"])),
+            "mean": float(np.mean(model_args["n_reviews"])),
+        },
         "divergences": fit_result.divergences,
         "runtime_seconds": fit_result.runtime_seconds,
         "diagnostics": {
