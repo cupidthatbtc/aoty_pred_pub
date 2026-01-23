@@ -160,6 +160,10 @@ def fit_model(
         - y: Target scores
         - n_artists: Number of unique artists
         - max_seq: Maximum album sequence number
+        Optional (for heteroscedastic models):
+        - n_reviews: Array of per-observation review counts
+        - n_exponent: Fixed exponent for noise scaling
+        - learn_n_exponent: Whether to sample exponent from prior
     config : MCMCConfig, optional
         MCMC configuration. If None, uses default MCMCConfig().
     progress_bar : bool, default True
@@ -250,6 +254,9 @@ def fit_model(
         "album_seq": model_args["album_seq"],
         "prev_score": model_args["prev_score"],
     }
+    # Include n_reviews for heteroscedastic models (if present)
+    if "n_reviews" in model_args:
+        constant_data["n_reviews"] = model_args["n_reviews"]
 
     # Add groups only if they don't already exist (az.from_numpyro may create observed_data)
     existing_groups = set(idata.groups())
