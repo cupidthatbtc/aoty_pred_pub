@@ -11,13 +11,14 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import arviz as az
 import numpy as np
 import pandas as pd
 import structlog
 
 from aoty_pred.models.bayes.fit import fit_model, MCMCConfig
 from aoty_pred.models.bayes.io import save_model
-from aoty_pred.models.bayes.model import user_score_model
+from aoty_pred.models.bayes.model import compute_sigma_scaled, user_score_model
 from aoty_pred.models.bayes.priors import PriorConfig, get_default_priors
 from aoty_pred.models.bayes.diagnostics import check_convergence
 from aoty_pred.pipelines.errors import ConvergenceError
@@ -417,6 +418,103 @@ def train_models(ctx: "StageContext") -> dict:
             "ess_threshold": int(diagnostics.ess_threshold),
         },
     }
+
+    # Add heteroscedastic noise details to summary
+    if ctx.learn_n_exponent:
+        # Extract n_exponent posterior
+        n_exp_samples = fit_result.idata.posterior["user_n_exponent"].values.flatten()
+        n_exp_mean = float(np.mean(n_exp_samples))
+        n_exp_std = float(np.std(n_exp_samples))
+
+        # Compute 94% HDI
+        hdi = az.hdi(fit_result.idata, var_names=["user_n_exponent"], hdi_prob=0.94)
+        hdi_low = float(hdi["user_n_exponent"].values[0])
+        hdi_high = float(hdi["user_n_exponent"].values[1])
+
+        # Get ESS and R-hat for n_exponent
+        n_exp_summary = az.summary(
+            fit_result.idata, var_names=["user_n_exponent"], kind="diagnostics"
+        )
+
+        # Compute effective sigma range using posterior mean exponent
+        n_reviews = model_args["n_reviews"]
+        sigma_obs_mean = float(fit_result.idata.posterior["user_sigma_obs"].mean())
+        # Min sigma at max n_reviews, max sigma at min n_reviews
+        sigma_at_max_n = float(
+            compute_sigma_scaled(sigma_obs_mean, np.max(n_reviews), n_exp_mean)
+        )
+        sigma_at_min_n = float(
+            compute_sigma_scaled(sigma_obs_mean, np.min(n_reviews), n_exp_mean)
+        )
+
+        # Reference scaling values for interpretation
+        ref_sqrt = 0.5  # Square-root scaling
+        ref_cube_root = 0.33  # Cube-root scaling
+        interpretation = (
+            "closer to cube-root scaling (0.33)"
+            if abs(n_exp_mean - ref_cube_root) < abs(n_exp_mean - ref_sqrt)
+            else "closer to square-root scaling (0.5)"
+        )
+
+        summary["heteroscedastic_mode"] = {
+            "mode": "learned",
+            "n_exponent_mean": n_exp_mean,
+            "n_exponent_std": n_exp_std,
+            "n_exponent_hdi_94": [hdi_low, hdi_high],
+            "n_exponent_ess_bulk": int(n_exp_summary["ess_bulk"].values[0]),
+            "n_exponent_r_hat": float(n_exp_summary["r_hat"].values[0]),
+            "interpretation": interpretation,
+            "reference_sqrt": ref_sqrt,
+            "reference_cube_root": ref_cube_root,
+            "sigma_scaled_range": {
+                "min": sigma_at_max_n,
+                "max": sigma_at_min_n,
+                "at_n_reviews_max": int(np.max(n_reviews)),
+                "at_n_reviews_min": int(np.min(n_reviews)),
+                "base_sigma_obs": sigma_obs_mean,
+            },
+        }
+        log.info(
+            "heteroscedastic_summary",
+            mode="learned",
+            n_exponent_mean=round(n_exp_mean, 4),
+            n_exponent_hdi_94=[round(hdi_low, 4), round(hdi_high, 4)],
+            interpretation=interpretation,
+            sigma_range=[round(sigma_at_max_n, 4), round(sigma_at_min_n, 4)],
+        )
+    elif ctx.n_exponent != 0.0:
+        # Fixed heteroscedastic mode
+        n_reviews = model_args["n_reviews"]
+        sigma_obs_mean = float(fit_result.idata.posterior["user_sigma_obs"].mean())
+        sigma_at_max_n = float(
+            compute_sigma_scaled(sigma_obs_mean, np.max(n_reviews), ctx.n_exponent)
+        )
+        sigma_at_min_n = float(
+            compute_sigma_scaled(sigma_obs_mean, np.min(n_reviews), ctx.n_exponent)
+        )
+
+        summary["heteroscedastic_mode"] = {
+            "mode": "fixed",
+            "n_exponent": ctx.n_exponent,
+            "sigma_scaled_range": {
+                "min": sigma_at_max_n,
+                "max": sigma_at_min_n,
+                "at_n_reviews_max": int(np.max(n_reviews)),
+                "at_n_reviews_min": int(np.min(n_reviews)),
+                "base_sigma_obs": sigma_obs_mean,
+            },
+        }
+        log.info(
+            "heteroscedastic_summary",
+            mode="fixed",
+            n_exponent=ctx.n_exponent,
+            sigma_range=[round(sigma_at_max_n, 4), round(sigma_at_min_n, 4)],
+        )
+    else:
+        # Homoscedastic mode (default)
+        summary["heteroscedastic_mode"] = {
+            "mode": "homoscedastic",
+        }
 
     summary_path = model_dir / "training_summary.json"
     with open(summary_path, "w", encoding="utf-8") as f:
