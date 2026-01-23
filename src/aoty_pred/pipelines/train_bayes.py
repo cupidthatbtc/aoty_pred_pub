@@ -11,13 +11,15 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import arviz as az
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import structlog
 
 from aoty_pred.models.bayes.fit import fit_model, MCMCConfig
 from aoty_pred.models.bayes.io import save_model
-from aoty_pred.models.bayes.model import user_score_model
+from aoty_pred.models.bayes.model import compute_sigma_scaled, user_score_model
 from aoty_pred.models.bayes.priors import PriorConfig, get_default_priors
 from aoty_pred.models.bayes.diagnostics import check_convergence
 from aoty_pred.pipelines.errors import ConvergenceError
@@ -75,6 +77,51 @@ def prepare_model_data(
     # Target
     y = train_df["User_Score"].values.astype(np.float32)
 
+    # Extract n_reviews for heteroscedastic noise
+    # Keep as raw values (may be float with NaN) for proper NaN detection before int cast
+    if "n_reviews" in train_df.columns:
+        n_reviews_raw = train_df["n_reviews"].values
+    else:
+        # Fallback: if n_reviews not in features, try User_Ratings from source
+        if "User_Ratings" in train_df.columns:
+            n_reviews_raw = train_df["User_Ratings"].values
+        else:
+            raise ValueError(
+                "n_reviews column not found. Feature parquet must include n_reviews "
+                "or source data must include User_Ratings."
+            )
+
+    # Validate n_reviews: identify missing or invalid values BEFORE int cast
+    # NaN cannot be represented in int32, so detection must happen on raw values
+    invalid_mask = pd.isna(n_reviews_raw) | (n_reviews_raw <= 0)
+    n_invalid = invalid_mask.sum()
+
+    if n_invalid > 0:
+        invalid_pct = n_invalid / len(n_reviews_raw) * 100
+        if invalid_pct > 50:
+            raise ValueError(
+                f"Too many invalid n_reviews: {n_invalid}/{len(n_reviews_raw)} ({invalid_pct:.1f}%). "
+                "This indicates a data problem. Check source data for missing User_Ratings."
+            )
+        # Log warning about rows that will be dropped
+        log.warning(
+            "n_reviews_invalid_rows",
+            n_invalid=n_invalid,
+            pct_invalid=round(invalid_pct, 1),
+            action="dropping_invalid_rows",
+        )
+        # Filter out invalid rows from all arrays
+        valid_mask = ~invalid_mask
+        n_reviews_raw = n_reviews_raw[valid_mask]
+        y = y[valid_mask]
+        X = X[valid_mask]
+        artist_idx = artist_idx[valid_mask]
+        album_seq = album_seq[valid_mask]
+        prev_score = prev_score[valid_mask]
+
+    # Cast to int32 AFTER filtering (NaN-free at this point)
+    n_reviews = n_reviews_raw.astype(np.int32)
+
     # Compute album counts per artist (indexed by artist_idx, not artist name)
     artist_album_counts = pd.Series(artist_idx).value_counts().sort_index()
 
@@ -84,6 +131,7 @@ def prepare_model_data(
         "prev_score": prev_score,
         "X": X,
         "y": y,
+        "n_reviews": n_reviews,
         "n_artists": len(artists),
         "artist_album_counts": artist_album_counts,
     }
@@ -221,13 +269,41 @@ def train_models(ctx: "StageContext") -> dict:
     artist_album_counts = model_args.pop("artist_album_counts")
     model_args = _apply_max_albums_cap(model_args, ctx.max_albums, artist_album_counts)
 
+    # Log n_reviews statistics for diagnostics
+    n_reviews = model_args["n_reviews"]
+    log.info(
+        "n_reviews_distribution",
+        min=int(np.min(n_reviews)),
+        max=int(np.max(n_reviews)),
+        median=int(np.median(n_reviews)),
+        mean=float(np.mean(n_reviews)),
+    )
+
     log.info(
         "model_data_prepared",
         n_artists=model_args["n_artists"],
         n_observations=len(model_args["y"]),
         n_features=model_args["X"].shape[1],
         max_seq=model_args["max_seq"],
+        n_reviews_shape=model_args["n_reviews"].shape,
     )
+
+    # Add heteroscedastic noise configuration to model_args
+    model_args["n_exponent"] = ctx.n_exponent
+    model_args["learn_n_exponent"] = ctx.learn_n_exponent
+
+    # Log heteroscedastic mode
+    if ctx.learn_n_exponent:
+        log.info(
+            "heteroscedastic_mode",
+            mode="learned",
+            prior_alpha=ctx.n_exponent_alpha,
+            prior_beta=ctx.n_exponent_beta,
+        )
+    elif ctx.n_exponent != 0.0:
+        log.info("heteroscedastic_mode", mode="fixed", exponent=ctx.n_exponent)
+    else:
+        log.info("heteroscedastic_mode", mode="homoscedastic")
 
     # Configure MCMC from CLI args
     mcmc_config = MCMCConfig(
@@ -239,8 +315,12 @@ def train_models(ctx: "StageContext") -> dict:
         max_tree_depth=10,  # Keep hardcoded - not commonly adjusted
     )
 
-    # Get priors
-    priors = get_default_priors()
+    # Get priors with heteroscedastic config from CLI
+    priors = PriorConfig(
+        n_exponent_alpha=ctx.n_exponent_alpha,
+        n_exponent_beta=ctx.n_exponent_beta,
+    )
+    model_args["priors"] = priors
 
     # Fit model
     log.info("fitting_model", model="user_score")
@@ -328,6 +408,12 @@ def train_models(ctx: "StageContext") -> dict:
         "n_observations": len(model_args["y"]),
         "n_artists": model_args["n_artists"],
         "n_features": model_args["X"].shape[1],
+        "n_reviews_stats": {
+            "min": int(np.min(model_args["n_reviews"])),
+            "max": int(np.max(model_args["n_reviews"])),
+            "median": int(np.median(model_args["n_reviews"])),
+            "mean": float(np.mean(model_args["n_reviews"])),
+        },
         "divergences": fit_result.divergences,
         "runtime_seconds": fit_result.runtime_seconds,
         "diagnostics": {
@@ -338,6 +424,105 @@ def train_models(ctx: "StageContext") -> dict:
             "ess_threshold": int(diagnostics.ess_threshold),
         },
     }
+
+    # Add heteroscedastic noise details to summary
+    if ctx.learn_n_exponent:
+        # Extract n_exponent posterior
+        n_exp_samples = fit_result.idata.posterior["user_n_exponent"].values.flatten()
+        n_exp_mean = float(np.mean(n_exp_samples))
+        n_exp_std = float(np.std(n_exp_samples))
+
+        # Compute 94% HDI
+        hdi = az.hdi(fit_result.idata, var_names=["user_n_exponent"], hdi_prob=0.94)
+        hdi_low = float(hdi["user_n_exponent"].values[0])
+        hdi_high = float(hdi["user_n_exponent"].values[1])
+
+        # Get ESS and R-hat for n_exponent
+        n_exp_summary = az.summary(
+            fit_result.idata, var_names=["user_n_exponent"], kind="diagnostics"
+        )
+
+        # Compute effective sigma range using posterior mean exponent
+        n_reviews = model_args["n_reviews"]
+        sigma_obs_mean = float(fit_result.idata.posterior["user_sigma_obs"].mean())
+        # Min sigma at max n_reviews, max sigma at min n_reviews
+        # Wrap numpy scalars in JAX arrays for compute_sigma_scaled compatibility
+        sigma_at_max_n = float(
+            compute_sigma_scaled(sigma_obs_mean, jnp.array(np.max(n_reviews)), jnp.array(n_exp_mean))
+        )
+        sigma_at_min_n = float(
+            compute_sigma_scaled(sigma_obs_mean, jnp.array(np.min(n_reviews)), jnp.array(n_exp_mean))
+        )
+
+        # Reference scaling values for interpretation
+        ref_sqrt = 0.5  # Square-root scaling
+        ref_cube_root = 0.33  # Cube-root scaling
+        interpretation = (
+            "closer to cube-root scaling (0.33)"
+            if abs(n_exp_mean - ref_cube_root) < abs(n_exp_mean - ref_sqrt)
+            else "closer to square-root scaling (0.5)"
+        )
+
+        summary["heteroscedastic_mode"] = {
+            "mode": "learned",
+            "n_exponent_mean": n_exp_mean,
+            "n_exponent_std": n_exp_std,
+            "n_exponent_hdi_94": [hdi_low, hdi_high],
+            "n_exponent_ess_bulk": int(n_exp_summary["ess_bulk"].values[0]),
+            "n_exponent_r_hat": float(n_exp_summary["r_hat"].values[0]),
+            "interpretation": interpretation,
+            "reference_sqrt": ref_sqrt,
+            "reference_cube_root": ref_cube_root,
+            "sigma_scaled_range": {
+                "min": sigma_at_max_n,
+                "max": sigma_at_min_n,
+                "at_n_reviews_max": int(np.max(n_reviews)),
+                "at_n_reviews_min": int(np.min(n_reviews)),
+                "base_sigma_obs": sigma_obs_mean,
+            },
+        }
+        log.info(
+            "heteroscedastic_summary",
+            mode="learned",
+            n_exponent_mean=round(n_exp_mean, 4),
+            n_exponent_hdi_94=[round(hdi_low, 4), round(hdi_high, 4)],
+            interpretation=interpretation,
+            sigma_range=[round(sigma_at_max_n, 4), round(sigma_at_min_n, 4)],
+        )
+    elif ctx.n_exponent != 0.0:
+        # Fixed heteroscedastic mode
+        n_reviews = model_args["n_reviews"]
+        sigma_obs_mean = float(fit_result.idata.posterior["user_sigma_obs"].mean())
+        # Wrap numpy scalars in JAX arrays for compute_sigma_scaled compatibility
+        sigma_at_max_n = float(
+            compute_sigma_scaled(sigma_obs_mean, jnp.array(np.max(n_reviews)), jnp.array(ctx.n_exponent))
+        )
+        sigma_at_min_n = float(
+            compute_sigma_scaled(sigma_obs_mean, jnp.array(np.min(n_reviews)), jnp.array(ctx.n_exponent))
+        )
+
+        summary["heteroscedastic_mode"] = {
+            "mode": "fixed",
+            "n_exponent": ctx.n_exponent,
+            "sigma_scaled_range": {
+                "min": sigma_at_max_n,
+                "max": sigma_at_min_n,
+                "at_n_reviews_max": int(np.max(n_reviews)),
+                "at_n_reviews_min": int(np.min(n_reviews)),
+                "base_sigma_obs": sigma_obs_mean,
+            },
+        }
+        log.info(
+            "heteroscedastic_summary",
+            mode="fixed",
+            n_exponent=ctx.n_exponent,
+            sigma_range=[round(sigma_at_max_n, 4), round(sigma_at_min_n, 4)],
+        )
+    else:
+        # Homoscedastic mode (default)
+        summary["heteroscedastic_mode"] = {
+            "mode": "homoscedastic",
+        }
 
     summary_path = model_dir / "training_summary.json"
     with open(summary_path, "w", encoding="utf-8") as f:

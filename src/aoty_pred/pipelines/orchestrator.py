@@ -82,6 +82,10 @@ class PipelineConfig:
         enable_genre: If False, disable genre features (default True).
         enable_artist: If False, disable artist features (default True).
         enable_temporal: If False, disable temporal features (default True).
+        n_exponent: Scaling exponent for review count noise adjustment (default 0.0).
+        learn_n_exponent: If True, learn exponent from data using Beta prior (default False).
+        n_exponent_alpha: Beta prior alpha parameter for learned exponent (default 2.0).
+        n_exponent_beta: Beta prior beta parameter for learned exponent (default 4.0).
 
     Example:
         >>> config = PipelineConfig(seed=42, dry_run=True)
@@ -113,6 +117,11 @@ class PipelineConfig:
     enable_genre: bool = True
     enable_artist: bool = True
     enable_temporal: bool = True
+    # Heteroscedastic noise configuration
+    n_exponent: float = 0.0
+    learn_n_exponent: bool = False
+    n_exponent_alpha: float = 2.0
+    n_exponent_beta: float = 4.0
 
 
 class PipelineOrchestrator:
@@ -185,12 +194,24 @@ class PipelineOrchestrator:
 
         # 4. Set random seeds
         set_seeds(self.config.seed)
+
+        # Check for config conflicts
+        if self.config.learn_n_exponent and self.config.n_exponent != 0.0:
+            log.warning(
+                "config_conflict",
+                message="Both --n-exponent and --learn-n-exponent provided; using learned mode (--n-exponent ignored)",
+            )
+            # Clear the fixed exponent to prevent manifest recording stale value
+            self.config.n_exponent = 0.0
+
         log.info(
             "pipeline_started",
             run_id=self.manifest.run_id if self.manifest else "unknown",
             seed=self.config.seed,
             dry_run=self.config.dry_run,
             stages=self.config.stages,
+            n_exponent=self.config.n_exponent,
+            learn_n_exponent=self.config.learn_n_exponent,
         )
 
         # 5. Get execution order (pass min_ratings for correct input_paths)
@@ -290,6 +311,11 @@ class PipelineOrchestrator:
                 "enable_genre": self.config.enable_genre,
                 "enable_artist": self.config.enable_artist,
                 "enable_temporal": self.config.enable_temporal,
+                # Heteroscedastic noise
+                "n_exponent": self.config.n_exponent,
+                "learn_n_exponent": self.config.learn_n_exponent,
+                "n_exponent_alpha": self.config.n_exponent_alpha,
+                "n_exponent_beta": self.config.n_exponent_beta,
             },
             seed=self.config.seed,
             git=GitStateModel.from_git_state(git_state),
@@ -388,6 +414,15 @@ class PipelineOrchestrator:
             parts.append("--no-artist")
         if not self.config.enable_temporal:
             parts.append("--no-temporal")
+        # Heteroscedastic noise (only if non-default and not learning)
+        if self.config.n_exponent != 0.0 and not self.config.learn_n_exponent:
+            parts.append(f"--n-exponent {self.config.n_exponent}")
+        if self.config.learn_n_exponent:
+            parts.append("--learn-n-exponent")
+        if self.config.n_exponent_alpha != 2.0:
+            parts.append(f"--n-exponent-alpha {self.config.n_exponent_alpha}")
+        if self.config.n_exponent_beta != 4.0:
+            parts.append(f"--n-exponent-beta {self.config.n_exponent_beta}")
 
         return " ".join(parts)
 
@@ -482,6 +517,11 @@ class PipelineOrchestrator:
             enable_genre=self.config.enable_genre,
             enable_artist=self.config.enable_artist,
             enable_temporal=self.config.enable_temporal,
+            # Heteroscedastic noise configuration
+            n_exponent=self.config.n_exponent,
+            learn_n_exponent=self.config.learn_n_exponent,
+            n_exponent_alpha=self.config.n_exponent_alpha,
+            n_exponent_beta=self.config.n_exponent_beta,
         )
 
     def _execute_stage(self, stage: PipelineStage) -> None:

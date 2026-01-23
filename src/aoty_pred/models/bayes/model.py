@@ -44,11 +44,86 @@ from numpyro.infer.reparam import LocScaleReparam
 from aoty_pred.models.bayes.priors import PriorConfig, get_default_priors
 
 __all__ = [
+    "compute_sigma_scaled",
     "make_score_model",
     "user_score_model",
     "critic_score_model",
     "album_score_model",
 ]
+
+
+def compute_sigma_scaled(
+    sigma_obs: float,
+    n_reviews: jnp.ndarray,
+    exponent: float,
+    single_review_multiplier: float = 2.0,
+    min_sigma: float = 0.01,
+) -> jnp.ndarray:
+    """Compute per-observation sigma scaled by review count.
+
+    Implements heteroscedastic observation noise where albums with more reviews
+    have lower noise (more reliable scores). Uses log-space arithmetic to
+    avoid numerical underflow/overflow with extreme review counts.
+
+    The scaling formula is:
+        sigma_scaled = sigma_obs / n_reviews^exponent
+
+    Special cases:
+        - n_reviews=1: Applies multiplier (default 2x) for unreliable single reviews
+        - exponent=0: Returns sigma_obs unchanged (homoscedastic mode)
+        - Large n_reviews: Floored at min_sigma to prevent numerical issues
+
+    Args:
+        sigma_obs: Base observation noise scale (scalar).
+        n_reviews: Array of review counts per observation. Values < 1 are
+            clamped to 1.0 defensively.
+        exponent: Power-law exponent for scaling. Typically in [0.3, 0.7].
+            exponent=0 gives homoscedastic (constant) noise.
+            exponent=0.5 gives square-root scaling.
+        single_review_multiplier: Multiplier applied to sigma_obs when
+            n_reviews=1. Default 2.0 reflects that single reviews are
+            unreliable indicators of true album quality.
+        min_sigma: Minimum sigma floor for numerical stability. Default 0.01
+            prevents underflow with very large review counts.
+
+    Returns:
+        Array of scaled sigma values, same shape as n_reviews.
+
+    Notes:
+        Log-space arithmetic is used to compute sigma_obs / n^exponent as:
+            exp(log(sigma_obs) - exponent * log(n))
+        This avoids overflow/underflow for extreme n values (e.g., n=100,000).
+
+    Example:
+        >>> import jax.numpy as jnp
+        >>> sigma = compute_sigma_scaled(1.0, jnp.array([100.0]), 0.5)
+        >>> print(f"{sigma[0]:.2f}")  # ~0.10 (1.0 / sqrt(100))
+        0.10
+        >>> sigma = compute_sigma_scaled(1.0, jnp.array([1.0]), 0.5)
+        >>> print(f"{sigma[0]:.2f}")  # 2.0 (single review penalty)
+        2.00
+    """
+    # Clamp n_reviews to minimum of 1.0 (defensive against invalid data)
+    n_safe = jnp.maximum(n_reviews, 1.0)
+
+    # Log-space computation: sigma_obs / n^exponent = exp(log(sigma_obs) - exponent * log(n))
+    log_sigma = jnp.log(sigma_obs) - exponent * jnp.log(n_safe)
+    sigma_scaled = jnp.exp(log_sigma)
+
+    # Apply single-review penalty (n=1 is unreliable)
+    # Use robust comparison instead of exact float equality
+    is_single_review = jnp.isclose(n_safe, 1.0, rtol=1e-6, atol=1e-6)
+    # Only apply single-review penalty in heteroscedastic mode (exponent > 0)
+    # In homoscedastic mode, sigma_scaled already equals sigma_obs, so no penalty needed
+    apply_penalty = jnp.logical_and(is_single_review, exponent > 0)
+    sigma_scaled = jnp.where(
+        apply_penalty, sigma_obs * single_review_multiplier, sigma_scaled
+    )
+
+    # Apply minimum floor for numerical stability
+    sigma_scaled = jnp.maximum(sigma_scaled, min_sigma)
+
+    return sigma_scaled
 
 
 def make_score_model(score_type: str) -> Callable:
@@ -94,6 +169,9 @@ def make_score_model(score_type: str) -> Callable:
         n_artists: int | None = None,
         max_seq: int | None = None,
         priors: PriorConfig | None = None,
+        n_reviews: jnp.ndarray | None = None,
+        n_exponent: float = 0.0,
+        learn_n_exponent: bool = False,
     ) -> None:
         """Centered parameterization of score model (internal).
 
@@ -117,13 +195,21 @@ def make_score_model(score_type: str) -> Callable:
             max_seq: Maximum album sequence number in the data. Must be provided
                 for JAX tracing. Compute as int(album_seq.max()) before calling.
             priors: Prior configuration. If None, uses get_default_priors().
+            n_reviews: Optional array of shape (n_obs,) with per-observation
+                review counts. Used for heteroscedastic noise scaling. If None,
+                homoscedastic noise is used (scalar sigma_obs for all observations).
+            n_exponent: Fixed exponent for heteroscedastic noise scaling.
+                Default 0.0 gives homoscedastic (constant) noise. Higher values
+                give more noise reduction for albums with many reviews.
+            learn_n_exponent: If True, sample the exponent from a Beta prior
+                instead of using the fixed n_exponent value.
 
         Model structure:
             - Population-level hyperpriors for artist effect distribution
             - Time-varying artist effects via random walk
             - AR(1) term for album-to-album dependency
             - Fixed effects for covariates
-            - Observation-level noise
+            - Observation-level noise (optionally heteroscedastic)
         """
         # Get prior configuration
         if priors is None:
@@ -224,9 +310,41 @@ def make_score_model(score_type: str) -> Callable:
             dist.HalfNormal(priors.sigma_obs_scale),
         )
 
+        # === Exponent for heteroscedastic noise (fixed or learned) ===
+        if learn_n_exponent:
+            n_exp = numpyro.sample(
+                f"{prefix}n_exponent",
+                dist.Beta(priors.n_exponent_alpha, priors.n_exponent_beta),
+            )
+        else:
+            n_exp = n_exponent  # Use fixed value from config
+
+        # === Per-observation noise scaling ===
+        # Note: When learn_n_exponent=True, n_exp is a traced JAX value and cannot
+        # be used in Python conditionals. We use the Python-level learn_n_exponent
+        # flag to determine if we should apply heteroscedastic scaling.
+        # When learning, we always apply scaling (that's why we're learning it).
+        # When fixed, we can check if n_exp != 0 to skip unnecessary computation.
+
+        # Validate: if heteroscedastic mode is requested, n_reviews must be provided
+        heteroscedastic_requested = learn_n_exponent or n_exponent != 0
+        if heteroscedastic_requested and n_reviews is None:
+            raise ValueError(
+                f"Heteroscedastic noise scaling requires n_reviews data. "
+                f"Got learn_n_exponent={learn_n_exponent}, n_exponent={n_exponent}, "
+                f"but n_reviews is None. Either provide n_reviews or set both "
+                f"learn_n_exponent=False and n_exponent=0 for homoscedastic mode."
+            )
+        use_heteroscedastic = heteroscedastic_requested  # n_reviews guaranteed non-None here
+        if use_heteroscedastic:
+            sigma_scaled = compute_sigma_scaled(sigma_obs, n_reviews, n_exp)
+        else:
+            # Homoscedastic mode: use scalar sigma_obs for all observations
+            sigma_scaled = sigma_obs
+
         # === Likelihood ===
         with numpyro.plate(f"{prefix}obs", len(artist_idx)):
-            numpyro.sample(f"{prefix}y", dist.Normal(mu, sigma_obs), obs=y)
+            numpyro.sample(f"{prefix}y", dist.Normal(mu, sigma_scaled), obs=y)
 
     # Apply non-centered reparameterization to init_artist_effect
     reparam_config = {
@@ -242,6 +360,7 @@ This model includes:
 - AR(1) structure for album-to-album score dependencies
 - Hierarchical partial pooling of artist effects
 - Non-centered parameterization via LocScaleReparam
+- Optional heteroscedastic observation noise (per-observation sigma)
 
 All sample site names are prefixed with "{prefix}" (e.g., "{prefix}beta", "{prefix}rho").
 
@@ -260,6 +379,13 @@ Args:
     max_seq: Maximum album sequence number. Required for JAX tracing.
         Compute as int(album_seq.max()) before calling the model.
     priors: Prior configuration. If None, uses get_default_priors().
+    n_reviews: Optional array of shape (n_obs,) with per-observation
+        review counts. Used for heteroscedastic noise scaling. If None,
+        homoscedastic noise is used (scalar sigma_obs for all observations).
+    n_exponent: Fixed exponent for heteroscedastic noise scaling.
+        Default 0.0 gives homoscedastic (constant) noise.
+    learn_n_exponent: If True, sample the exponent from a Beta prior
+        instead of using the fixed n_exponent value.
 
 Returns:
     None. Model samples are tracked by NumPyro internally.
@@ -272,7 +398,8 @@ Sample sites (all prefixed with "{prefix}"):
     - {prefix}init_artist_effect: Initial artist effects (partial pooling)
     - {prefix}rw_innovations: Random walk innovations tensor (n_artists x max_seq-1)
     - {prefix}beta: Fixed effect coefficients
-    - {prefix}sigma_obs: Observation noise
+    - {prefix}sigma_obs: Observation noise (base scale for heteroscedastic)
+    - {prefix}n_exponent: Heteroscedastic scaling exponent (only when learn_n_exponent=True)
     - {prefix}y: Observed/predicted scores
 
 Example:

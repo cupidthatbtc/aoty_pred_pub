@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "COLORBLIND_COLORS",
+    "get_trace_plot_vars",
     "save_forest_plot",
     "save_posterior_plot",
     "save_predictions_plot",
@@ -59,6 +60,58 @@ COLORBLIND_COLORS = [
     "#56B4E9",  # Light blue
     "#D55E00",  # Red-orange
 ]
+
+
+def get_trace_plot_vars(
+    idata: az.InferenceData,
+    prefix: str = "user_",
+    include_hyperpriors: bool = True,
+) -> list[str]:
+    """Get variable names for trace plots, including n_exponent if learned.
+
+    Dynamically builds the list of variables based on what exists in the posterior,
+    handling both homoscedastic models (no n_exponent) and heteroscedastic models
+    with learned exponent (has n_exponent).
+
+    Parameters
+    ----------
+    idata : az.InferenceData
+        Inference data containing posterior samples.
+    prefix : str, default "user_"
+        Parameter name prefix ("user_" or "critic_").
+    include_hyperpriors : bool, default True
+        If True, include population-level hyperpriors (mu_artist, sigma_artist, etc.).
+        If False, only include observation-level parameters.
+
+    Returns
+    -------
+    list[str]
+        Variable names to include in trace plots.
+
+    Example
+    -------
+    >>> var_names = get_trace_plot_vars(idata, prefix="user_")
+    >>> pdf, png = save_trace_plot(idata, var_names, Path("figs"), "trace")
+    """
+    # Base variables that always exist
+    base_vars = [
+        f"{prefix}sigma_obs",
+        f"{prefix}rho",
+    ]
+
+    if include_hyperpriors:
+        hyperprior_vars = [
+            f"{prefix}mu_artist",
+            f"{prefix}sigma_artist",
+            f"{prefix}sigma_rw",
+        ]
+        base_vars = hyperprior_vars + base_vars
+
+    # Add n_exponent only if it exists in posterior (learned mode)
+    if f"{prefix}n_exponent" in idata.posterior:
+        base_vars.append(f"{prefix}n_exponent")
+
+    return base_vars
 
 
 @contextmanager

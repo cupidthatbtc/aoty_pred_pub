@@ -118,6 +118,22 @@ def build_features(ctx: "StageContext") -> dict:
         test_rows=len(test_df),
     )
 
+    # Preserve n_reviews before feature transformation
+    train_n_reviews = train_df["User_Ratings"].rename("n_reviews")
+    val_n_reviews = val_df["User_Ratings"].rename("n_reviews")
+    test_n_reviews = test_df["User_Ratings"].rename("n_reviews")
+
+    log.info(
+        "n_reviews_extracted",
+        train_min=int(train_n_reviews.min()),
+        train_max=int(train_n_reviews.max()),
+        train_median=int(train_n_reviews.median()),
+        val_min=int(val_n_reviews.min()),
+        val_max=int(val_n_reviews.max()),
+        test_min=int(test_n_reviews.min()),
+        test_max=int(test_n_reviews.max()),
+    )
+
     # Create feature context
     feature_ctx = FeatureContext(
         config={},  # Using default configs
@@ -156,6 +172,24 @@ def build_features(ctx: "StageContext") -> dict:
     test_output = pipeline.transform(test_df, feature_ctx)
     test_features = test_output.data
 
+    # Add n_reviews to feature DataFrames with index alignment validation
+    def _assign_n_reviews(features_df: pd.DataFrame, n_reviews: pd.Series, name: str) -> None:
+        """Assign n_reviews to features DataFrame with alignment validation."""
+        aligned = n_reviews.reindex(features_df.index)
+        null_count = aligned.isna().sum()
+        if null_count > 0:
+            missing_indices = features_df.index[aligned.isna()].tolist()[:5]
+            raise ValueError(
+                f"{name}_n_reviews has {null_count} null values after reindexing to "
+                f"{name}_features index. First missing indices: {missing_indices}. "
+                f"Ensure {name}_n_reviews index matches {name}_features index."
+            )
+        features_df["n_reviews"] = aligned
+
+    _assign_n_reviews(train_features, train_n_reviews, "train")
+    _assign_n_reviews(val_features, val_n_reviews, "val")
+    _assign_n_reviews(test_features, test_n_reviews, "test")
+
     # Save feature matrices
     train_path = features_dir / "train_features.parquet"
     val_path = features_dir / "validation_features.parquet"
@@ -169,8 +203,14 @@ def build_features(ctx: "StageContext") -> dict:
         "features_saved",
         train_path=str(train_path),
         train_shape=train_features.shape,
+        train_n_reviews_min=int(train_features["n_reviews"].min()),
+        train_n_reviews_max=int(train_features["n_reviews"].max()),
         val_shape=val_features.shape,
+        val_n_reviews_min=int(val_features["n_reviews"].min()),
+        val_n_reviews_max=int(val_features["n_reviews"].max()),
         test_shape=test_features.shape,
+        test_n_reviews_min=int(test_features["n_reviews"].min()),
+        test_n_reviews_max=int(test_features["n_reviews"].max()),
     )
 
     # Save manifest
@@ -183,21 +223,31 @@ def build_features(ctx: "StageContext") -> dict:
             "enable_temporal": ctx.enable_temporal,
         },
         "feature_names": train_output.feature_names,
+        "n_reviews_included": True,
         "splits": {
             "train": {
                 "path": str(train_path),
                 "rows": int(train_features.shape[0]),
                 "cols": int(train_features.shape[1]),
+                "n_reviews_min": int(train_features["n_reviews"].min()),
+                "n_reviews_max": int(train_features["n_reviews"].max()),
+                "n_reviews_median": int(train_features["n_reviews"].median()),
             },
             "validation": {
                 "path": str(val_path),
                 "rows": int(val_features.shape[0]),
                 "cols": int(val_features.shape[1]),
+                "n_reviews_min": int(val_features["n_reviews"].min()),
+                "n_reviews_max": int(val_features["n_reviews"].max()),
+                "n_reviews_median": int(val_features["n_reviews"].median()),
             },
             "test": {
                 "path": str(test_path),
                 "rows": int(test_features.shape[0]),
                 "cols": int(test_features.shape[1]),
+                "n_reviews_min": int(test_features["n_reviews"].min()),
+                "n_reviews_max": int(test_features["n_reviews"].max()),
+                "n_reviews_median": int(test_features["n_reviews"].median()),
             },
         },
     }

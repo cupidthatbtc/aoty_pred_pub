@@ -21,6 +21,8 @@ import jax.numpy as jnp
 from jax import random
 from numpyro.infer import MCMC, Predictive
 
+from aoty_pred.models.bayes.model import compute_sigma_scaled
+
 __all__ = [
     "PredictionResult",
     "generate_posterior_predictive",
@@ -215,6 +217,8 @@ def predict_new_artist(
     posterior_samples: dict,
     X_new: jnp.ndarray,
     prev_score: float | jnp.ndarray,
+    n_reviews_new: jnp.ndarray | None = None,
+    fixed_n_exponent: float | None = None,
     prefix: str = "user_",
     seed: int = 3,
     n_predictions: int | None = None,
@@ -240,6 +244,7 @@ def predict_new_artist(
         - {prefix}beta: Fixed effect coefficients
         - {prefix}rho: AR(1) coefficient
         - {prefix}sigma_obs: Observation noise
+        - {prefix}n_exponent (optional): Heteroscedastic scaling exponent
     X_new : jnp.ndarray
         Feature vector for the new album. Shape: (n_features,) for single
         prediction or (n_albums, n_features) for multiple albums.
@@ -248,6 +253,18 @@ def predict_new_artist(
         - Use 0.0 for debut albums (artist has no prior releases)
         - Use their last known score if available from external data
         - For multiple albums, provide array of shape (n_albums,)
+    n_reviews_new : jnp.ndarray or None, default None
+        Review counts for the new album(s). Required when the model uses
+        heteroscedastic noise (either learned exponent in posterior or
+        fixed_n_exponent provided). Shape: scalar for single album or
+        (n_albums,) for multiple albums. Used to compute per-observation
+        sigma_scaled.
+    fixed_n_exponent : float or None, default None
+        Fixed exponent for heteroscedastic noise scaling. Use this when the
+        model was trained with a fixed non-zero n_exponent (i.e., the exponent
+        is not in the posterior samples). When provided and non-zero,
+        n_reviews_new must also be provided. Set to None or 0.0 for
+        homoscedastic predictions.
     prefix : str, default "user_"
         Parameter name prefix ("user_" or "critic_" depending on model).
     seed : int, default 3
@@ -266,6 +283,15 @@ def predict_new_artist(
                Shape: same as y
         - "artist_effect": Sampled artist effects from population distribution
                Shape: (n_samples,)
+        - "sigma_scaled": Per-observation noise scale used for predictions
+               Shape: same as y. For homoscedastic models, this is sigma_obs
+               broadcast to match y shape.
+
+    Raises
+    ------
+    ValueError
+        If heteroscedastic noise is active (learned exponent in posterior or
+        non-zero fixed_n_exponent) but n_reviews_new is not provided.
 
     Example
     -------
@@ -285,10 +311,17 @@ def predict_new_artist(
     The prediction incorporates three sources of uncertainty:
     1. Parameter uncertainty (spread of beta, rho, etc. across samples)
     2. New artist uncertainty (sampled from population distribution)
-    3. Observation noise (sigma_obs)
+    3. Observation noise (sigma_obs or sigma_scaled for heteroscedastic)
 
     For a debut album (prev_score=0.0), the AR(1) term contributes nothing,
     so the prediction is purely based on features and the population effect.
+
+    Heteroscedastic noise: If the model was trained with learn_n_exponent=True,
+    the posterior will contain {prefix}n_exponent samples. Alternatively, if
+    the model was trained with a fixed non-zero exponent, pass fixed_n_exponent.
+    In either case, n_reviews_new must be provided so that sigma_scaled can be
+    computed per-observation as sigma_obs / n_reviews^exponent. This allows
+    predictions to have appropriately calibrated uncertainty based on review count.
     """
     # Extract population parameters with prefix
     mu_artist = posterior_samples[f"{prefix}mu_artist"]
@@ -298,6 +331,20 @@ def predict_new_artist(
     sigma_obs = posterior_samples[f"{prefix}sigma_obs"]
 
     n_samples = mu_artist.shape[0]
+
+    # Check if model uses heteroscedastic noise (learned OR fixed exponent)
+    has_learned_exponent = f"{prefix}n_exponent" in posterior_samples
+    has_fixed_exponent = fixed_n_exponent is not None and fixed_n_exponent != 0
+    has_n_exponent = has_learned_exponent or has_fixed_exponent
+
+    # Validate n_reviews_new when required
+    if has_n_exponent and n_reviews_new is None:
+        mode = "learned" if has_learned_exponent else f"fixed (n_exponent={fixed_n_exponent})"
+        raise ValueError(
+            "n_reviews_new is required for predictions with heteroscedastic noise. "
+            f"Model uses {mode} n_exponent but no n_reviews_new provided. "
+            "Pass n_reviews_new as array of review counts (same length as X_new)."
+        )
 
     # Optionally subsample the posterior
     if n_predictions is not None and n_predictions < n_samples:
@@ -309,10 +356,27 @@ def predict_new_artist(
         beta = beta[indices]
         rho = rho[indices]
         sigma_obs = sigma_obs[indices]
+        # Handle exponent samples based on learned vs fixed mode
+        if has_learned_exponent:
+            n_exponent_samples = posterior_samples[f"{prefix}n_exponent"]
+            n_exponent_samples = n_exponent_samples[indices]
+        elif has_fixed_exponent:
+            # Create constant array matching subsampled sample count
+            n_exponent_samples = jnp.full((n_predictions,), fixed_n_exponent)
+        else:
+            n_exponent_samples = None
         n_samples = n_predictions
         seed = seed + 1  # Use different key for subsequent sampling
     else:
         rng_key = random.key(seed)
+        # Handle exponent samples based on learned vs fixed mode
+        if has_learned_exponent:
+            n_exponent_samples = posterior_samples[f"{prefix}n_exponent"]
+        elif has_fixed_exponent:
+            # Create constant array matching full sample count
+            n_exponent_samples = jnp.full((n_samples,), fixed_n_exponent)
+        else:
+            n_exponent_samples = None
 
     # Handle X_new shape: ensure 2D for matmul
     X_new = jnp.atleast_1d(X_new)
@@ -324,6 +388,12 @@ def predict_new_artist(
     prev_score = jnp.atleast_1d(jnp.asarray(prev_score))
     if single_album and prev_score.shape[0] == 1:
         prev_score = prev_score[0]  # Scalar for broadcasting
+
+    # Handle n_reviews_new shape
+    if n_reviews_new is not None:
+        n_reviews_new = jnp.atleast_1d(jnp.asarray(n_reviews_new))
+        if single_album and n_reviews_new.shape[0] == 1:
+            n_reviews_new = n_reviews_new[0]  # Scalar for broadcasting
 
     # Sample new artist effect from population distribution
     rng_key, subkey = random.split(rng_key)
@@ -341,17 +411,45 @@ def predict_new_artist(
     # Combine terms
     mu_pred = new_artist_effect[:, None] + linear_term + ar_term
 
+    # Compute per-observation sigma for predictions
+    # Note: At this point mu_pred has shape (n_samples, n_albums) even for single_album
+    # (where n_albums=1). We maintain this 2D shape until the final squeeze.
+    if n_reviews_new is not None and has_n_exponent:
+        # Heteroscedastic mode: use per-sample exponent values (learned or fixed)
+        # sigma_obs shape: (n_samples,), n_exponent shape: (n_samples,)
+        # Output sigma_scaled shape: (n_samples, n_albums) to match mu_pred
+        if single_album:
+            # n_reviews_new is scalar, expand for broadcast
+            sigma_scaled = compute_sigma_scaled(
+                sigma_obs[:, None],  # (n_samples, 1)
+                jnp.asarray(n_reviews_new)[None, None],  # (1, 1)
+                n_exponent_samples[:, None],  # (n_samples, 1)
+            )  # Result: (n_samples, 1)
+        else:
+            # Vectorized: broadcast across albums
+            # Use broadcasting: (n_samples, 1) op (1, n_albums) -> (n_samples, n_albums)
+            sigma_scaled = compute_sigma_scaled(
+                sigma_obs[:, None],
+                n_reviews_new[None, :],
+                n_exponent_samples[:, None],
+            )
+    else:
+        # Homoscedastic fallback: (n_samples, 1) or (n_samples, n_albums)
+        sigma_scaled = sigma_obs[:, None]
+
     # Sample from observation distribution
     rng_key, subkey = random.split(rng_key)
-    y_pred = mu_pred + sigma_obs[:, None] * random.normal(subkey, mu_pred.shape)
+    y_pred = mu_pred + sigma_scaled * random.normal(subkey, mu_pred.shape)
 
     # Squeeze if single album
     if single_album:
         mu_pred = mu_pred.squeeze(axis=1)
         y_pred = y_pred.squeeze(axis=1)
+        sigma_scaled = sigma_scaled.squeeze(axis=1)
 
     return {
         "y": y_pred,
         "mu": mu_pred,
         "artist_effect": new_artist_effect,
+        "sigma_scaled": sigma_scaled,
     }
