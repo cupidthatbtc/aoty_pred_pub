@@ -31,7 +31,18 @@ class StageContext:
         verbose: If True, enable verbose logging.
         manifest: Current run manifest for tracking progress.
         max_albums: Maximum albums per artist for model training.
-            Albums beyond this limit use the same artist effect as the max position.
+        num_chains: Number of parallel MCMC chains.
+        num_samples: Post-warmup samples per chain.
+        num_warmup: Warmup iterations per chain.
+        target_accept: Target acceptance probability.
+        rhat_threshold: Maximum acceptable R-hat.
+        ess_threshold: Minimum ESS per chain.
+        allow_divergences: If True, don't fail on divergences.
+        min_ratings: Minimum user ratings per album.
+        min_albums_filter: Minimum albums per artist for dynamic effects.
+        enable_genre: If False, disable genre features.
+        enable_artist: If False, disable artist features.
+        enable_temporal: If False, disable temporal features.
 
     Example:
         >>> ctx = StageContext(
@@ -50,6 +61,22 @@ class StageContext:
     verbose: bool
     manifest: "RunManifest"
     max_albums: int = 50
+    # MCMC configuration
+    num_chains: int = 4
+    num_samples: int = 1000
+    num_warmup: int = 1000
+    target_accept: float = 0.8
+    # Convergence thresholds
+    rhat_threshold: float = 1.01
+    ess_threshold: int = 400
+    allow_divergences: bool = False
+    # Data filtering
+    min_ratings: int = 30
+    min_albums_filter: int = 2
+    # Feature flags
+    enable_genre: bool = True
+    enable_artist: bool = True
+    enable_temporal: bool = True
 
 
 @dataclass

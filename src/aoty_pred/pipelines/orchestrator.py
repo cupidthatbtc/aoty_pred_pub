@@ -466,6 +466,22 @@ class PipelineOrchestrator:
             verbose=self.config.verbose,
             manifest=self.manifest,
             max_albums=self.config.max_albums,
+            # MCMC configuration
+            num_chains=self.config.num_chains,
+            num_samples=self.config.num_samples,
+            num_warmup=self.config.num_warmup,
+            target_accept=self.config.target_accept,
+            # Convergence thresholds
+            rhat_threshold=self.config.rhat_threshold,
+            ess_threshold=self.config.ess_threshold,
+            allow_divergences=self.config.allow_divergences,
+            # Data filtering
+            min_ratings=self.config.min_ratings,
+            min_albums_filter=self.config.min_albums_filter,
+            # Feature flags
+            enable_genre=self.config.enable_genre,
+            enable_artist=self.config.enable_artist,
+            enable_temporal=self.config.enable_temporal,
         )
 
     def _execute_stage(self, stage: PipelineStage) -> None:
