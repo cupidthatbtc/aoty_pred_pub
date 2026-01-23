@@ -149,7 +149,16 @@ def train_models(ctx: "StageContext") -> dict:
     Raises:
         ConvergenceError: If strict mode and divergences > 0.
     """
-    log.info("train_pipeline_start", seed=ctx.seed, strict=ctx.strict, max_albums=ctx.max_albums)
+    log.info(
+        "train_pipeline_start",
+        seed=ctx.seed,
+        strict=ctx.strict,
+        max_albums=ctx.max_albums,
+        num_chains=ctx.num_chains,
+        num_samples=ctx.num_samples,
+        num_warmup=ctx.num_warmup,
+        target_accept=ctx.target_accept,
+    )
 
     # Load feature data
     features_dir = Path("data/features")
@@ -195,14 +204,14 @@ def train_models(ctx: "StageContext") -> dict:
         max_seq=model_args["max_seq"],
     )
 
-    # Configure MCMC
+    # Configure MCMC from CLI args
     mcmc_config = MCMCConfig(
-        num_warmup=1000,
-        num_samples=1000,
-        num_chains=4,
+        num_warmup=ctx.num_warmup,
+        num_samples=ctx.num_samples,
+        num_chains=ctx.num_chains,
         seed=ctx.seed,
-        target_accept_prob=0.8,
-        max_tree_depth=10,
+        target_accept_prob=ctx.target_accept,
+        max_tree_depth=10,  # Keep hardcoded - not commonly adjusted
     )
 
     # Get priors
