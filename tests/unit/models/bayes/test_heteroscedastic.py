@@ -46,17 +46,21 @@ class TestComputeSigmaScaled:
         assert np.isclose(result[0], 3.0, rtol=1e-5)
 
     def test_homoscedastic_mode(self):
-        """Test that exponent=0 returns sigma_obs unchanged."""
+        """Test that exponent=0 returns sigma_obs unchanged for all n.
+
+        When exponent=0 (homoscedastic mode):
+        - Formula: sigma_obs / n^0 = sigma_obs / 1 = sigma_obs for all n
+        - Single-review penalty is NOT applied (penalty requires exponent > 0)
+        - Result: sigma_obs for all review counts including n=1
+        """
         sigma_obs = 1.0
         n_reviews = jnp.array([1.0, 10.0, 100.0, 1000.0])
         exponent = 0.0
 
         result = compute_sigma_scaled(sigma_obs, n_reviews, exponent)
 
-        # n^0 = 1 for all n, but n=1 still gets penalty
-        # Actually when exp=0, formula gives sigma_obs for all n
-        # But n=1 case triggers penalty branch
-        # Need to verify actual behavior
+        # All values should equal sigma_obs (no scaling, no penalty in homoscedastic mode)
+        assert np.isclose(result[0], 1.0, rtol=1e-5)  # n=1 (no penalty when exp=0)
         assert np.isclose(result[1], 1.0, rtol=1e-5)  # n=10
         assert np.isclose(result[2], 1.0, rtol=1e-5)  # n=100
         assert np.isclose(result[3], 1.0, rtol=1e-5)  # n=1000
