@@ -1,7 +1,7 @@
 # Raw Schema Snapshot
 
 Source
-- `path/to/your/dataset.csv` (set via DATASET_PATH environment variable)
+- `path/to/your/dataset.csv` (set via AOTY_DATASET_PATH environment variable)
 
 Observed columns (first rows)
 - Artist

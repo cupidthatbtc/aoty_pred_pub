@@ -144,7 +144,7 @@ def load_dashboard_data(run_dir: Path | None = None) -> DashboardData:
         if model_files:
             data.idata = az.from_netcdf(model_files[0])
             logger.info("Loaded inference data from %s", model_files[0])
-    except (FileNotFoundError, ValueError, OSError) as e:
+    except (FileNotFoundError, ValueError, OSError, ImportError, TypeError) as e:
         logger.warning("Could not load inference data: %s", e)
 
     if run_dir is not None:

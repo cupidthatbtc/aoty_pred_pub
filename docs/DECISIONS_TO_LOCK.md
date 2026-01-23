@@ -9,7 +9,7 @@ Change control
 - Change values in config (or per-run overrides), not in code.
 
 Dataset and scope (defaults)
-- Raw dataset path: `C:\Users\jcwen\Downloads\aoty full artist\all_albums_full.csv`
+- Raw dataset path: `${DATASET_PATH}` (CSV format; set via environment variable or `.env` file to point to the dataset used by the pipeline)
 - Primary prediction target: next album `User Score` (0–100 scale) for each artist
 - Inclusion criteria: `min_ratings = 30` and required fields present
 - Required raw fields: Artist, Album, Year, Release Date, Genres, User Score, User Ratings, Tracks, Runtime (min), Avg Track Runtime (min), Album Type, All Artists

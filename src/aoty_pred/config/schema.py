@@ -44,7 +44,7 @@ class ImputationMinCounts(BaseModel):
 class ImputationConfig(BaseModel):
     strategy: str = "hierarchical"
     hierarchy: list[str] = Field(default_factory=lambda: ["artist", "genre", "decade", "global"])
-    min_counts: ImputationMinCounts = ImputationMinCounts()
+    min_counts: ImputationMinCounts = Field(default_factory=ImputationMinCounts)
 
 
 class FeaturePCAConfig(BaseModel):
@@ -63,7 +63,7 @@ class FeaturesConfig(BaseModel):
     include_artist: bool = True
     include_temporal: bool = True
     include_album_type: bool = True
-    pca: FeaturePCAConfig = FeaturePCAConfig()
+    pca: FeaturePCAConfig = Field(default_factory=FeaturePCAConfig)
     blocks: list[FeatureBlockSpec] = Field(default_factory=list)
 
 
@@ -87,8 +87,8 @@ class ModelConfig(BaseModel):
     target_accept: float = 0.90
     max_treedepth: int = 12
     target_scale: str = "standardized"
-    priors: ModelPriorsConfig = ModelPriorsConfig()
-    dynamic: DynamicConfig = DynamicConfig()
+    priors: ModelPriorsConfig = Field(default_factory=ModelPriorsConfig)
+    dynamic: DynamicConfig = Field(default_factory=DynamicConfig)
 
 
 class EvaluationConfig(BaseModel):
@@ -119,9 +119,9 @@ class OutputsConfig(BaseModel):
 class AppConfig(BaseModel):
     dataset: DatasetConfig
     splits: SplitConfig
-    imputation: ImputationConfig = ImputationConfig()
-    features: FeaturesConfig = FeaturesConfig()
+    imputation: ImputationConfig = Field(default_factory=ImputationConfig)
+    features: FeaturesConfig = Field(default_factory=FeaturesConfig)
     model: ModelConfig
-    evaluation: EvaluationConfig = EvaluationConfig()
-    sensitivity: SensitivityConfig = SensitivityConfig()
-    outputs: OutputsConfig = OutputsConfig()
+    evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
+    sensitivity: SensitivityConfig = Field(default_factory=SensitivityConfig)
+    outputs: OutputsConfig = Field(default_factory=OutputsConfig)

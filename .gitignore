@@ -13,10 +13,10 @@ __pycache__/
 /logs/
 
 # Model artifacts - binary traces (2.3GB+)
-models/
+/models/
 
 # Pipeline outputs (45MB+)
-outputs/
+/outputs/
 
 # NetCDF files (model traces)
 *.nc
@@ -25,19 +25,19 @@ outputs/
 *.log
 
 # Backup directory (safety backups for cleanup)
-.backup/
+/.backup/
 
 # Env and local config
 .env
 /configs/local.yaml
 
 # IDE
-.vscode/
-.idea/
+/.vscode/
+/.idea/
 
 # Legacy CLI backup (preserved locally, not tracked)
 /scripts/legacy_cli.py
 
 # Windows reserved name artifacts
-nul
+/nul
 /.planning/

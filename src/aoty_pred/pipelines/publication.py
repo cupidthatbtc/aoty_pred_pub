@@ -104,7 +104,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
         artifacts["tables"].append(str(coef_path) + ".tex")
         log.info("coefficient_table_saved", path=str(coef_path))
     except Exception as e:  # Broad catch: best-effort artifact generation
-        log.warning("coefficient_table_failed", error=str(e))
+        log.exception("coefficient_table_failed")
 
     # Diagnostics table
     try:
@@ -115,7 +115,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
         artifacts["tables"].append(str(diag_path) + ".tex")
         log.info("diagnostics_table_saved", path=str(diag_path))
     except Exception as e:  # Broad catch: best-effort artifact generation
-        log.warning("diagnostics_table_failed", error=str(e))
+        log.exception("diagnostics_table_failed")
 
     # Metrics summary table
     try:
@@ -132,7 +132,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
         artifacts["tables"].append(str(metrics_path) + ".tex")
         log.info("metrics_table_saved", path=str(metrics_path))
     except Exception as e:  # Broad catch: best-effort artifact generation
-        log.warning("metrics_table_failed", error=str(e))
+        log.exception("metrics_table_failed")
 
     # =========================================================================
     # Generate Figures
@@ -152,7 +152,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
         artifacts["figures"].append(str(png_path))
         log.info("trace_plot_saved", pdf=str(pdf_path), png=str(png_path))
     except Exception as e:  # Broad catch: best-effort artifact generation
-        log.warning("trace_plot_failed", error=str(e))
+        log.exception("trace_plot_failed")
 
     # Posterior plots
     try:
@@ -166,7 +166,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
         artifacts["figures"].append(str(png_path))
         log.info("posterior_plot_saved", pdf=str(pdf_path), png=str(png_path))
     except Exception as e:  # Broad catch: best-effort artifact generation
-        log.warning("posterior_plot_failed", error=str(e))
+        log.exception("posterior_plot_failed")
 
     # =========================================================================
     # Generate Model Card
@@ -199,7 +199,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
 
         log.info("model_card_saved", path=str(model_card_path))
     except Exception as e:  # Broad catch: best-effort artifact generation
-        log.warning("model_card_failed", error=str(e))
+        log.exception("model_card_failed")
 
     # =========================================================================
     # Copy artifacts to run directory if available
