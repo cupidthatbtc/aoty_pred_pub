@@ -66,11 +66,6 @@ def prepare_model_data(
     # Target
     y = train_df["User_Score"].values.astype(np.float32)
 
-    # Record the true maximum sequence length from album_seq (uncapped).
-    # Any cap on album sequence values is applied later by _apply_max_albums_cap,
-    # which is configurable via the --max-albums CLI option.
-    uncapped_max_seq = int(album_seq.max()) + 1
-
     # Compute album counts per artist (indexed by artist_idx, not artist name)
     artist_album_counts = pd.Series(artist_idx).value_counts().sort_index()
 
@@ -81,7 +76,6 @@ def prepare_model_data(
         "X": X,
         "y": y,
         "n_artists": len(artists),
-        "uncapped_max_seq": uncapped_max_seq,
         "artist_album_counts": artist_album_counts,
     }
 
@@ -110,7 +104,6 @@ def _apply_max_albums_cap(
     # Guard against non-positive max_albums_cap to ensure valid shapes
     max_albums_cap = max(1, int(max_albums_cap))
 
-    model_args.pop("uncapped_max_seq", None)
     album_seq = model_args["album_seq"]
     artist_idx = model_args["artist_idx"]
 
