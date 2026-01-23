@@ -148,7 +148,8 @@ class FullPreflightResult:
 
 
 from aoty_pred.preflight.check import run_preflight_check
-from aoty_pred.preflight.output import render_preflight_result
+from aoty_pred.preflight.full_check import run_full_preflight_check
+from aoty_pred.preflight.output import render_full_preflight_result, render_preflight_result
 
 __all__ = [
     "PreflightStatus",
@@ -156,4 +157,6 @@ __all__ = [
     "FullPreflightResult",
     "run_preflight_check",
     "render_preflight_result",
+    "run_full_preflight_check",
+    "render_full_preflight_result",
 ]

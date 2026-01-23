@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from rich.console import Console
 
 if TYPE_CHECKING:
-    from aoty_pred.preflight import PreflightResult, PreflightStatus
+    from aoty_pred.preflight import FullPreflightResult, PreflightResult, PreflightStatus
 
 
 def render_preflight_result(result: PreflightResult, verbose: bool = False) -> None:
@@ -79,3 +79,62 @@ def _format_status_line(status: PreflightStatus, message: str) -> str:
             return f"[red bold]FAIL[/red bold] {message}"
         case PreflightStatus.CANNOT_CHECK:
             return f"[yellow bold]CANNOT CHECK[/yellow bold] {message}"
+
+
+def render_full_preflight_result(
+    result: FullPreflightResult, verbose: bool = False
+) -> None:
+    """Render full preflight result with TTY-aware colored output.
+
+    Uses Rich Console which automatically handles TTY detection:
+    - TTY: Displays colored markup
+    - Non-TTY (pipe, file): Strips markup for plain text
+
+    This renderer displays MEASURED peak memory from a mini-MCMC run,
+    as opposed to render_preflight_result which shows ESTIMATED memory.
+
+    Args:
+        result: FullPreflightResult from run_full_preflight_check().
+        verbose: If True, show additional mini-run details.
+
+    Example:
+        >>> from aoty_pred.preflight import run_full_preflight_check
+        >>> result = run_full_preflight_check(model_args)
+        >>> render_full_preflight_result(result, verbose=True)
+    """
+    from aoty_pred.preflight import PreflightStatus
+
+    console = Console()
+
+    # Status line with color
+    status_line = _format_status_line(result.status, result.message)
+    console.print(status_line)
+
+    # Always show measured peak and mini-run time
+    console.print()
+    console.print("[bold]Measured Peak:[/bold]")
+    console.print(f"  {result.measured_peak_gb:.2f} GB [dim](actual measurement)[/dim]")
+    console.print(f"  Mini-run time: {result.mini_run_seconds:.1f} seconds")
+
+    # Verbose: show additional measurement details
+    if verbose:
+        console.print()
+        console.print(
+            "[dim]This is an actual measurement from a 1-chain, "
+            "10-warmup, 1-sample mini-run.[/dim]"
+        )
+
+    # GPU info (if available)
+    if result.device_name is not None:
+        console.print()
+        console.print(f"[bold]GPU:[/bold] {result.device_name}")
+        console.print(
+            f"  Available: {result.available_gb:.1f} GB / {result.total_gpu_gb:.1f} GB total"
+        )
+
+    # Suggestions
+    if result.suggestions:
+        console.print()
+        console.print("[bold]Suggestions:[/bold]")
+        for suggestion in result.suggestions:
+            console.print(f"  \u2022 {suggestion}")
