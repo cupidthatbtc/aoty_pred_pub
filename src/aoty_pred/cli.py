@@ -90,6 +90,7 @@ def run(
     max_albums: int = typer.Option(
         50,
         "--max-albums",
+        min=1,
         help="Maximum albums per artist for model training. Albums beyond this use the same artist effect.",
     ),
 ) -> None:

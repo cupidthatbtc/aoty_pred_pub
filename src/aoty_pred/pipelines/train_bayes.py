@@ -50,8 +50,8 @@ def prepare_model_data(
     artist_to_idx = {a: i for i, a in enumerate(artists)}
     artist_idx = train_df["Artist"].map(artist_to_idx).values
 
-    # Album sequence (within artist)
-    album_seq = train_df.groupby("Artist").cumcount().values
+    # Album sequence (within artist, 1-indexed to match model expectations)
+    album_seq = (train_df.groupby("Artist").cumcount() + 1).values
 
     # Previous score (shifted within artist, using mean for first album)
     train_df = train_df.copy()
@@ -109,6 +109,9 @@ def _apply_max_albums_cap(
     Returns:
         Updated model_args with adjusted album_seq and max_seq.
     """
+    # Guard against non-positive max_albums_cap to ensure valid shapes
+    max_albums_cap = max(1, int(max_albums_cap))
+
     uncapped_max_seq = model_args.pop("uncapped_max_seq")
     album_seq = model_args["album_seq"]
     artist_idx = model_args["artist_idx"]
