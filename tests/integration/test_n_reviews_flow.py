@@ -100,7 +100,7 @@ class TestNReviewsDataFlow:
             "prev_score": [0.0] * 10,
             "album_seq": list(range(10)),
         })
-        df["feat_1"] = np.random.randn(10)
+        df["feat_1"] = np.random.RandomState(42).randn(10)
 
         # Should raise ValueError for >50% invalid
         with pytest.raises(ValueError, match="Too many invalid n_reviews"):
@@ -125,7 +125,7 @@ class TestNReviewsDataFlow:
             "album_seq": list(range(10)),
         })
         # Add dummy feature columns
-        df["feat_1"] = np.random.randn(10)
+        df["feat_1"] = np.random.RandomState(42).randn(10)
 
         result = prepare_model_data(df, ["feat_1"], min_albums_filter=1)
 

@@ -103,6 +103,10 @@ def compute_sigma_scaled(
         >>> print(f"{sigma[0]:.2f}")  # 2.0 (single review penalty)
         2.00
     """
+    # Validate sigma_obs to prevent NaN from log(0) or log(negative)
+    if sigma_obs <= 0:
+        raise ValueError(f"sigma_obs must be positive, got {sigma_obs}")
+
     # Clamp n_reviews to minimum of 1.0 (defensive against invalid data)
     n_safe = jnp.maximum(n_reviews, 1.0)
 
