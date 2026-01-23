@@ -70,6 +70,11 @@ class TestPlatformInfo:
         info = PlatformInfo(platform_type=PlatformType.MACOS)
         assert info.supports_gpu is False
 
+    def test_supports_gpu_windows(self):
+        """supports_gpu returns True for Windows (CUDA available)."""
+        info = PlatformInfo(platform_type=PlatformType.WINDOWS)
+        assert info.supports_gpu is True
+
     def test_optional_fields(self):
         """kernel_version and wsl_distro are optional."""
         info = PlatformInfo(

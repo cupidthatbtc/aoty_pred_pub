@@ -185,7 +185,7 @@ class TestQueryGpuMemory:
             query_gpu_memory()
 
         assert "No NVIDIA GPU detected" in str(exc_info.value)
-        assert "--no-gpu-check" in str(exc_info.value)
+        assert "--force-run" in str(exc_info.value)
         assert exc_info.value.exit_code == 6
 
     def test_raises_on_invalid_device_index(self, mock_nvml):
@@ -243,7 +243,7 @@ class _MockNVMLError(Exception):
     error strings, which breaks tests. This mock provides the same interface.
     """
 
-    def __init__(self, message: str):
+    def __init__(self, message: str) -> None:
         self.message = message
         super().__init__(message)
 
@@ -273,7 +273,7 @@ class TestQueryGpuMemoryErrorHandling:
                 query_gpu_memory()
 
             assert "NVML library not found" in str(exc_info.value)
-            assert "--no-gpu-check" in str(exc_info.value)
+            assert "--force-run" in str(exc_info.value)
 
     def test_driver_not_loaded_error(self):
         """query_gpu_memory converts driver not loaded to GpuMemoryError."""

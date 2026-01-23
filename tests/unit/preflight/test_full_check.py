@@ -6,6 +6,7 @@ import json
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Any, ClassVar
 from unittest import mock
 
 import pytest
@@ -100,7 +101,7 @@ class TestRunFullPreflightCheckStatusDetermination:
     """Tests for run_full_preflight_check status determination."""
 
     # Sample model args for testing
-    SAMPLE_MODEL_ARGS = {
+    SAMPLE_MODEL_ARGS: ClassVar[dict[str, Any]] = {
         "artist_idx": [0, 1, 0],
         "album_seq": [1, 1, 2],
         "prev_score": [0.0, 0.0, 75.0],
@@ -487,3 +488,54 @@ class TestFullPreflightResultExitCodes:
 
         assert result.status == PreflightStatus.FAIL
         assert result.exit_code == 1
+
+    @mock.patch("aoty_pred.preflight.full_check.query_gpu_memory")
+    @mock.patch("aoty_pred.preflight.full_check._run_mini_mcmc_subprocess")
+    def test_exit_code_warning(self, mock_subprocess, mock_query):
+        """WARNING status -> exit_code 2."""
+        mock_query.return_value = GpuMemoryInfo(
+            device_name="Test GPU",
+            total_bytes=10 * 1024**3,
+            used_bytes=0,
+            free_bytes=10 * 1024**3,
+        )
+        mock_subprocess.return_value = {
+            "success": True,
+            "peak_memory_bytes": int(9 * 1024**3),  # 9 GB of 10 GB = low headroom
+            "runtime_seconds": 5.0,
+        }
+
+        result = run_full_preflight_check(
+            {
+                "artist_idx": [0],
+                "album_seq": [1],
+                "prev_score": [0.0],
+                "X": [[1.0]],
+                "y": [70.0],
+                "n_artists": 1,
+                "max_seq": 1,
+            }
+        )
+
+        assert result.status == PreflightStatus.WARNING
+        assert result.exit_code == 2
+
+    @mock.patch("aoty_pred.preflight.full_check.query_gpu_memory")
+    def test_exit_code_cannot_check(self, mock_query):
+        """CANNOT_CHECK status -> exit_code 2."""
+        mock_query.side_effect = GpuMemoryError("No GPU")
+
+        result = run_full_preflight_check(
+            {
+                "artist_idx": [0],
+                "album_seq": [1],
+                "prev_score": [0.0],
+                "X": [[1.0]],
+                "y": [70.0],
+                "n_artists": 1,
+                "max_seq": 1,
+            }
+        )
+
+        assert result.status == PreflightStatus.CANNOT_CHECK
+        assert result.exit_code == 2

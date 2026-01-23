@@ -179,7 +179,7 @@ def query_gpu_memory(device_index: int = 0) -> GpuMemoryInfo:
         # Provide actionable error messages based on error type
         if "library" in error_str.lower() or "not found" in error_str.lower():
             raise GpuMemoryError(
-                "NVML library not found. Install NVIDIA driver or use --no-gpu-check. "
+                "NVML library not found. Install NVIDIA driver or use --force-run."
                 "See GPU_SETUP.md for troubleshooting."
             ) from e
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
 from unittest import mock
 
 import pytest
@@ -15,7 +16,7 @@ class TestPreflightStatusDetermination:
     """Tests for preflight status determination logic."""
 
     # Standard test params that produce a small memory estimate
-    TEST_PARAMS = {
+    TEST_PARAMS: ClassVar[dict[str, int]] = {
         "n_observations": 1000,
         "n_features": 20,
         "n_artists": 50,
@@ -84,7 +85,7 @@ class TestPreflightStatusDetermination:
 class TestPreflightExitCodes:
     """Tests for exit codes returned by PreflightResult."""
 
-    TEST_PARAMS = {
+    TEST_PARAMS: ClassVar[dict[str, int]] = {
         "n_observations": 1000,
         "n_features": 20,
         "n_artists": 50,
