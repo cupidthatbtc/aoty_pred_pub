@@ -320,23 +320,17 @@ def make_stage_data() -> PipelineStage:
     )
 
 
-def make_stage_splits() -> PipelineStage:
+def make_stage_splits(min_ratings: int = 30) -> PipelineStage:
     """Create splits stage.
 
-    Note: The actual input file depends on --min-ratings CLI arg.
-    The default input_paths here is for hash-based skip detection with default config.
-    If min_ratings changes, the stage will still run correctly but skip detection
-    may not recognize input changes.
-
-    TODO: For full skip-detection support with variable min_ratings,
-    consider computing input_paths dynamically from PipelineConfig.
+    Args:
+        min_ratings: Minimum user ratings per album. Determines input file path.
     """
     return PipelineStage(
         name="splits",
         description="Create train/validation/test splits",
         run_fn=_run_splits_stage,
-        # Default input path; actual may differ based on --min-ratings
-        input_paths=[Path("data/processed/user_score_minratings_10.parquet")],
+        input_paths=[Path(f"data/processed/user_score_minratings_{min_ratings}.parquet")],
         output_paths=[
             Path("data/splits/within_artist_temporal/train.parquet"),
             Path("data/splits/within_artist_temporal/validation.parquet"),

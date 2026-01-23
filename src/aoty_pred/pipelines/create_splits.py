@@ -38,8 +38,8 @@ class SplitConfig:
     disjoint_test_size: float = 0.15
     disjoint_val_size: float = 0.15
 
-    # Computed source path based on min_ratings
-    source_path: Path = None  # type: ignore[assignment]
+    # Computed source path based on min_ratings (set in __post_init__)
+    source_path: Path | None = None
 
     def __post_init__(self):
         """Compute source_path from min_ratings if not provided."""
