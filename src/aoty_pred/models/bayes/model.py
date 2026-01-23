@@ -44,11 +44,81 @@ from numpyro.infer.reparam import LocScaleReparam
 from aoty_pred.models.bayes.priors import PriorConfig, get_default_priors
 
 __all__ = [
+    "compute_sigma_scaled",
     "make_score_model",
     "user_score_model",
     "critic_score_model",
     "album_score_model",
 ]
+
+
+def compute_sigma_scaled(
+    sigma_obs: float,
+    n_reviews: jnp.ndarray,
+    exponent: float,
+    single_review_multiplier: float = 2.0,
+    min_sigma: float = 0.01,
+) -> jnp.ndarray:
+    """Compute per-observation sigma scaled by review count.
+
+    Implements heteroscedastic observation noise where albums with more reviews
+    have lower noise (more reliable scores). Uses log-space arithmetic to
+    avoid numerical underflow/overflow with extreme review counts.
+
+    The scaling formula is:
+        sigma_scaled = sigma_obs / n_reviews^exponent
+
+    Special cases:
+        - n_reviews=1: Applies multiplier (default 2x) for unreliable single reviews
+        - exponent=0: Returns sigma_obs unchanged (homoscedastic mode)
+        - Large n_reviews: Floored at min_sigma to prevent numerical issues
+
+    Args:
+        sigma_obs: Base observation noise scale (scalar).
+        n_reviews: Array of review counts per observation. Values < 1 are
+            clamped to 1.0 defensively.
+        exponent: Power-law exponent for scaling. Typically in [0.3, 0.7].
+            exponent=0 gives homoscedastic (constant) noise.
+            exponent=0.5 gives square-root scaling.
+        single_review_multiplier: Multiplier applied to sigma_obs when
+            n_reviews=1. Default 2.0 reflects that single reviews are
+            unreliable indicators of true album quality.
+        min_sigma: Minimum sigma floor for numerical stability. Default 0.01
+            prevents underflow with very large review counts.
+
+    Returns:
+        Array of scaled sigma values, same shape as n_reviews.
+
+    Notes:
+        Log-space arithmetic is used to compute sigma_obs / n^exponent as:
+            exp(log(sigma_obs) - exponent * log(n))
+        This avoids overflow/underflow for extreme n values (e.g., n=100,000).
+
+    Example:
+        >>> import jax.numpy as jnp
+        >>> sigma = compute_sigma_scaled(1.0, jnp.array([100.0]), 0.5)
+        >>> print(f"{sigma[0]:.2f}")  # ~0.10 (1.0 / sqrt(100))
+        0.10
+        >>> sigma = compute_sigma_scaled(1.0, jnp.array([1.0]), 0.5)
+        >>> print(f"{sigma[0]:.2f}")  # 2.0 (single review penalty)
+        2.00
+    """
+    # Clamp n_reviews to minimum of 1.0 (defensive against invalid data)
+    n_safe = jnp.maximum(n_reviews, 1.0)
+
+    # Log-space computation: sigma_obs / n^exponent = exp(log(sigma_obs) - exponent * log(n))
+    log_sigma = jnp.log(sigma_obs) - exponent * jnp.log(n_safe)
+    sigma_scaled = jnp.exp(log_sigma)
+
+    # Apply single-review penalty (n=1 is unreliable)
+    sigma_scaled = jnp.where(
+        n_reviews == 1, sigma_obs * single_review_multiplier, sigma_scaled
+    )
+
+    # Apply minimum floor for numerical stability
+    sigma_scaled = jnp.maximum(sigma_scaled, min_sigma)
+
+    return sigma_scaled
 
 
 def make_score_model(score_type: str) -> Callable:
