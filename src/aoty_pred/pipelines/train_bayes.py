@@ -291,6 +291,11 @@ def train_models(ctx: "StageContext") -> dict:
         "model_type": "user_score",
         "model_path": str(model_path),
         "mcmc_config": mcmc_config.to_dict(),
+        "convergence_thresholds": {
+            "rhat_threshold": ctx.rhat_threshold,
+            "ess_threshold": ctx.ess_threshold,
+            "allow_divergences": ctx.allow_divergences,
+        },
         "priors": asdict(priors),
         "data_hash": data_hash,
         "n_observations": len(model_args["y"]),
@@ -302,6 +307,8 @@ def train_models(ctx: "StageContext") -> dict:
             "passed": diagnostics.passed,
             "rhat_max": float(diagnostics.rhat_max),
             "ess_bulk_min": float(diagnostics.ess_bulk_min),
+            "rhat_threshold": float(diagnostics.rhat_threshold),
+            "ess_threshold": int(diagnostics.ess_threshold),
         },
     }
 
