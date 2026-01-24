@@ -234,7 +234,11 @@ def _apply_max_albums_cap(
     return model_args
 
 
-def train_models(ctx: "StageContext") -> dict:
+def train_models(
+    ctx: "StageContext",
+    features_path: Path | None = None,
+    splits_path: Path | None = None,
+) -> dict:
     """Train Bayesian models on feature data.
 
     Fits the user score model using MCMC, checks convergence,
@@ -242,6 +246,10 @@ def train_models(ctx: "StageContext") -> dict:
 
     Args:
         ctx: Stage context with run configuration.
+        features_path: Optional path to features parquet. Defaults to
+            data/features/train_features.parquet.
+        splits_path: Optional path to splits parquet. Defaults to
+            data/splits/within_artist_temporal/train.parquet.
 
     Returns:
         Dictionary with training results and paths.
@@ -262,8 +270,8 @@ def train_models(ctx: "StageContext") -> dict:
     )
 
     # Load training data using shared function
-    features_path = Path("data/features/train_features.parquet")
-    splits_path = Path("data/splits/within_artist_temporal/train.parquet")
+    features_path = features_path or Path("data/features/train_features.parquet")
+    splits_path = splits_path or Path("data/splits/within_artist_temporal/train.parquet")
 
     model_args, feature_cols, train_df = load_training_data(
         features_path=features_path,
