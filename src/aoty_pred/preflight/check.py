@@ -209,4 +209,4 @@ def _generate_message(
             # This case is handled separately in run_preflight_check
             return "Cannot check GPU memory"
         case _:
-            raise ValueError(f"Unexpected PreflightStatus: {status}")
+            return f"Unknown preflight status: {status}"
