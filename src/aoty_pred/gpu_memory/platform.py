@@ -96,6 +96,9 @@ def detect_platform() -> PlatformInfo:
     # WSL detection: "microsoft" or "wsl" in /proc/version
     is_wsl = "microsoft" in proc_version or "wsl" in proc_version
 
+    # Cache /run/WSL existence to avoid redundant filesystem I/O
+    run_wsl_exists = Path("/run/WSL").exists()
+
     # Fallback WSL detection if /proc/version doesn't contain expected markers
     if not is_wsl:
         # Check additional WSL indicators before returning NATIVE_LINUX
@@ -103,7 +106,7 @@ def detect_platform() -> PlatformInfo:
         # 2. WSL_DISTRO_NAME environment variable is set
         # 3. WSL_INTEROP environment variable is set
         if (
-            Path("/run/WSL").exists()
+            run_wsl_exists
             or os.environ.get("WSL_DISTRO_NAME") is not None
             or os.environ.get("WSL_INTEROP") is not None
         ):
@@ -123,7 +126,7 @@ def detect_platform() -> PlatformInfo:
     # 2. "wsl2" appears in /proc/version (explicit)
     # 3. WSL_INTEROP environment variable is set (WSL2 only)
     is_wsl2 = (
-        Path("/run/WSL").exists()
+        run_wsl_exists
         or "wsl2" in proc_version
         or os.environ.get("WSL_INTEROP") is not None
     )
