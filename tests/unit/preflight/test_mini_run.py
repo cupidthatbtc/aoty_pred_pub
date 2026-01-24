@@ -10,6 +10,20 @@ from unittest import mock
 import pytest
 
 
+@pytest.fixture
+def minimal_model_args():
+    """Minimal valid model arguments for testing."""
+    return {
+        "artist_idx": [0],
+        "album_seq": [1],
+        "prev_score": [0.0],
+        "X": [[1.0]],
+        "y": [70.0],
+        "n_artists": 1,
+        "max_seq": 1,
+    }
+
+
 class TestMiniRunJsonOutputFormat:
     """Tests for run_and_measure JSON output format."""
 
@@ -146,6 +160,7 @@ class TestMiniRunExceptionHandling:
         mock_make_model,
         mock_nuts,
         mock_mcmc_class,
+        minimal_model_args,
     ):
         """Exception from MCMC.run propagates (caught by main block)."""
         from aoty_pred.preflight.mini_run import run_and_measure
@@ -158,21 +173,10 @@ class TestMiniRunExceptionHandling:
         mock_mcmc.run.side_effect = RuntimeError("CUDA out of memory")
         mock_mcmc_class.return_value = mock_mcmc
 
-        # Create temp JSON file
-        model_args = {
-            "artist_idx": [0],
-            "album_seq": [1],
-            "prev_score": [0.0],
-            "X": [[1.0]],
-            "y": [70.0],
-            "n_artists": 1,
-            "max_seq": 1,
-        }
-
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".json", delete=False
         ) as f:
-            json.dump(model_args, f)
+            json.dump(minimal_model_args, f)
             temp_path = Path(f.name)
 
         try:
@@ -222,6 +226,7 @@ class TestMiniRunMCMCConfiguration:
         mock_nuts,
         mock_mcmc_class,
         mock_get_stats,
+        minimal_model_args,
     ):
         """MCMC is configured with 1 chain, 10 warmup, 1 sample."""
         from aoty_pred.preflight.mini_run import run_and_measure
@@ -238,20 +243,10 @@ class TestMiniRunMCMCConfiguration:
         mock_stats.peak_gb = 1.0
         mock_get_stats.return_value = mock_stats
 
-        model_args = {
-            "artist_idx": [0],
-            "album_seq": [1],
-            "prev_score": [0.0],
-            "X": [[1.0]],
-            "y": [70.0],
-            "n_artists": 1,
-            "max_seq": 1,
-        }
-
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".json", delete=False
         ) as f:
-            json.dump(model_args, f)
+            json.dump(minimal_model_args, f)
             temp_path = Path(f.name)
 
         try:

@@ -2,29 +2,27 @@
 
 from __future__ import annotations
 
-from typing import ClassVar
 from unittest import mock
-
-import pytest
 
 from aoty_pred.gpu_memory import GpuMemoryInfo
 from aoty_pred.pipelines.errors import GpuMemoryError
 from aoty_pred.preflight import PreflightStatus, run_preflight_check
 
+# Standard test params that produce a small memory estimate (~0.02 GB)
+# Shared by multiple test classes to avoid duplication
+TEST_PARAMS: dict[str, int] = {
+    "n_observations": 1000,
+    "n_features": 20,
+    "n_artists": 50,
+    "max_seq": 10,
+    "num_chains": 4,
+    "num_samples": 1000,
+    "num_warmup": 1000,
+}
+
 
 class TestPreflightStatusDetermination:
     """Tests for preflight status determination logic."""
-
-    # Standard test params that produce a small memory estimate
-    TEST_PARAMS: ClassVar[dict[str, int]] = {
-        "n_observations": 1000,
-        "n_features": 20,
-        "n_artists": 50,
-        "max_seq": 10,
-        "num_chains": 4,
-        "num_samples": 1000,
-        "num_warmup": 1000,
-    }
 
     @mock.patch("aoty_pred.preflight.check.query_gpu_memory")
     def test_preflight_pass_with_headroom(self, mock_query):
@@ -37,7 +35,7 @@ class TestPreflightStatusDetermination:
             free_bytes=10 * 1024**3,  # 10 GB free
         )
 
-        result = run_preflight_check(**self.TEST_PARAMS)
+        result = run_preflight_check(**TEST_PARAMS)
 
         assert result.status == PreflightStatus.PASS
 
@@ -53,7 +51,7 @@ class TestPreflightStatusDetermination:
             free_bytes=int(0.024 * 1024**3),
         )
 
-        result = run_preflight_check(**self.TEST_PARAMS)
+        result = run_preflight_check(**TEST_PARAMS)
 
         assert result.status == PreflightStatus.WARNING
 
@@ -68,7 +66,7 @@ class TestPreflightStatusDetermination:
             free_bytes=int(0.01 * 1024**3),  # 0.01 GB
         )
 
-        result = run_preflight_check(**self.TEST_PARAMS)
+        result = run_preflight_check(**TEST_PARAMS)
 
         assert result.status == PreflightStatus.FAIL
 
@@ -77,23 +75,13 @@ class TestPreflightStatusDetermination:
         """GPU query raises GpuMemoryError -> CANNOT_CHECK."""
         mock_query.side_effect = GpuMemoryError("No GPU detected")
 
-        result = run_preflight_check(**self.TEST_PARAMS)
+        result = run_preflight_check(**TEST_PARAMS)
 
         assert result.status == PreflightStatus.CANNOT_CHECK
 
 
 class TestPreflightExitCodes:
     """Tests for exit codes returned by PreflightResult."""
-
-    TEST_PARAMS: ClassVar[dict[str, int]] = {
-        "n_observations": 1000,
-        "n_features": 20,
-        "n_artists": 50,
-        "max_seq": 10,
-        "num_chains": 4,
-        "num_samples": 1000,
-        "num_warmup": 1000,
-    }
 
     @mock.patch("aoty_pred.preflight.check.query_gpu_memory")
     def test_exit_code_pass(self, mock_query):
@@ -105,7 +93,7 @@ class TestPreflightExitCodes:
             free_bytes=10 * 1024**3,
         )
 
-        result = run_preflight_check(**self.TEST_PARAMS)
+        result = run_preflight_check(**TEST_PARAMS)
 
         assert result.status == PreflightStatus.PASS
         assert result.exit_code == 0
@@ -120,7 +108,7 @@ class TestPreflightExitCodes:
             free_bytes=int(0.001 * 1024**3),
         )
 
-        result = run_preflight_check(**self.TEST_PARAMS)
+        result = run_preflight_check(**TEST_PARAMS)
 
         assert result.status == PreflightStatus.FAIL
         assert result.exit_code == 1
@@ -136,7 +124,7 @@ class TestPreflightExitCodes:
             free_bytes=int(0.024 * 1024**3),
         )
 
-        result = run_preflight_check(**self.TEST_PARAMS)
+        result = run_preflight_check(**TEST_PARAMS)
 
         assert result.status == PreflightStatus.WARNING
         assert result.exit_code == 2
@@ -146,7 +134,7 @@ class TestPreflightExitCodes:
         """CANNOT_CHECK status -> exit_code 2."""
         mock_query.side_effect = GpuMemoryError("No GPU")
 
-        result = run_preflight_check(**self.TEST_PARAMS)
+        result = run_preflight_check(**TEST_PARAMS)
 
         assert result.status == PreflightStatus.CANNOT_CHECK
         assert result.exit_code == 2

@@ -85,7 +85,7 @@ def run(
     preflight: bool = typer.Option(
         False,
         "--preflight",
-        help="Run memory check before starting; abort if insufficient",
+        help="Quick memory check (~1s) with fixed estimates; use --preflight-full for accuracy",
     ),
     preflight_only: bool = typer.Option(
         False,

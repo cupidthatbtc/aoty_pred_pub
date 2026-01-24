@@ -21,6 +21,21 @@ from aoty_pred.pipelines.errors import GpuMemoryError
 from aoty_pred.preflight import FullPreflightResult, PreflightStatus
 
 
+def calculate_headroom_percent(available_gb: float, peak_gb: float) -> float:
+    """Calculate headroom as percentage of available memory.
+
+    Args:
+        available_gb: Available GPU memory in GB.
+        peak_gb: Peak memory usage in GB.
+
+    Returns:
+        Headroom percentage (0-100), or -100 if no memory available.
+    """
+    if available_gb > 0:
+        return ((available_gb - peak_gb) / available_gb) * 100
+    return -100.0
+
+
 def serialize_model_args(model_args: dict) -> Path:
     """Serialize model arguments to temporary JSON file.
 
@@ -201,10 +216,7 @@ def run_full_preflight_check(
     peak_gb = peak_bytes / (1024**3)
     available_gb = gpu_info.free_gb
 
-    if available_gb > 0:
-        headroom_percent = ((available_gb - peak_gb) / available_gb) * 100
-    else:
-        headroom_percent = -100.0
+    headroom_percent = calculate_headroom_percent(available_gb, peak_gb)
 
     # Step 6: Determine status
     if peak_gb > available_gb:

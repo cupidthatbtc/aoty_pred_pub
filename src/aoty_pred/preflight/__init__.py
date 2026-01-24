@@ -148,6 +148,8 @@ class FullPreflightResult:
         return _exit_code_for_status(self.status)
 
 
+# Imports placed after class definitions to avoid circular imports.
+# These modules import PreflightResult/FullPreflightResult from this module.
 from aoty_pred.preflight.check import run_preflight_check
 from aoty_pred.preflight.full_check import run_full_preflight_check
 from aoty_pred.preflight.output import render_full_preflight_result, render_preflight_result
