@@ -31,6 +31,49 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 
+def load_training_data(
+    features_path: Path,
+    splits_path: Path,
+    min_albums_filter: int = 2,
+) -> tuple[dict, list[str], pd.DataFrame]:
+    """Load training data and prepare model arguments.
+
+    Loads feature and split parquet files, merges them, fills NaN values,
+    and prepares the model_args dictionary for MCMC fitting.
+
+    Args:
+        features_path: Path to train_features.parquet.
+        splits_path: Path to train.parquet (splits).
+        min_albums_filter: Minimum albums for dynamic effects.
+
+    Returns:
+        Tuple of (model_args dict, feature_cols list, merged train_df).
+    """
+    train_features = pd.read_parquet(features_path)
+    train_df = pd.read_parquet(splits_path)
+
+    # Drop columns that overlap with engineered features
+    overlap_cols = list(set(train_df.columns) & set(train_features.columns))
+    if overlap_cols:
+        train_df = train_df.drop(columns=overlap_cols)
+
+    # Merge features with original data
+    train_df = train_df.join(train_features, how="left")
+
+    # Handle NaN values in features (fill with 0 for numeric stability)
+    feature_cols = list(train_features.columns)
+    train_df[feature_cols] = train_df[feature_cols].fillna(0)
+
+    # Prepare model data
+    model_args = prepare_model_data(
+        train_df,
+        feature_cols,
+        min_albums_filter=min_albums_filter,
+    )
+
+    return model_args, feature_cols, train_df
+
+
 def prepare_model_data(
     train_df: pd.DataFrame,
     feature_cols: list[str],
@@ -218,52 +261,25 @@ def train_models(ctx: "StageContext") -> dict:
         target_accept=ctx.target_accept,
     )
 
-    # Load feature data
-    features_dir = Path("data/features")
-    train_features = pd.read_parquet(features_dir / "train_features.parquet")
+    # Load training data using shared function
+    features_path = Path("data/features/train_features.parquet")
+    splits_path = Path("data/splits/within_artist_temporal/train.parquet")
 
-    # Load original training data for artist/target info
-    splits_dir = Path("data/splits/within_artist_temporal")
-    train_df = pd.read_parquet(splits_dir / "train.parquet")
+    model_args, feature_cols, train_df = load_training_data(
+        features_path=features_path,
+        splits_path=splits_path,
+        min_albums_filter=ctx.min_albums_filter,
+    )
 
-    # Drop columns that overlap with engineered features
-    overlap_cols = list(set(train_df.columns) & set(train_features.columns))
-    if overlap_cols:
-        train_df = train_df.drop(columns=overlap_cols)
-
-    # Merge features with original data
-    train_df = train_df.join(train_features, how="left")
-
-    # Handle NaN values in features (fill with 0 for numeric stability)
-    feature_cols = list(train_features.columns)
-    nan_count = train_df[feature_cols].isna().sum().sum()
-    if nan_count > 0:
-        log.info("filling_nan_values", nan_count=nan_count)
-        train_df[feature_cols] = train_df[feature_cols].fillna(0)
+    # Compute artists below threshold for metadata
+    artist_counts = train_df.groupby("Artist").size()
+    n_below_threshold = (artist_counts < ctx.min_albums_filter).sum()
 
     log.info(
         "data_loaded",
         train_rows=len(train_df),
-        n_features=len(train_features.columns),
+        n_features=len(feature_cols),
     )
-
-    # Prepare model data with min_albums filtering
-    model_args = prepare_model_data(
-        train_df,
-        feature_cols,
-        min_albums_filter=ctx.min_albums_filter,
-    )
-
-    # Log how many artists are below min_albums threshold
-    artist_counts = train_df.groupby("Artist").size()
-    n_below_threshold = (artist_counts < ctx.min_albums_filter).sum()
-    if n_below_threshold > 0:
-        log.info(
-            "min_albums_filter_applied",
-            min_albums=ctx.min_albums_filter,
-            artists_below_threshold=int(n_below_threshold),
-            message=f"{n_below_threshold} artists have static effects only (fewer than {ctx.min_albums_filter} albums)",
-        )
 
     # Apply max_albums cap from CLI/config (uses most recent albums per artist)
     artist_album_counts = model_args.pop("artist_album_counts")

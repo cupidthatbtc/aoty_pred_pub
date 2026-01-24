@@ -232,10 +232,9 @@ def run(
         from pathlib import Path
 
         import numpy as np
-        import pandas as pd
         from rich.console import Console
 
-        from aoty_pred.pipelines.train_bayes import prepare_model_data
+        from aoty_pred.pipelines.train_bayes import load_training_data
         from aoty_pred.preflight import (
             PreflightStatus,
             render_full_preflight_result,
@@ -258,25 +257,11 @@ def run(
             )
             raise typer.Exit(2)  # CANNOT_CHECK exit code
 
-        # Load data and build model_args (following train_bayes.py pattern)
-        train_features = pd.read_parquet(features_path)
-        train_df = pd.read_parquet(splits_path)
-
-        # Drop overlapping columns and merge
-        overlap_cols = list(set(train_df.columns) & set(train_features.columns))
-        if overlap_cols:
-            train_df = train_df.drop(columns=overlap_cols)
-        train_df = train_df.join(train_features, how="left")
-
-        # Fill NaN values in features
-        feature_cols = list(train_features.columns)
-        train_df[feature_cols] = train_df[feature_cols].fillna(0)
-
-        # Prepare model arguments using existing function
-        model_args = prepare_model_data(
-            train_df,
-            feature_cols,
-            min_albums_filter=min_albums,  # Use CLI param
+        # Load data and build model_args using shared function
+        model_args, _, _ = load_training_data(
+            features_path=features_path,
+            splits_path=splits_path,
+            min_albums_filter=min_albums,
         )
 
         # Remove artist_album_counts (not needed for preflight)
