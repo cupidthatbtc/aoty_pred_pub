@@ -78,11 +78,14 @@ def load_training_data(
     train_df[feature_cols] = train_df[feature_cols].fillna(0)
 
     # Prepare model data
-    model_args = prepare_model_data(
+    model_args, valid_mask = prepare_model_data(
         train_df,
         feature_cols,
         min_albums_filter=min_albums_filter,
     )
+
+    # Apply valid_mask to train_df so it matches the filtered model arrays
+    train_df = train_df[valid_mask].copy()
 
     return model_args, feature_cols, train_df
 
@@ -91,7 +94,7 @@ def prepare_model_data(
     train_df: pd.DataFrame,
     feature_cols: list[str],
     min_albums_filter: int = 2,
-) -> dict:
+) -> tuple[dict, np.ndarray]:
     """Prepare data for NumPyro model fitting.
 
     Creates the arrays needed by the Bayesian model including artist indices,
@@ -104,7 +107,7 @@ def prepare_model_data(
             fewer albums have all their albums treated as sequence 1 (static effect only).
 
     Returns:
-        Dictionary with model arguments.
+        Tuple of (model_args dict, valid_mask boolean array indicating retained rows).
     """
     # Create artist index mapping
     artists = train_df["Artist"].unique()
@@ -152,6 +155,9 @@ def prepare_model_data(
     invalid_mask = pd.isna(n_reviews_raw) | (n_reviews_raw <= 0)
     n_invalid = invalid_mask.sum()
 
+    # Track which rows are valid (returned to caller for DataFrame filtering)
+    valid_mask = ~invalid_mask
+
     if n_invalid > 0:
         invalid_pct = n_invalid / len(n_reviews_raw) * 100
         if invalid_pct > 50:
@@ -167,7 +173,6 @@ def prepare_model_data(
             action="dropping_invalid_rows",
         )
         # Filter out invalid rows from all arrays
-        valid_mask = ~invalid_mask
         n_reviews_raw = n_reviews_raw[valid_mask]
         y = y[valid_mask]
         X = X[valid_mask]
@@ -181,7 +186,7 @@ def prepare_model_data(
     # Compute album counts per artist (indexed by artist_idx, not artist name)
     artist_album_counts = pd.Series(artist_idx).value_counts().sort_index()
 
-    return {
+    model_args = {
         "artist_idx": artist_idx,
         "album_seq": album_seq,
         "prev_score": prev_score,
@@ -191,6 +196,7 @@ def prepare_model_data(
         "n_artists": len(artists),
         "artist_album_counts": artist_album_counts,
     }
+    return model_args, valid_mask
 
 
 def _apply_max_albums_cap(

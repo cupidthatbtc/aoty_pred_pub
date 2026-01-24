@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from aoty_pred.preflight import (
@@ -11,7 +13,7 @@ from aoty_pred.preflight import (
 )
 
 
-def _make_full_result(**overrides) -> FullPreflightResult:
+def _make_full_result(**overrides: Any) -> FullPreflightResult:
     """Create FullPreflightResult with sensible defaults.
 
     Provides a PASS result with typical values. Override any field
@@ -25,7 +27,7 @@ def _make_full_result(**overrides) -> FullPreflightResult:
         "headroom_percent": 65.0,
         "mini_run_seconds": 10.0,
         "message": "Test message",
-        "suggestions": [],
+        "suggestions": (),
         "device_name": "Test GPU",
     }
     defaults.update(overrides)
@@ -46,7 +48,7 @@ class TestRenderFullPreflightStatus:
             headroom_percent=66.7,
             mini_run_seconds=10.5,
             message="Full preflight passed: 4.00 GB measured peak, 12.0 GB available",
-            suggestions=[],
+            suggestions=(),
             device_name="NVIDIA RTX 4090",
         )
 
@@ -61,7 +63,7 @@ class TestRenderFullPreflightStatus:
             headroom_percent=-33.3,
             mini_run_seconds=15.0,
             message="Full preflight failed: 8.00 GB measured peak exceeds 6.0 GB available",
-            suggestions=["Try reducing --num-chains"],
+            suggestions=("Try reducing --num-chains",),
             device_name="NVIDIA GTX 1080",
         )
 
@@ -76,7 +78,7 @@ class TestRenderFullPreflightStatus:
             headroom_percent=12.5,
             mini_run_seconds=12.0,
             message="Full preflight warning: 7.00 GB measured peak, low headroom",
-            suggestions=["Memory is tight; consider reducing --num-chains"],
+            suggestions=("Memory is tight; consider reducing --num-chains",),
             device_name="NVIDIA RTX 3070",
         )
 
@@ -91,7 +93,7 @@ class TestRenderFullPreflightStatus:
             headroom_percent=0.0,
             mini_run_seconds=0.0,
             message="Cannot query GPU: No GPU detected",
-            suggestions=["Use --preflight for estimation without GPU query"],
+            suggestions=("Use --preflight for estimation without GPU query",),
         )
 
     def test_render_pass_contains_pass(self, capsys, pass_result: FullPreflightResult):
@@ -198,7 +200,7 @@ class TestRenderFullPreflightGpuInfo:
 
     def test_render_no_gpu_info_when_none(self, capsys):
         """Output omits GPU section when device_name is None."""
-        result = FullPreflightResult(
+        result = _make_full_result(
             status=PreflightStatus.CANNOT_CHECK,
             measured_peak_gb=0.0,
             available_gb=0.0,
@@ -206,7 +208,6 @@ class TestRenderFullPreflightGpuInfo:
             headroom_percent=0.0,
             mini_run_seconds=0.0,
             message="Cannot query GPU",
-            suggestions=[],
             device_name=None,
         )
 
@@ -230,10 +231,10 @@ class TestRenderFullPreflightSuggestions:
             headroom_percent=-25.0,
             mini_run_seconds=15.0,
             message="Memory exceeded",
-            suggestions=[
+            suggestions=(
                 "Need 2.0 GB more GPU memory",
                 "Try reducing --num-chains (most effective)",
-            ],
+            ),
             device_name="Test GPU",
         )
 
