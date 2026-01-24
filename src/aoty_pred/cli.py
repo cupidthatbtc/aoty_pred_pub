@@ -21,6 +21,13 @@ logger = logging.getLogger(__name__)
 
 __version__ = "0.1.0"
 
+# Quick preflight uses fixed estimates rather than loading actual data (~1s vs ~30-60s).
+# These are conservative defaults for the memory estimation formula.
+# For accurate checking with real data dimensions, use --preflight-full.
+QUICK_PREFLIGHT_OBSERVATIONS = 1000  # Conservative observation count
+QUICK_PREFLIGHT_FEATURES = 20  # Typical feature count from feature builder
+QUICK_PREFLIGHT_ARTISTS = 100  # Moderate artist count
+
 app = typer.Typer(
     add_completion=False,
     help="AOTY Prediction Pipeline - reproducible ML workflow for album score prediction.",
@@ -81,6 +88,26 @@ def run(
         "--verbose",
         "-v",
         help="Enable DEBUG logging",
+    ),
+    preflight: bool = typer.Option(
+        False,
+        "--preflight",
+        help="Quick memory check (~1s) with fixed estimates; use --preflight-full for accuracy",
+    ),
+    preflight_only: bool = typer.Option(
+        False,
+        "--preflight-only",
+        help="Run memory check and exit (0=pass, 1=fail, 2=warning/cannot-check)",
+    ),
+    force_run: bool = typer.Option(
+        False,
+        "--force-run",
+        help="Override preflight failure and continue anyway (use with --preflight)",
+    ),
+    preflight_full: bool = typer.Option(
+        False,
+        "--preflight-full",
+        help="Run mini-MCMC to measure actual peak memory (~30-60 seconds)",
     ),
     resume: Optional[str] = typer.Option(
         None,
@@ -190,6 +217,15 @@ def run(
 
         # Resume a failed run
         aoty-pipeline run --resume 2026-01-19_143052
+
+        # Check memory before running
+        aoty-pipeline run --preflight
+
+        # Check memory only (CI/scripting)
+        aoty-pipeline run --preflight-only
+
+        # Force run despite preflight failure
+        aoty-pipeline run --preflight --force-run
     """
     from aoty_pred.pipelines.orchestrator import PipelineConfig, run_pipeline
 
@@ -197,6 +233,108 @@ def run(
     stage_list: list[str] | None = None
     if stages:
         stage_list = [s.strip() for s in stages.split(",") if s.strip()]
+
+    # Full preflight mode (--preflight-full) takes precedence over quick preflight
+    if preflight_full:
+        from pathlib import Path
+
+        import numpy as np
+        from rich.console import Console
+
+        from aoty_pred.pipelines.train_bayes import load_training_data
+        from aoty_pred.preflight import (
+            PreflightStatus,
+            render_full_preflight_result,
+            run_full_preflight_check,
+        )
+
+        console = Console()
+
+        # Check if required data exists
+        features_path = Path("data/features/train_features.parquet")
+        splits_path = Path("data/splits/within_artist_temporal/train.parquet")
+
+        if not features_path.exists() or not splits_path.exists():
+            console.print(
+                "[bold red]Error:[/bold red] --preflight-full requires processed data.\n"
+                "Missing files:\n"
+                f"  - {features_path}: {'exists' if features_path.exists() else 'MISSING'}\n"
+                f"  - {splits_path}: {'exists' if splits_path.exists() else 'MISSING'}\n\n"
+                "Run data stages first, or use [bold]--preflight[/bold] for quick estimation."
+            )
+            raise typer.Exit(2)  # CANNOT_CHECK exit code
+
+        # Load data and build model_args using shared function
+        model_args, _, _ = load_training_data(
+            features_path=features_path,
+            splits_path=splits_path,
+            min_albums_filter=min_albums,
+        )
+
+        # Remove artist_album_counts (not needed for preflight)
+        model_args.pop("artist_album_counts", None)
+
+        # Apply max_albums cap to model_args["album_seq"]
+        album_seq = model_args["album_seq"]
+        model_args["album_seq"] = np.clip(album_seq, 1, max_albums)
+        model_args["max_seq"] = max_albums
+
+        # Add heteroscedastic params (use CLI-parsed values)
+        model_args["n_exponent"] = n_exponent
+        model_args["learn_n_exponent"] = learn_n_exponent
+
+        # Show progress indicator
+        with console.status("[bold blue]Running mini-MCMC measurement...[/bold blue]"):
+            full_result = run_full_preflight_check(
+                model_args=model_args,
+                headroom_target=0.20,
+                timeout_seconds=120,
+            )
+
+        render_full_preflight_result(full_result, verbose=verbose)
+
+        if preflight_only:
+            raise typer.Exit(full_result.exit_code)
+
+        if full_result.status == PreflightStatus.FAIL:
+            if force_run:
+                typer.echo("Warning: Continuing despite preflight failure (--force-run)")
+            else:
+                typer.echo("Use --force-run to override preflight failure")
+                raise typer.Exit(full_result.exit_code)
+
+    # Run preflight check if requested (quick estimation mode)
+    # Note: Preflight runs BEFORE building PipelineConfig to fail fast
+    # Skip quick preflight when full preflight was already run (--preflight-full takes precedence)
+    if (preflight or preflight_only) and not preflight_full:
+        from aoty_pred.preflight import (
+            PreflightStatus,
+            render_preflight_result,
+            run_preflight_check,
+        )
+
+        # Use module-level constants for quick preflight dimension estimates
+        result = run_preflight_check(
+            n_observations=QUICK_PREFLIGHT_OBSERVATIONS,
+            n_features=QUICK_PREFLIGHT_FEATURES,
+            n_artists=QUICK_PREFLIGHT_ARTISTS,
+            max_seq=max_albums,
+            num_chains=num_chains,
+            num_samples=num_samples,
+            num_warmup=num_warmup,
+        )
+
+        render_preflight_result(result, verbose=verbose)
+
+        if preflight_only:
+            raise typer.Exit(code=result.exit_code)
+
+        if result.status == PreflightStatus.FAIL:
+            if force_run:
+                typer.echo("Warning: Continuing despite preflight failure (--force-run)")
+            else:
+                typer.echo("Aborting. Use --force-run to override.")
+                raise typer.Exit(code=result.exit_code)
 
     config = PipelineConfig(
         seed=seed,

@@ -31,11 +31,70 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 
+def load_training_data(
+    features_path: Path,
+    splits_path: Path,
+    min_albums_filter: int = 2,
+) -> tuple[dict, list[str], pd.DataFrame]:
+    """Load training data and prepare model arguments.
+
+    Loads feature and split parquet files, merges them, fills NaN values,
+    and prepares the model_args dictionary for MCMC fitting.
+
+    Args:
+        features_path: Path to train_features.parquet.
+        splits_path: Path to train.parquet (splits).
+        min_albums_filter: Minimum albums for dynamic effects.
+
+    Returns:
+        Tuple of (model_args dict, feature_cols list, merged train_df).
+    """
+    train_features = pd.read_parquet(features_path)
+    train_df = pd.read_parquet(splits_path)
+
+    # Drop columns that overlap with engineered features
+    overlap_cols = list(set(train_df.columns) & set(train_features.columns))
+    if overlap_cols:
+        train_df = train_df.drop(columns=overlap_cols)
+
+    # Validate DataFrame alignment before join
+    if len(train_df) != len(train_features):
+        raise ValueError(
+            f"DataFrame length mismatch: train_df has {len(train_df)} rows, "
+            f"train_features has {len(train_features)} rows. "
+            "Ensure both files contain matching records."
+        )
+    if not train_df.index.equals(train_features.index):
+        raise ValueError(
+            "DataFrame index mismatch: train_df and train_features have different indices. "
+            "Ensure both files are aligned before joining."
+        )
+
+    # Merge features with original data
+    train_df = train_df.join(train_features, how="left")
+
+    # Handle NaN values in features (fill with 0 for numeric stability)
+    feature_cols = list(train_features.columns)
+    train_df[feature_cols] = train_df[feature_cols].fillna(0)
+
+    # Prepare model data
+    model_args, valid_mask = prepare_model_data(
+        train_df,
+        feature_cols,
+        min_albums_filter=min_albums_filter,
+    )
+
+    # Apply valid_mask to train_df so it matches the filtered model arrays
+    train_df = train_df[valid_mask].copy()
+
+    return model_args, feature_cols, train_df
+
+
 def prepare_model_data(
     train_df: pd.DataFrame,
     feature_cols: list[str],
     min_albums_filter: int = 2,
-) -> dict:
+) -> tuple[dict, np.ndarray]:
     """Prepare data for NumPyro model fitting.
 
     Creates the arrays needed by the Bayesian model including artist indices,
@@ -48,7 +107,7 @@ def prepare_model_data(
             fewer albums have all their albums treated as sequence 1 (static effect only).
 
     Returns:
-        Dictionary with model arguments.
+        Tuple of (model_args dict, valid_mask boolean array indicating retained rows).
     """
     # Create artist index mapping
     artists = train_df["Artist"].unique()
@@ -96,6 +155,9 @@ def prepare_model_data(
     invalid_mask = pd.isna(n_reviews_raw) | (n_reviews_raw <= 0)
     n_invalid = invalid_mask.sum()
 
+    # Track which rows are valid (returned to caller for DataFrame filtering)
+    valid_mask = ~invalid_mask
+
     if n_invalid > 0:
         invalid_pct = n_invalid / len(n_reviews_raw) * 100
         if invalid_pct > 50:
@@ -111,7 +173,6 @@ def prepare_model_data(
             action="dropping_invalid_rows",
         )
         # Filter out invalid rows from all arrays
-        valid_mask = ~invalid_mask
         n_reviews_raw = n_reviews_raw[valid_mask]
         y = y[valid_mask]
         X = X[valid_mask]
@@ -124,8 +185,12 @@ def prepare_model_data(
 
     # Compute album counts per artist (indexed by artist_idx, not artist name)
     artist_album_counts = pd.Series(artist_idx).value_counts().sort_index()
+    # Reindex to full range so _apply_max_albums_cap doesn't get IndexError
+    artist_album_counts = artist_album_counts.reindex(
+        range(len(artists)), fill_value=0
+    )
 
-    return {
+    model_args = {
         "artist_idx": artist_idx,
         "album_seq": album_seq,
         "prev_score": prev_score,
@@ -135,6 +200,7 @@ def prepare_model_data(
         "n_artists": len(artists),
         "artist_album_counts": artist_album_counts,
     }
+    return model_args, valid_mask
 
 
 def _apply_max_albums_cap(
@@ -191,7 +257,11 @@ def _apply_max_albums_cap(
     return model_args
 
 
-def train_models(ctx: "StageContext") -> dict:
+def train_models(
+    ctx: "StageContext",
+    features_path: Path | None = None,
+    splits_path: Path | None = None,
+) -> dict:
     """Train Bayesian models on feature data.
 
     Fits the user score model using MCMC, checks convergence,
@@ -199,6 +269,10 @@ def train_models(ctx: "StageContext") -> dict:
 
     Args:
         ctx: Stage context with run configuration.
+        features_path: Optional path to features parquet. Defaults to
+            data/features/train_features.parquet.
+        splits_path: Optional path to splits parquet. Defaults to
+            data/splits/within_artist_temporal/train.parquet.
 
     Returns:
         Dictionary with training results and paths.
@@ -218,52 +292,25 @@ def train_models(ctx: "StageContext") -> dict:
         target_accept=ctx.target_accept,
     )
 
-    # Load feature data
-    features_dir = Path("data/features")
-    train_features = pd.read_parquet(features_dir / "train_features.parquet")
+    # Load training data using shared function
+    features_path = features_path or Path("data/features/train_features.parquet")
+    splits_path = splits_path or Path("data/splits/within_artist_temporal/train.parquet")
 
-    # Load original training data for artist/target info
-    splits_dir = Path("data/splits/within_artist_temporal")
-    train_df = pd.read_parquet(splits_dir / "train.parquet")
+    model_args, feature_cols, train_df = load_training_data(
+        features_path=features_path,
+        splits_path=splits_path,
+        min_albums_filter=ctx.min_albums_filter,
+    )
 
-    # Drop columns that overlap with engineered features
-    overlap_cols = list(set(train_df.columns) & set(train_features.columns))
-    if overlap_cols:
-        train_df = train_df.drop(columns=overlap_cols)
-
-    # Merge features with original data
-    train_df = train_df.join(train_features, how="left")
-
-    # Handle NaN values in features (fill with 0 for numeric stability)
-    feature_cols = list(train_features.columns)
-    nan_count = train_df[feature_cols].isna().sum().sum()
-    if nan_count > 0:
-        log.info("filling_nan_values", nan_count=nan_count)
-        train_df[feature_cols] = train_df[feature_cols].fillna(0)
+    # Compute artists below threshold for metadata
+    artist_counts = train_df.groupby("Artist").size()
+    n_below_threshold = (artist_counts < ctx.min_albums_filter).sum()
 
     log.info(
         "data_loaded",
         train_rows=len(train_df),
-        n_features=len(train_features.columns),
+        n_features=len(feature_cols),
     )
-
-    # Prepare model data with min_albums filtering
-    model_args = prepare_model_data(
-        train_df,
-        feature_cols,
-        min_albums_filter=ctx.min_albums_filter,
-    )
-
-    # Log how many artists are below min_albums threshold
-    artist_counts = train_df.groupby("Artist").size()
-    n_below_threshold = (artist_counts < ctx.min_albums_filter).sum()
-    if n_below_threshold > 0:
-        log.info(
-            "min_albums_filter_applied",
-            min_albums=ctx.min_albums_filter,
-            artists_below_threshold=int(n_below_threshold),
-            message=f"{n_below_threshold} artists have static effects only (fewer than {ctx.min_albums_filter} albums)",
-        )
 
     # Apply max_albums cap from CLI/config (uses most recent albums per artist)
     artist_album_counts = model_args.pop("artist_album_counts")
