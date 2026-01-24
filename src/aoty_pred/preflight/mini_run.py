@@ -20,7 +20,12 @@ The model_args.json file should contain:
     - learn_n_exponent: Optional bool (whether to sample exponent)
 
 Output (stdout, JSON):
-    {"success": true, "peak_memory_bytes": 4567890123, "runtime_seconds": 45.2}
+    {
+        "success": true,
+        "exit_code": 0,
+        "peak_memory_bytes": 4567890123,
+        "runtime_seconds": 45.2
+    }
 
 On error:
     {"success": false, "error": "Error message here"}

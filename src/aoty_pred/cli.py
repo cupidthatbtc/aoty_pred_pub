@@ -304,9 +304,12 @@ def run(
         if preflight_only:
             raise typer.Exit(full_result.exit_code)
 
-        if full_result.status == PreflightStatus.FAIL and not force_run:
-            typer.echo("Use --force-run to override preflight failure")
-            raise typer.Exit(full_result.exit_code)
+        if full_result.status == PreflightStatus.FAIL:
+            if force_run:
+                typer.echo("Warning: Continuing despite preflight failure (--force-run)")
+            else:
+                typer.echo("Use --force-run to override preflight failure")
+                raise typer.Exit(full_result.exit_code)
 
     # Run preflight check if requested (quick estimation mode)
     # Note: Preflight runs BEFORE building PipelineConfig to fail fast
