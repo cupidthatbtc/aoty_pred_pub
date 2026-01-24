@@ -77,7 +77,7 @@ def run_preflight_check(
             available_gb=0.0,
             total_gpu_gb=0.0,
             headroom_percent=0.0,
-            message=f"Cannot query GPU memory: {e.message}",
+            message=f"Cannot query GPU memory: {e}",
             suggestions=["Consider running with --device cpu"],
         )
 

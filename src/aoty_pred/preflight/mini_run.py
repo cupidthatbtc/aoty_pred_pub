@@ -28,7 +28,13 @@ Output (stdout, JSON):
     }
 
 On error:
-    {"success": false, "error": "Error message here"}
+    {
+        "success": false,
+        "exit_code": 1,
+        "error": "Error message here",
+        "peak_memory_bytes": 0,
+        "runtime_seconds": 0.0
+    }
 
 Note: All JSON output goes to stdout. Logs/warnings go to stderr.
 """
@@ -159,7 +165,10 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         result = {
             "success": False,
+            "exit_code": 1,
             "error": "Usage: python -m aoty_pred.preflight.mini_run <model_args.json>",
+            "peak_memory_bytes": 0,
+            "runtime_seconds": 0.0,
         }
         print(json.dumps(result))
         sys.exit(1)
