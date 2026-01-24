@@ -43,6 +43,19 @@ class PreflightStatus(Enum):
     CANNOT_CHECK = "cannot_check"
 
 
+def _exit_code_for_status(status: PreflightStatus) -> int:
+    """Map PreflightStatus to CLI exit code."""
+    match status:
+        case PreflightStatus.PASS:
+            return 0
+        case PreflightStatus.FAIL:
+            return 1
+        case PreflightStatus.WARNING | PreflightStatus.CANNOT_CHECK:
+            return 2
+        case _:
+            raise ValueError(f"Unexpected PreflightStatus: {status}")
+
+
 @dataclass(frozen=True)
 class PreflightResult:
     """Result of preflight memory check using ESTIMATED memory.
@@ -83,13 +96,7 @@ class PreflightResult:
             1 for FAIL (do not proceed).
             2 for WARNING or CANNOT_CHECK (proceed with caution).
         """
-        match self.status:
-            case PreflightStatus.PASS:
-                return 0
-            case PreflightStatus.FAIL:
-                return 1
-            case PreflightStatus.WARNING | PreflightStatus.CANNOT_CHECK:
-                return 2
+        return _exit_code_for_status(self.status)
 
 
 @dataclass(frozen=True)
@@ -138,13 +145,7 @@ class FullPreflightResult:
             1 for FAIL (do not proceed).
             2 for WARNING or CANNOT_CHECK (proceed with caution).
         """
-        match self.status:
-            case PreflightStatus.PASS:
-                return 0
-            case PreflightStatus.FAIL:
-                return 1
-            case PreflightStatus.WARNING | PreflightStatus.CANNOT_CHECK:
-                return 2
+        return _exit_code_for_status(self.status)
 
 
 from aoty_pred.preflight.check import run_preflight_check

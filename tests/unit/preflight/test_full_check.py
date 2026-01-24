@@ -501,7 +501,7 @@ class TestFullPreflightResultExitCodes:
         )
         mock_subprocess.return_value = {
             "success": True,
-            "peak_memory_bytes": int(9 * 1024**3),  # 9 GB of 10 GB = low headroom
+            "peak_memory_bytes": 9 * 1024**3,  # 9 GB of 10 GB = low headroom
             "runtime_seconds": 5.0,
         }
 

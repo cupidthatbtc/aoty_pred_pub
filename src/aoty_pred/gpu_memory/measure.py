@@ -79,6 +79,9 @@ def get_jax_memory_stats(device_index: int = 0) -> JaxMemoryStats:
         >>> print(f"Peak: {stats.peak_gb:.2f} GB of {stats.limit_gb:.2f} GB")
         Peak: 4.25 GB of 24.00 GB
     """
+    if device_index < 0:
+        raise RuntimeError("GPU index must be non-negative")
+
     try:
         devices = jax.devices("gpu")
     except RuntimeError as e:

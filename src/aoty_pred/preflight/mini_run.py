@@ -137,6 +137,7 @@ def run_and_measure(model_args_path: Path) -> dict[str, Any]:
 
     return {
         "success": True,
+        "exit_code": 0,
         "peak_memory_bytes": peak_bytes,
         "runtime_seconds": runtime,
     }
@@ -165,6 +166,7 @@ if __name__ == "__main__":
         logger.exception("Mini-run failed")
         result = {
             "success": False,
+            "exit_code": 1,
             "error": str(e),
             "peak_memory_bytes": 0,
             "runtime_seconds": 0.0,
