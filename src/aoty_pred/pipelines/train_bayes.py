@@ -57,6 +57,19 @@ def load_training_data(
     if overlap_cols:
         train_df = train_df.drop(columns=overlap_cols)
 
+    # Validate DataFrame alignment before join
+    if len(train_df) != len(train_features):
+        raise ValueError(
+            f"DataFrame length mismatch: train_df has {len(train_df)} rows, "
+            f"train_features has {len(train_features)} rows. "
+            "Ensure both files contain matching records."
+        )
+    if not train_df.index.equals(train_features.index):
+        raise ValueError(
+            "DataFrame index mismatch: train_df and train_features have different indices. "
+            "Ensure both files are aligned before joining."
+        )
+
     # Merge features with original data
     train_df = train_df.join(train_features, how="left")
 
