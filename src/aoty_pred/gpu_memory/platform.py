@@ -47,7 +47,7 @@ class PlatformInfo:
     def supports_gpu(self) -> bool:
         """Check if platform can support NVIDIA GPU.
 
-        WSL2 and native Linux support GPU passthrough.
+        Native Linux, WSL2, and Windows support GPU passthrough.
         WSL1 does not support GPU passthrough.
         macOS uses Metal, not NVIDIA CUDA.
         """
@@ -95,6 +95,19 @@ def detect_platform() -> PlatformInfo:
 
     # WSL detection: "microsoft" or "wsl" in /proc/version
     is_wsl = "microsoft" in proc_version or "wsl" in proc_version
+
+    # Fallback WSL detection if /proc/version doesn't contain expected markers
+    if not is_wsl:
+        # Check additional WSL indicators before returning NATIVE_LINUX
+        # 1. /run/WSL directory exists (WSL indicator)
+        # 2. WSL_DISTRO_NAME environment variable is set
+        # 3. WSL_INTEROP environment variable is set
+        if (
+            Path("/run/WSL").exists()
+            or os.environ.get("WSL_DISTRO_NAME") is not None
+            or os.environ.get("WSL_INTEROP") is not None
+        ):
+            is_wsl = True
 
     if not is_wsl:
         return PlatformInfo(
