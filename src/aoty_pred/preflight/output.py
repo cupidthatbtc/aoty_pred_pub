@@ -63,6 +63,13 @@ def render_preflight_result(result: PreflightResult, verbose: bool = False) -> N
         for suggestion in result.suggestions:
             console.print(f"  \u2022 {suggestion}")
 
+    # Note about estimate basis
+    console.print()
+    console.print(
+        "[dim]Note: Estimates based on fixed defaults (1000 obs, 20 features, 100 artists).[/dim]"
+    )
+    console.print("[dim]Use --preflight-full for accurate data-specific checking.[/dim]")
+
 
 def _format_status_line(status: PreflightStatus, message: str) -> str:
     """Format status with appropriate color markup."""
