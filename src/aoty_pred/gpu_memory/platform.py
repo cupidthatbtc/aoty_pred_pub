@@ -90,7 +90,7 @@ def detect_platform() -> PlatformInfo:
         parts = proc_version.split()
         if len(parts) > 2:
             kernel_version = parts[2]
-    except (FileNotFoundError, PermissionError):
+    except OSError:
         pass
 
     # WSL detection: "microsoft" or "wsl" in /proc/version

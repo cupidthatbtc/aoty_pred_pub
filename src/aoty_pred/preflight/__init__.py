@@ -74,7 +74,7 @@ class PreflightResult:
         headroom_percent: Remaining memory percentage after estimate.
             Negative if estimate exceeds available.
         message: Human-readable summary message.
-        suggestions: List of configuration adjustment suggestions.
+        suggestions: Tuple of configuration adjustment suggestions (immutable).
         device_name: GPU device name (None if cannot check).
     """
 
@@ -84,7 +84,7 @@ class PreflightResult:
     total_gpu_gb: float
     headroom_percent: float
     message: str
-    suggestions: list[str]
+    suggestions: tuple[str, ...]
     device_name: str | None = None
 
     @property
@@ -122,7 +122,7 @@ class FullPreflightResult:
             Negative if measured peak exceeds available.
         mini_run_seconds: Time taken for mini-run in seconds.
         message: Human-readable summary message.
-        suggestions: List of configuration adjustment suggestions.
+        suggestions: Tuple of configuration adjustment suggestions (immutable).
         device_name: GPU device name (None if cannot check).
     """
 
@@ -133,7 +133,7 @@ class FullPreflightResult:
     headroom_percent: float
     mini_run_seconds: float
     message: str
-    suggestions: list[str]
+    suggestions: tuple[str, ...]
     device_name: str | None = None
 
     @property

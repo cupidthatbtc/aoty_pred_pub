@@ -180,8 +180,8 @@ def run_full_preflight_check(
             total_gpu_gb=0.0,
             headroom_percent=0.0,
             mini_run_seconds=0.0,
-            message=f"Cannot query GPU: {e.message}",
-            suggestions=["Use --preflight for estimation without GPU query"],
+            message=f"Cannot query GPU: {e}",
+            suggestions=("Use --preflight for estimation without GPU query",),
         )
 
     # Step 2: Serialize model args to temp file
@@ -204,10 +204,10 @@ def run_full_preflight_check(
             headroom_percent=0.0,
             mini_run_seconds=result.get("runtime_seconds", 0.0),
             message=f"Mini-run failed: {result.get('error', 'Unknown error')}",
-            suggestions=[
+            suggestions=(
                 "Use --preflight for formula-based estimation",
                 "Check GPU driver status with nvidia-smi",
-            ],
+            ),
             device_name=gpu_info.device_name,
         )
 
@@ -270,18 +270,20 @@ def _generate_message(
             )
         case PreflightStatus.CANNOT_CHECK:
             return "Cannot complete full preflight check"
+        case _:
+            return f"Unknown full preflight status: {status}"
 
 
 def _generate_suggestions(
     status: PreflightStatus,
     peak_gb: float,
     available_gb: float,
-) -> list[str]:
+) -> tuple[str, ...]:
     """Generate configuration adjustment suggestions."""
     if status == PreflightStatus.PASS:
-        return []
+        return ()
 
-    suggestions = []
+    suggestions: list[str] = []
 
     if status == PreflightStatus.FAIL:
         deficit_gb = peak_gb - available_gb
@@ -293,4 +295,4 @@ def _generate_suggestions(
         suggestions.append("Memory is tight; consider reducing --num-chains")
         suggestions.append("Close other GPU-using applications")
 
-    return suggestions
+    return tuple(suggestions)

@@ -78,7 +78,7 @@ def run_preflight_check(
             total_gpu_gb=0.0,
             headroom_percent=0.0,
             message=f"Cannot query GPU memory: {e}",
-            suggestions=["Consider running with --device cpu"],
+            suggestions=("Consider running with --device cpu",),
         )
 
     # Step 3: Calculate headroom and determine status
@@ -143,12 +143,12 @@ def _generate_suggestions(
     n_artists: int,
     max_seq: int,
     jit_buffer_percent: float,
-) -> list[str]:
+) -> tuple[str, ...]:
     """Generate configuration adjustment suggestions for FAIL/WARNING."""
     if status == PreflightStatus.PASS:
-        return []
+        return ()
 
-    suggestions = []
+    suggestions: list[str] = []
 
     # Suggest reducing chains first (most effective)
     if num_chains > 1:
@@ -179,7 +179,7 @@ def _generate_suggestions(
     if status == PreflightStatus.FAIL:
         suggestions.append("Run --preflight-full for accurate measurement")
 
-    return suggestions
+    return tuple(suggestions)
 
 
 def _generate_message(

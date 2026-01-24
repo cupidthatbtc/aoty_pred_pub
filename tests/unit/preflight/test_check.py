@@ -235,7 +235,7 @@ class TestPreflightSuggestions:
         )
 
         assert result.status == PreflightStatus.PASS
-        assert result.suggestions == []
+        assert result.suggestions == ()
 
 
 class TestPreflightMessages:
