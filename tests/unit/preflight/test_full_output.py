@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
 from aoty_pred.preflight import (
@@ -13,7 +11,7 @@ from aoty_pred.preflight import (
 )
 
 
-def _make_full_result(**overrides: Any) -> FullPreflightResult:
+def _make_full_result(**overrides: object) -> FullPreflightResult:
     """Create FullPreflightResult with sensible defaults.
 
     Provides a PASS result with typical values. Override any field

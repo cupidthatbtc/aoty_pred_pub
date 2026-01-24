@@ -102,7 +102,7 @@ def detect_platform() -> PlatformInfo:
     # Fallback WSL detection if /proc/version doesn't contain expected markers
     if not is_wsl:
         # Check additional WSL indicators before returning NATIVE_LINUX
-        # 1. /run/WSL directory exists (WSL indicator)
+        # 1. /run/WSL directory exists (WSL2 indicator)
         # 2. WSL_DISTRO_NAME environment variable is set
         # 3. WSL_INTEROP environment variable is set
         if (
