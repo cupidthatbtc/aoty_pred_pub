@@ -11,6 +11,27 @@ from aoty_pred.preflight import (
 )
 
 
+def _make_full_result(**overrides) -> FullPreflightResult:
+    """Create FullPreflightResult with sensible defaults.
+
+    Provides a PASS result with typical values. Override any field
+    by passing keyword arguments.
+    """
+    defaults = {
+        "status": PreflightStatus.PASS,
+        "measured_peak_gb": 4.0,
+        "available_gb": 12.0,
+        "total_gpu_gb": 16.0,
+        "headroom_percent": 65.0,
+        "mini_run_seconds": 10.0,
+        "message": "Test message",
+        "suggestions": [],
+        "device_name": "Test GPU",
+    }
+    defaults.update(overrides)
+    return FullPreflightResult(**defaults)
+
+
 class TestRenderFullPreflightStatus:
     """Tests for full preflight status text rendering."""
 
@@ -107,17 +128,7 @@ class TestRenderFullPreflightMeasuredPeak:
 
     def test_render_shows_measured_peak(self, capsys):
         """Output shows measured peak GB value."""
-        result = FullPreflightResult(
-            status=PreflightStatus.PASS,
-            measured_peak_gb=4.25,
-            available_gb=12.0,
-            total_gpu_gb=16.0,
-            headroom_percent=65.0,
-            mini_run_seconds=10.0,
-            message="Test message",
-            suggestions=[],
-            device_name="Test GPU",
-        )
+        result = _make_full_result(measured_peak_gb=4.25)
 
         render_full_preflight_result(result)
         captured = capsys.readouterr()
@@ -127,17 +138,7 @@ class TestRenderFullPreflightMeasuredPeak:
 
     def test_render_shows_mini_run_time(self, capsys):
         """Output shows mini-run execution time."""
-        result = FullPreflightResult(
-            status=PreflightStatus.PASS,
-            measured_peak_gb=4.0,
-            available_gb=12.0,
-            total_gpu_gb=16.0,
-            headroom_percent=65.0,
-            mini_run_seconds=15.3,
-            message="Test message",
-            suggestions=[],
-            device_name="Test GPU",
-        )
+        result = _make_full_result(mini_run_seconds=15.3)
 
         render_full_preflight_result(result)
         captured = capsys.readouterr()
@@ -151,17 +152,7 @@ class TestRenderFullPreflightVerbose:
 
     def test_verbose_shows_mini_run_description(self, capsys):
         """verbose=True shows mini-run description."""
-        result = FullPreflightResult(
-            status=PreflightStatus.PASS,
-            measured_peak_gb=4.0,
-            available_gb=12.0,
-            total_gpu_gb=16.0,
-            headroom_percent=65.0,
-            mini_run_seconds=10.0,
-            message="Test message",
-            suggestions=[],
-            device_name="Test GPU",
-        )
+        result = _make_full_result()
 
         render_full_preflight_result(result, verbose=True)
         captured = capsys.readouterr()
@@ -173,17 +164,7 @@ class TestRenderFullPreflightVerbose:
 
     def test_non_verbose_has_basic_info(self, capsys):
         """verbose=False still shows essential information."""
-        result = FullPreflightResult(
-            status=PreflightStatus.PASS,
-            measured_peak_gb=4.0,
-            available_gb=12.0,
-            total_gpu_gb=16.0,
-            headroom_percent=65.0,
-            mini_run_seconds=10.0,
-            message="Test message",
-            suggestions=[],
-            device_name="Test GPU",
-        )
+        result = _make_full_result()
 
         render_full_preflight_result(result, verbose=False)
         captured = capsys.readouterr()
@@ -198,17 +179,7 @@ class TestRenderFullPreflightGpuInfo:
 
     def test_render_shows_gpu_name(self, capsys):
         """Output shows GPU device name."""
-        result = FullPreflightResult(
-            status=PreflightStatus.PASS,
-            measured_peak_gb=4.0,
-            available_gb=12.0,
-            total_gpu_gb=16.0,
-            headroom_percent=65.0,
-            mini_run_seconds=10.0,
-            message="Test message",
-            suggestions=[],
-            device_name="NVIDIA RTX 4090",
-        )
+        result = _make_full_result(device_name="NVIDIA RTX 4090")
 
         render_full_preflight_result(result)
         captured = capsys.readouterr()
@@ -217,17 +188,7 @@ class TestRenderFullPreflightGpuInfo:
 
     def test_render_shows_available_memory(self, capsys):
         """Output shows available GB from total GB."""
-        result = FullPreflightResult(
-            status=PreflightStatus.PASS,
-            measured_peak_gb=4.0,
-            available_gb=12.0,
-            total_gpu_gb=16.0,
-            headroom_percent=65.0,
-            mini_run_seconds=10.0,
-            message="Test message",
-            suggestions=[],
-            device_name="Test GPU",
-        )
+        result = _make_full_result()
 
         render_full_preflight_result(result)
         captured = capsys.readouterr()
@@ -284,17 +245,7 @@ class TestRenderFullPreflightSuggestions:
 
     def test_no_suggestions_section_when_empty(self, capsys):
         """No suggestions section when suggestions list is empty."""
-        result = FullPreflightResult(
-            status=PreflightStatus.PASS,
-            measured_peak_gb=4.0,
-            available_gb=12.0,
-            total_gpu_gb=16.0,
-            headroom_percent=65.0,
-            mini_run_seconds=10.0,
-            message="Test message",
-            suggestions=[],
-            device_name="Test GPU",
-        )
+        result = _make_full_result()
 
         render_full_preflight_result(result)
         captured = capsys.readouterr()
