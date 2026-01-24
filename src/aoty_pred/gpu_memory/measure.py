@@ -107,19 +107,24 @@ def get_jax_memory_stats(device_index: int = 0) -> JaxMemoryStats:
         )
 
     # Check for missing expected keys and log debug info
-    expected_keys = {"bytes_in_use", "peak_bytes_in_use", "bytes_limit", "bytes_reserved"}
-    present_keys = set(stats.keys())
-    missing_keys = expected_keys - present_keys
-    if missing_keys:
+    # peak_bytes_in_use is critical for preflight decisions - must be present
+    if "peak_bytes_in_use" not in stats:
+        raise KeyError(
+            f"Critical key 'peak_bytes_in_use' missing from JAX memory stats. "
+            f"Available keys: {sorted(stats.keys())}"
+        )
+
+    optional_keys = {"bytes_in_use", "bytes_limit", "bytes_reserved"}
+    missing_optional = optional_keys - set(stats.keys())
+    if missing_optional:
         logger.debug(
-            "Missing JAX memory stat keys: %s (present: %s)",
-            sorted(missing_keys),
-            sorted(present_keys),
+            "Missing optional JAX memory stat keys: %s",
+            sorted(missing_optional),
         )
 
     return JaxMemoryStats(
         bytes_in_use=stats.get("bytes_in_use", 0),
-        peak_bytes_in_use=stats.get("peak_bytes_in_use", 0),
+        peak_bytes_in_use=stats["peak_bytes_in_use"],
         bytes_limit=stats.get("bytes_limit", 0),
         bytes_reserved=stats.get("bytes_reserved", 0),
     )
