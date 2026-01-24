@@ -202,11 +202,6 @@ class TestRenderFullPreflightGpuInfo:
         """Output omits GPU section when device_name is None."""
         result = _make_full_result(
             status=PreflightStatus.CANNOT_CHECK,
-            measured_peak_gb=0.0,
-            available_gb=0.0,
-            total_gpu_gb=0.0,
-            headroom_percent=0.0,
-            mini_run_seconds=0.0,
             message="Cannot query GPU",
             device_name=None,
         )
@@ -245,7 +240,7 @@ class TestRenderFullPreflightSuggestions:
         assert "--num-chains" in captured.out
 
     def test_no_suggestions_section_when_empty(self, capsys):
-        """No suggestions section when suggestions list is empty."""
+        """No suggestions section when suggestions tuple is empty."""
         result = _make_full_result()
 
         render_full_preflight_result(result)
