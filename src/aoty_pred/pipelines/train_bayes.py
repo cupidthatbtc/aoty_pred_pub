@@ -185,6 +185,10 @@ def prepare_model_data(
 
     # Compute album counts per artist (indexed by artist_idx, not artist name)
     artist_album_counts = pd.Series(artist_idx).value_counts().sort_index()
+    # Reindex to full range so _apply_max_albums_cap doesn't get IndexError
+    artist_album_counts = artist_album_counts.reindex(
+        range(len(artists)), fill_value=0
+    )
 
     model_args = {
         "artist_idx": artist_idx,
