@@ -6,6 +6,18 @@ import pytest
 
 from aoty_pred.gpu_memory.estimate import MemoryEstimate, estimate_memory_gb
 
+# Standard test params for memory estimation tests
+# Shared across multiple test methods to avoid duplication
+STANDARD_PARAMS: dict[str, int] = {
+    "n_observations": 1000,
+    "n_features": 20,
+    "n_artists": 50,
+    "max_seq": 10,
+    "num_chains": 4,
+    "num_samples": 1000,
+    "num_warmup": 1000,
+}
+
 
 class TestMemoryEstimate:
     """Tests for MemoryEstimate dataclass."""
@@ -54,15 +66,7 @@ class TestEstimateMemoryGb:
 
     def test_estimate_reasonable_range(self):
         """Typical config produces positive, non-trivial estimate."""
-        result = estimate_memory_gb(
-            n_observations=1000,
-            n_features=20,
-            n_artists=50,
-            max_seq=10,
-            num_chains=4,
-            num_samples=1000,
-            num_warmup=1000,
-        )
+        result = estimate_memory_gb(**STANDARD_PARAMS)
         # Estimate should be positive and reasonable (MB to GB scale)
         # The formula estimates conservatively but for this config
         # it's typically in the tens of MB range
@@ -71,17 +75,8 @@ class TestEstimateMemoryGb:
 
     def test_estimate_scales_with_chains(self):
         """Doubling chains roughly doubles chain memory component."""
-        base_params = {
-            "n_observations": 1000,
-            "n_features": 20,
-            "n_artists": 50,
-            "max_seq": 10,
-            "num_samples": 1000,
-            "num_warmup": 1000,
-        }
-
-        result_4_chains = estimate_memory_gb(num_chains=4, **base_params)
-        result_8_chains = estimate_memory_gb(num_chains=8, **base_params)
+        result_4_chains = estimate_memory_gb(**STANDARD_PARAMS)
+        result_8_chains = estimate_memory_gb(**{**STANDARD_PARAMS, "num_chains": 8})
 
         # Chain memory should roughly double
         ratio = result_8_chains.chain_memory_gb / result_4_chains.chain_memory_gb
@@ -89,32 +84,15 @@ class TestEstimateMemoryGb:
 
     def test_estimate_scales_with_samples(self):
         """Doubling samples increases per-chain memory."""
-        base_params = {
-            "n_observations": 1000,
-            "n_features": 20,
-            "n_artists": 50,
-            "max_seq": 10,
-            "num_chains": 4,
-            "num_warmup": 1000,
-        }
-
-        result_1000_samples = estimate_memory_gb(num_samples=1000, **base_params)
-        result_2000_samples = estimate_memory_gb(num_samples=2000, **base_params)
+        result_1000_samples = estimate_memory_gb(**STANDARD_PARAMS)
+        result_2000_samples = estimate_memory_gb(**{**STANDARD_PARAMS, "num_samples": 2000})
 
         # More samples = more per-chain memory
         assert result_2000_samples.per_chain_gb > result_1000_samples.per_chain_gb
 
     def test_estimate_includes_jit_buffer(self):
         """Default 40% JIT buffer is present."""
-        result = estimate_memory_gb(
-            n_observations=1000,
-            n_features=20,
-            n_artists=50,
-            max_seq=10,
-            num_chains=4,
-            num_samples=1000,
-            num_warmup=1000,
-        )
+        result = estimate_memory_gb(**STANDARD_PARAMS)
         # JIT buffer should be approximately 40% of subtotal
         subtotal = result.base_model_gb + result.chain_memory_gb
         expected_jit = subtotal * 0.40
@@ -122,16 +100,7 @@ class TestEstimateMemoryGb:
 
     def test_estimate_custom_jit_buffer(self):
         """Custom jit_buffer_percent=0.30 produces 30% buffer."""
-        result = estimate_memory_gb(
-            n_observations=1000,
-            n_features=20,
-            n_artists=50,
-            max_seq=10,
-            num_chains=4,
-            num_samples=1000,
-            num_warmup=1000,
-            jit_buffer_percent=0.30,
-        )
+        result = estimate_memory_gb(**STANDARD_PARAMS, jit_buffer_percent=0.30)
         # JIT buffer should be approximately 30% of subtotal
         subtotal = result.base_model_gb + result.chain_memory_gb
         expected_jit = subtotal * 0.30
@@ -153,24 +122,9 @@ class TestEstimateMemoryGb:
 
     def test_estimate_large_config(self):
         """Many artists (500), long sequences (20) produces larger estimate."""
-        small_result = estimate_memory_gb(
-            n_observations=1000,
-            n_features=20,
-            n_artists=50,
-            max_seq=10,
-            num_chains=4,
-            num_samples=1000,
-            num_warmup=1000,
-        )
-
+        small_result = estimate_memory_gb(**STANDARD_PARAMS)
         large_result = estimate_memory_gb(
-            n_observations=1000,
-            n_features=20,
-            n_artists=500,
-            max_seq=20,
-            num_chains=4,
-            num_samples=1000,
-            num_warmup=1000,
+            **{**STANDARD_PARAMS, "n_artists": 500, "max_seq": 20}
         )
 
         # Large config should produce significantly larger estimate
