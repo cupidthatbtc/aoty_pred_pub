@@ -21,6 +21,13 @@ logger = logging.getLogger(__name__)
 
 __version__ = "0.1.0"
 
+# Quick preflight uses fixed estimates rather than loading actual data (~1s vs ~30-60s).
+# These are conservative defaults for the memory estimation formula.
+# For accurate checking with real data dimensions, use --preflight-full.
+QUICK_PREFLIGHT_OBSERVATIONS = 1000  # Conservative observation count
+QUICK_PREFLIGHT_FEATURES = 20  # Typical feature count from feature builder
+QUICK_PREFLIGHT_ARTISTS = 100  # Moderate artist count
+
 app = typer.Typer(
     add_completion=False,
     help="AOTY Prediction Pipeline - reproducible ML workflow for album score prediction.",
@@ -306,17 +313,11 @@ def run(
             run_preflight_check,
         )
 
-        # Estimate model dimensions for quick preflight
-        # These are conservative hardcoded defaults since actual data isn't loaded yet.
-        # For accurate checking with real data dimensions, use --preflight-full.
-        estimated_observations = 1000  # Default for quick preflight
-        estimated_features = 20  # Typical feature count
-        estimated_artists = 100  # Typical artist count
-
+        # Use module-level constants for quick preflight dimension estimates
         result = run_preflight_check(
-            n_observations=estimated_observations,
-            n_features=estimated_features,
-            n_artists=estimated_artists,
+            n_observations=QUICK_PREFLIGHT_OBSERVATIONS,
+            n_features=QUICK_PREFLIGHT_FEATURES,
+            n_artists=QUICK_PREFLIGHT_ARTISTS,
             max_seq=max_albums,
             num_chains=num_chains,
             num_samples=num_samples,
