@@ -105,24 +105,14 @@ def detect_platform() -> PlatformInfo:
     # Distinguish WSL1 vs WSL2
     wsl_distro = os.environ.get("WSL_DISTRO_NAME")
 
-    # WSL2 indicators:
-    # 1. /run/WSL directory exists
-    # 2. "wsl2" appears in /proc/version
-    # 3. WSL_INTEROP environment variable is set
-    # 4. Kernel version 5.x+ (WSL2 uses real Linux kernel)
-    # WSL2 uses kernel 5.x+; check major version >= 5
-    kernel_major = None
-    if kernel_version is not None:
-        try:
-            kernel_major = int(kernel_version.split(".")[0])
-        except (ValueError, IndexError):
-            pass
-
+    # WSL2 indicators (kernel version check removed as WSL1 can also report 5.x+):
+    # 1. /run/WSL directory exists (WSL2 only)
+    # 2. "wsl2" appears in /proc/version (explicit)
+    # 3. WSL_INTEROP environment variable is set (WSL2 only)
     is_wsl2 = (
         Path("/run/WSL").exists()
         or "wsl2" in proc_version
         or os.environ.get("WSL_INTEROP") is not None
-        or (kernel_major is not None and kernel_major >= 5)
     )
 
     return PlatformInfo(
