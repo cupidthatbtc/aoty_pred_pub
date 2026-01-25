@@ -375,7 +375,7 @@ def train_models(
         model=user_score_model,
         model_args=model_args,
         config=mcmc_config,
-        progress_bar=ctx.verbose,
+        progress_bar=True,  # Always show MCMC progress for real-time feedback
     )
 
     log.info(
