@@ -72,20 +72,15 @@ class TestCacheKeyConsistency:
         assert max_s == 5
 
     def test_1d_array_x_handling(self):
-        """Test dimension derivation with 1D X array."""
+        """Test that 1D X array raises ValueError."""
         model_args = {
             "y": np.zeros(10),
-            "X": np.zeros(10),  # 1D array edge case
+            "X": np.zeros(10),  # 1D array - should be rejected
             "n_artists": 5,
             "max_seq": 3,
         }
-        n_obs, n_art, n_feat, max_s = _derive_dimensions_from_model_args(model_args)
-
-        assert n_obs == 10
-        assert n_art == 5
-        # 1D array: uses shape[0] as n_features
-        assert n_feat == 10
-        assert max_s == 3
+        with pytest.raises(ValueError, match="X must be a 2D array"):
+            _derive_dimensions_from_model_args(model_args)
 
     def test_list_x_handling(self):
         """Test dimension derivation with nested list X."""
