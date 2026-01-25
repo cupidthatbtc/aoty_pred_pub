@@ -440,12 +440,14 @@ aoty-pipeline generate-diagrams
 ### Preflight Checks (CI/Scripting)
 
 ```bash
-# Quick estimate check
+# Quick estimate check (~1s, formula-based)
 aoty-pipeline run --preflight-only
 echo "Exit code: $?"
 
-# Accurate measured check (requires processed data)
+# Accurate measured check (~30-60s, mini-MCMC)
 aoty-pipeline run --preflight-full --preflight-only
+echo "Exit code: $?"
+# Note: --preflight-full takes precedence over --preflight when both are given
 ```
 
 ---

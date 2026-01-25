@@ -63,11 +63,7 @@ def extract_data_dimensions(
 
     try:
         # Only load columns needed for counting
-        df = pd.read_csv(
-            path,
-            usecols=["Artist", "User Ratings"],
-            encoding="utf-8-sig",  # Handle BOM
-        )
+        df = read_csv(path, usecols=["Artist", "User Ratings"])
 
         # Apply same filter as training pipeline
         df = df[df["User Ratings"] >= min_ratings]

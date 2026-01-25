@@ -373,6 +373,7 @@ def run_extrapolated_preflight_check(
     max_seq: int,
     headroom_target: float = 0.20,
     timeout_seconds: int = 120,
+    *,
     recalibrate: bool = False,
 ) -> ExtrapolationResult:
     """Run preflight check with calibration and extrapolation to target samples.

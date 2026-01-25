@@ -42,8 +42,6 @@ class CalibrationError(Exception):
     - Timeout during calibration runs
     """
 
-    pass
-
 
 @dataclass(frozen=True)
 class CalibrationResult:
