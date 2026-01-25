@@ -243,31 +243,147 @@ def fit_model(
             "Consider increasing target_accept_prob or checking model specification."
         )
 
-    # Convert to ArviZ InferenceData
-    idata = az.from_numpyro(mcmc)
+    # Convert to ArviZ InferenceData, excluding large rw_innovations tensor
+    # The rw_innovations tensor is (n_artists, max_seq-1) per sample, which can be
+    # hundreds of MB and causes OOM during conversion. It's not needed for diagnostics
+    # (R-hat, ESS) since we only need to assess convergence on the key parameters.
+    # The init_artist_effect captures the essential artist-level information.
+    #
+    # CRITICAL: Access internal _states directly to avoid loading rw_innovations
+    # into memory. mcmc.get_samples() would load ALL samples (~3.5 GB for rw_innovations)
+    # before we could filter, causing OOM on memory-constrained systems.
+    import gc
+    import numpy as np
+    import xarray as xr
+    exclude_patterns = ["rw_innovations"]
 
-    # Prepare data groups for InferenceData
-    observed_data = {"y": model_args["y"]}
-    constant_data = {
-        "X": model_args["X"],
-        "artist_idx": model_args["artist_idx"],
-        "album_seq": model_args["album_seq"],
-        "prev_score": model_args["prev_score"],
-    }
+    # Access internal state to get sample keys without loading values
+    raw_samples = mcmc._states[mcmc._sample_field]  # Dict of JAX arrays on device
+    all_keys = list(raw_samples.keys())
+    excluded = [k for k in all_keys if any(p in k for p in exclude_patterns)]
+    keep_keys = [k for k in all_keys if k not in excluded]
+
+    if excluded:
+        logger.info(f"Excluding large variables from InferenceData: {excluded}")
+        # Log size estimate for excluded tensors
+        for key in excluded:
+            shape = raw_samples[key].shape
+            size_mb = np.prod(shape) * 4 / (1024 * 1024)  # float32
+            logger.info(f"  {key}: shape={shape}, ~{size_mb:.0f} MB")
+
+    # Load only the samples we need (avoids loading rw_innovations)
+    filtered_samples = {k: np.asarray(raw_samples[k]) for k in keep_keys}
+    del raw_samples
+    gc.collect()
+
+    # Build InferenceData manually with filtered samples
+    # Get dimensions from filtered samples
+    first_var = next(iter(filtered_samples.values()))
+    n_chains, n_draws = first_var.shape[:2]
+
+    # Convert to xarray Dataset
+    posterior_dict = {}
+    for var_name, var_data in filtered_samples.items():
+        # Convert JAX arrays to numpy
+        var_data = np.asarray(var_data)
+        # Shape is (chains, draws, *var_shape)
+        var_shape = var_data.shape[2:]
+        if len(var_shape) == 0:
+            # Scalar parameter
+            dims = ["chain", "draw"]
+        elif len(var_shape) == 1:
+            # 1D parameter (e.g., beta, artist effects)
+            dims = ["chain", "draw", f"{var_name}_dim_0"]
+        else:
+            # Multi-dimensional parameter
+            dims = ["chain", "draw"] + [f"{var_name}_dim_{i}" for i in range(len(var_shape))]
+
+        posterior_dict[var_name] = xr.DataArray(
+            data=var_data,
+            dims=dims,
+            coords={"chain": range(n_chains), "draw": range(n_draws)},
+        )
+
+    posterior_ds = xr.Dataset(posterior_dict)
+
+    # Clear filtered_samples to free memory (data is now in posterior_ds)
+    filtered_samples.clear()
+    del filtered_samples
+    gc.collect()
+
+    # Get sample stats (divergences, etc.)
+    extra_fields = mcmc.get_extra_fields()
+    sample_stats_dict = {}
+    for field_name, field_data in extra_fields.items():
+        # Convert JAX arrays to numpy
+        field_data = np.asarray(field_data)
+        # Reshape from (n_samples_total,) to (chains, draws)
+        if field_data.ndim == 1:
+            reshaped = field_data.reshape(n_chains, n_draws)
+        else:
+            reshaped = field_data.reshape(n_chains, n_draws, *field_data.shape[1:])
+        sample_stats_dict[field_name] = xr.DataArray(
+            data=reshaped,
+            dims=["chain", "draw"],
+            coords={"chain": range(n_chains), "draw": range(n_draws)},
+        )
+
+    sample_stats_ds = xr.Dataset(sample_stats_dict)
+
+    # Create InferenceData
+    idata = az.InferenceData(posterior=posterior_ds, sample_stats=sample_stats_ds)
+
+    # Prepare data groups for InferenceData with explicit dimensions
+    # CRITICAL: Raw numpy arrays cause ArviZ to misinterpret shapes as (chains, draws)
+    # which triggers OOM when it tries to allocate per-chain statistics for 41k "chains"
+    n_obs = len(model_args["y"])
+    n_features = model_args["X"].shape[1]
+
+    observed_data_ds = xr.Dataset({
+        "y": xr.DataArray(
+            np.asarray(model_args["y"]),
+            dims=["obs"],
+            coords={"obs": range(n_obs)},
+        )
+    })
+
+    constant_data_ds = xr.Dataset({
+        "X": xr.DataArray(
+            np.asarray(model_args["X"]),
+            dims=["obs", "feature"],
+            coords={"obs": range(n_obs), "feature": range(n_features)},
+        ),
+        "artist_idx": xr.DataArray(
+            np.asarray(model_args["artist_idx"]),
+            dims=["obs"],
+            coords={"obs": range(n_obs)},
+        ),
+        "album_seq": xr.DataArray(
+            np.asarray(model_args["album_seq"]),
+            dims=["obs"],
+            coords={"obs": range(n_obs)},
+        ),
+        "prev_score": xr.DataArray(
+            np.asarray(model_args["prev_score"]),
+            dims=["obs"],
+            coords={"obs": range(n_obs)},
+        ),
+    })
+
     # Include n_reviews for heteroscedastic models (if present)
     if "n_reviews" in model_args:
-        constant_data["n_reviews"] = model_args["n_reviews"]
+        constant_data_ds["n_reviews"] = xr.DataArray(
+            np.asarray(model_args["n_reviews"]),
+            dims=["obs"],
+            coords={"obs": range(n_obs)},
+        )
 
-    # Add groups only if they don't already exist (az.from_numpyro may create observed_data)
+    # Add groups only if they don't already exist
     existing_groups = set(idata.groups())
-    groups_to_add = {}
     if "observed_data" not in existing_groups:
-        groups_to_add["observed_data"] = observed_data
+        idata.add_groups(observed_data=observed_data_ds)
     if "constant_data" not in existing_groups:
-        groups_to_add["constant_data"] = constant_data
-
-    if groups_to_add:
-        idata.add_groups(**groups_to_add)
+        idata.add_groups(constant_data=constant_data_ds)
 
     logger.info(f"InferenceData groups: {list(idata.groups())}")
 
