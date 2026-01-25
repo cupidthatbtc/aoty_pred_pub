@@ -106,6 +106,7 @@ class PipelineConfig:
     num_samples: int = 1000
     num_warmup: int = 1000
     target_accept: float = 0.8
+    chain_method: str = "sequential"
     # Convergence thresholds
     rhat_threshold: float = 1.01
     ess_threshold: int = 400
@@ -506,6 +507,7 @@ class PipelineOrchestrator:
             num_samples=self.config.num_samples,
             num_warmup=self.config.num_warmup,
             target_accept=self.config.target_accept,
+            chain_method=self.config.chain_method,
             # Convergence thresholds
             rhat_threshold=self.config.rhat_threshold,
             ess_threshold=self.config.ess_threshold,

@@ -70,6 +70,7 @@ class StageContext:
     num_samples: int = 1000
     num_warmup: int = 1000
     target_accept: float = 0.8
+    chain_method: str = "sequential"
     # Convergence thresholds
     rhat_threshold: float = 1.01
     ess_threshold: int = 400

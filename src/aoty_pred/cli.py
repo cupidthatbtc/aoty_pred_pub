@@ -141,6 +141,10 @@ def run(
         max=0.999,
         help="Target acceptance probability (default 0.8, increase to 0.9-0.95 if divergences)",
     )] = 0.8,
+    chain_method: Annotated[str, typer.Option(
+        "--chain-method",
+        help="Chain parallelization: 'sequential' (default, stable), 'vectorized' (faster, more memory), 'parallel' (multi-GPU)",
+    )] = "sequential",
     # Convergence Thresholds
     rhat_threshold: Annotated[float, typer.Option(
         min=1.0,
@@ -378,6 +382,7 @@ def run(
         num_samples=num_samples,
         num_warmup=num_warmup,
         target_accept=target_accept,
+        chain_method=chain_method,
         # Convergence thresholds
         rhat_threshold=rhat_threshold,
         ess_threshold=ess_threshold,
