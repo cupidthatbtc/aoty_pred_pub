@@ -105,11 +105,13 @@ aoty-pipeline run [OPTIONS]
 
 #### Feature Ablation
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--no-genre` | enabled | Disable genre features |
-| `--no-artist` | enabled | Disable artist reputation features |
-| `--no-temporal` | enabled | Disable temporal features |
+These features are **enabled by default**. Use these flags to disable them:
+
+| Option | Description |
+|--------|-------------|
+| `--no-genre` | Disable genre features (enabled by default) |
+| `--no-artist` | Disable artist reputation features (enabled by default) |
+| `--no-temporal` | Disable temporal features (enabled by default) |
 
 #### Heteroscedastic Noise Configuration
 
@@ -358,11 +360,13 @@ AOTY_DATASET_PATH="path/to/your/dataset.csv"
 |------|------|-------------|
 | `0` | Success | Pipeline completed successfully |
 | `1` | General Error | Unspecified error / preflight FAIL |
-| `2` | Convergence Error | MCMC convergence failure (R-hat, ESS, divergences) / preflight CANNOT_CHECK |
+| `2` | Convergence Error | MCMC convergence failure (R-hat, ESS, divergences) for normal pipeline runs |
 | `3` | Data Validation Error | Input data validation failure |
 | `4` | Stage Error | General stage execution error |
 | `5` | Environment Error | Environment verification failure (pixi.lock missing in strict mode) |
 | `6` | GPU Memory Error | GPU memory check failure |
+
+**Note:** When using `--preflight-only`, exit code 2 indicates CANNOT_CHECK status (unable to check GPU memory). See [Preflight-Specific Exit Codes](#preflight-specific-exit-codes) below for the full mapping.
 
 ### Preflight-Specific Exit Codes
 
@@ -443,12 +447,15 @@ aoty-pipeline generate-diagrams
 # Quick estimate check (~1s, formula-based)
 aoty-pipeline run --preflight-only
 echo "Exit code: $?"
+```
 
+```bash
 # Accurate measured check (~30-60s, mini-MCMC)
 aoty-pipeline run --preflight-full --preflight-only
 echo "Exit code: $?"
-# Note: --preflight-full takes precedence over --preflight when both are given
 ```
+
+**Flag behavior:** `--preflight-full` determines the check type (full measured check vs quick formula-based). `--preflight-only` controls whether to exit after the check or continue with the pipeline.
 
 ---
 

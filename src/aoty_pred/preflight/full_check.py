@@ -364,6 +364,26 @@ def _generate_extrapolation_suggestions(
     return tuple(suggestions)
 
 
+def _create_dummy_calibration(config_hash: str = "") -> "CalibrationResult":
+    """Create a minimal CalibrationResult for error cases.
+
+    Args:
+        config_hash: Optional config hash for cache key lookup.
+
+    Returns:
+        A CalibrationResult with zeroed values suitable for error cases.
+    """
+    from aoty_pred.preflight.calibrate import CalibrationResult
+
+    return CalibrationResult(
+        fixed_overhead_gb=0.0,
+        per_sample_gb=0.0,
+        calibration_points=((0, 0.0), (0, 0.0)),
+        config_hash=config_hash,
+        calibration_time=0.0,
+    )
+
+
 def run_extrapolated_preflight_check(
     model_args: dict,
     target_samples: int,
@@ -424,14 +444,6 @@ def run_extrapolated_preflight_check(
     try:
         gpu_info = query_gpu_memory()
     except GpuMemoryError as e:
-        # Create a minimal CalibrationResult for the error case
-        dummy_calibration = CalibrationResult(
-            fixed_overhead_gb=0.0,
-            per_sample_gb=0.0,
-            calibration_points=((0, 0.0), (0, 0.0)),
-            config_hash="",
-            calibration_time=0.0,
-        )
         return ExtrapolationResult(
             status=PreflightStatus.CANNOT_CHECK,
             measured_peak_gb=0.0,
@@ -442,7 +454,7 @@ def run_extrapolated_preflight_check(
             available_gb=0.0,
             total_gpu_gb=0.0,
             headroom_percent=0.0,
-            calibration=dummy_calibration,
+            calibration=_create_dummy_calibration(),
             from_cache=False,
             message=f"Cannot query GPU: {e}",
             suggestions=("Use --preflight for estimation without GPU query",),
@@ -465,14 +477,6 @@ def run_extrapolated_preflight_check(
         try:
             calibration = run_calibration(model_args, timeout_seconds=timeout_seconds)
         except CalibrationError as e:
-            # Create a minimal CalibrationResult for the error case
-            dummy_calibration = CalibrationResult(
-                fixed_overhead_gb=0.0,
-                per_sample_gb=0.0,
-                calibration_points=((0, 0.0), (0, 0.0)),
-                config_hash=config_hash,
-                calibration_time=0.0,
-            )
             return ExtrapolationResult(
                 status=PreflightStatus.CANNOT_CHECK,
                 measured_peak_gb=0.0,
@@ -483,7 +487,7 @@ def run_extrapolated_preflight_check(
                 available_gb=gpu_info.free_gb,
                 total_gpu_gb=gpu_info.total_gb,
                 headroom_percent=0.0,
-                calibration=dummy_calibration,
+                calibration=_create_dummy_calibration(config_hash),
                 from_cache=False,
                 message=f"Calibration failed: {e}",
                 suggestions=(
