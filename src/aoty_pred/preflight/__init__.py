@@ -148,23 +148,89 @@ class FullPreflightResult:
         return _exit_code_for_status(self.status)
 
 
+@dataclass(frozen=True)
+class ExtrapolationResult:
+    """Result of full preflight with extrapolation to target sample count.
+
+    Provides memory projection from two-point calibration measurements
+    to the target sample count, with uncertainty bounds.
+
+    The calibration runs mini-MCMC at 10 and 50 samples to fit a linear
+    model separating fixed JIT overhead from per-sample cost, then
+    extrapolates to the target sample count.
+
+    Attributes:
+        status: Overall pass/fail/warning status based on projected memory.
+        measured_peak_gb: Peak memory from calibration runs (max of both).
+        projected_gb: Extrapolated memory for target samples.
+        target_samples: Number of samples we're projecting to.
+        calibration_samples: Total samples used in calibration (e.g., 60 for 10+50).
+        uncertainty_percent: Uncertainty range for projection (default 10%).
+        available_gb: Available (free) GPU memory in GB.
+        total_gpu_gb: Total GPU memory in GB.
+        headroom_percent: Remaining memory percentage after projected usage.
+            Based on projected_gb, not measured_peak_gb.
+        calibration: The CalibrationResult used for extrapolation.
+        from_cache: Whether calibration was loaded from cache.
+        message: Human-readable summary message.
+        suggestions: Tuple of configuration adjustment suggestions (immutable).
+        device_name: GPU device name (None if cannot check).
+    """
+
+    status: PreflightStatus
+    measured_peak_gb: float
+    projected_gb: float
+    target_samples: int
+    calibration_samples: int
+    uncertainty_percent: float
+    available_gb: float
+    total_gpu_gb: float
+    headroom_percent: float
+    calibration: "CalibrationResult"
+    from_cache: bool
+    message: str
+    suggestions: tuple[str, ...]
+    device_name: str | None = None
+
+    @property
+    def exit_code(self) -> int:
+        """Exit code for CLI usage.
+
+        Returns:
+            0 for PASS (safe to proceed).
+            1 for FAIL (do not proceed).
+            2 for WARNING or CANNOT_CHECK (proceed with caution).
+        """
+        return _exit_code_for_status(self.status)
+
+
 # Imports placed after class definitions to avoid circular imports.
 # These modules import PreflightResult/FullPreflightResult from this module.
 from aoty_pred.preflight.cache import compute_config_hash
 from aoty_pred.preflight.calibrate import CalibrationError, CalibrationResult
 from aoty_pred.preflight.check import run_preflight_check
-from aoty_pred.preflight.full_check import run_full_preflight_check
-from aoty_pred.preflight.output import render_full_preflight_result, render_preflight_result
+from aoty_pred.preflight.full_check import (
+    run_extrapolated_preflight_check,
+    run_full_preflight_check,
+)
+from aoty_pred.preflight.output import (
+    render_extrapolation_result,
+    render_full_preflight_result,
+    render_preflight_result,
+)
 
 __all__ = [
     "CalibrationError",
     "CalibrationResult",
+    "ExtrapolationResult",
     "FullPreflightResult",
     "PreflightResult",
     "PreflightStatus",
     "compute_config_hash",
+    "render_extrapolation_result",
     "render_full_preflight_result",
     "render_preflight_result",
+    "run_extrapolated_preflight_check",
     "run_full_preflight_check",
     "run_preflight_check",
 ]

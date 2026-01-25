@@ -18,7 +18,7 @@ from pathlib import Path
 
 from aoty_pred.gpu_memory import query_gpu_memory
 from aoty_pred.pipelines.errors import GpuMemoryError
-from aoty_pred.preflight import FullPreflightResult, PreflightStatus
+from aoty_pred.preflight import ExtrapolationResult, FullPreflightResult, PreflightStatus
 
 
 def calculate_headroom_percent(available_gb: float, peak_gb: float) -> float:
@@ -304,3 +304,240 @@ def _generate_suggestions(
         suggestions.append("Close other GPU-using applications")
 
     return tuple(suggestions)
+
+
+def _generate_extrapolation_message(
+    status: PreflightStatus,
+    projected_gb: float,
+    available_gb: float,
+    headroom_percent: float,
+    target_samples: int,
+) -> str:
+    """Generate human-readable status message for extrapolation result."""
+    match status:
+        case PreflightStatus.PASS:
+            return (
+                f"Extrapolation passed: {projected_gb:.1f} GB projected for {target_samples:,} samples, "
+                f"{available_gb:.1f} GB available ({headroom_percent:.0f}% headroom)"
+            )
+        case PreflightStatus.WARNING:
+            return (
+                f"Extrapolation warning: {projected_gb:.1f} GB projected for {target_samples:,} samples, "
+                f"{available_gb:.1f} GB available (low headroom: {headroom_percent:.0f}%)"
+            )
+        case PreflightStatus.FAIL:
+            return (
+                f"Extrapolation failed: {projected_gb:.1f} GB projected for {target_samples:,} samples "
+                f"exceeds {available_gb:.1f} GB available"
+            )
+        case PreflightStatus.CANNOT_CHECK:
+            return "Cannot complete extrapolation check"
+        case _:
+            return f"Unknown extrapolation status: {status}"
+
+
+def _generate_extrapolation_suggestions(
+    status: PreflightStatus,
+    projected_gb: float,
+    available_gb: float,
+    target_samples: int,
+) -> tuple[str, ...]:
+    """Generate suggestions for extrapolation result."""
+    if status == PreflightStatus.PASS:
+        return ()
+
+    suggestions: list[str] = []
+
+    if status == PreflightStatus.FAIL:
+        deficit_gb = projected_gb - available_gb
+        suggestions.append(f"Projected memory exceeds available by {deficit_gb:.1f} GB")
+        suggestions.append("Try reducing --num-samples or --num-warmup")
+        suggestions.append("Try reducing --num-chains (most effective)")
+        suggestions.append("Try reducing data subset or feature count")
+
+    elif status == PreflightStatus.WARNING:
+        suggestions.append("Projected memory is close to available; may OOM during run")
+        suggestions.append("Consider reducing --num-samples or --num-chains")
+        suggestions.append("Close other GPU-using applications")
+
+    return tuple(suggestions)
+
+
+def run_extrapolated_preflight_check(
+    model_args: dict,
+    target_samples: int,
+    n_observations: int,
+    n_artists: int,
+    n_features: int,
+    max_seq: int,
+    headroom_target: float = 0.20,
+    timeout_seconds: int = 120,
+    recalibrate: bool = False,
+) -> ExtrapolationResult:
+    """Run preflight check with calibration and extrapolation to target samples.
+
+    Performs two-point calibration (10 and 50 samples) to measure memory scaling,
+    then extrapolates to the target sample count. Uses caching to avoid
+    re-running calibration for the same model configuration.
+
+    Args:
+        model_args: Arguments to pass to model (will be serialized to JSON).
+            Should contain: artist_idx, album_seq, prev_score, X, y,
+            n_artists, max_seq.
+        target_samples: Number of samples to project memory for (typically
+            num_warmup + num_samples from CLI).
+        n_observations: Number of observations in the dataset.
+        n_artists: Number of unique artists.
+        n_features: Number of features in the feature matrix.
+        max_seq: Maximum album sequence number.
+        headroom_target: Target headroom as fraction (default 0.20 = 20%).
+            PASS requires at least this much headroom.
+        timeout_seconds: Maximum time for each mini-run (default 120s).
+        recalibrate: If True, bypass cache and run fresh calibration.
+
+    Returns:
+        ExtrapolationResult with status based on projected memory vs available.
+
+    Example:
+        >>> result = run_extrapolated_preflight_check(
+        ...     model_args, target_samples=2000,
+        ...     n_observations=1000, n_artists=100, n_features=20, max_seq=10
+        ... )
+        >>> if result.status == PreflightStatus.FAIL:
+        ...     raise SystemExit(result.exit_code)
+    """
+    from aoty_pred.preflight.cache import (
+        compute_config_hash,
+        load_calibration_cache,
+        save_calibration_cache,
+    )
+    from aoty_pred.preflight.calibrate import (
+        CALIBRATION_SAMPLES,
+        CalibrationError,
+        CalibrationResult,
+        run_calibration,
+    )
+
+    # Step 1: Query available GPU memory via NVML
+    try:
+        gpu_info = query_gpu_memory()
+    except GpuMemoryError as e:
+        # Create a minimal CalibrationResult for the error case
+        dummy_calibration = CalibrationResult(
+            fixed_overhead_gb=0.0,
+            per_sample_gb=0.0,
+            calibration_points=((0, 0.0), (0, 0.0)),
+            config_hash="",
+            calibration_time=0.0,
+        )
+        return ExtrapolationResult(
+            status=PreflightStatus.CANNOT_CHECK,
+            measured_peak_gb=0.0,
+            projected_gb=0.0,
+            target_samples=target_samples,
+            calibration_samples=sum(CALIBRATION_SAMPLES),
+            uncertainty_percent=10.0,
+            available_gb=0.0,
+            total_gpu_gb=0.0,
+            headroom_percent=0.0,
+            calibration=dummy_calibration,
+            from_cache=False,
+            message=f"Cannot query GPU: {e}",
+            suggestions=("Use --preflight for estimation without GPU query",),
+        )
+
+    # Step 2: Compute config hash for cache lookup
+    config_hash = compute_config_hash(n_observations, n_artists, n_features, max_seq)
+
+    # Step 3: Try loading from cache (unless recalibrate=True)
+    calibration: CalibrationResult | None = None
+    from_cache = False
+
+    if not recalibrate:
+        calibration = load_calibration_cache(config_hash)
+        if calibration is not None:
+            from_cache = True
+
+    # Step 4: If cache miss or recalibrate, run fresh calibration
+    if calibration is None:
+        try:
+            calibration = run_calibration(model_args, timeout_seconds=timeout_seconds)
+        except CalibrationError as e:
+            # Create a minimal CalibrationResult for the error case
+            dummy_calibration = CalibrationResult(
+                fixed_overhead_gb=0.0,
+                per_sample_gb=0.0,
+                calibration_points=((0, 0.0), (0, 0.0)),
+                config_hash=config_hash,
+                calibration_time=0.0,
+            )
+            return ExtrapolationResult(
+                status=PreflightStatus.CANNOT_CHECK,
+                measured_peak_gb=0.0,
+                projected_gb=0.0,
+                target_samples=target_samples,
+                calibration_samples=sum(CALIBRATION_SAMPLES),
+                uncertainty_percent=10.0,
+                available_gb=gpu_info.free_gb,
+                total_gpu_gb=gpu_info.total_gb,
+                headroom_percent=0.0,
+                calibration=dummy_calibration,
+                from_cache=False,
+                message=f"Calibration failed: {e}",
+                suggestions=(
+                    "Model may not fit in GPU even at 10 samples",
+                    "Use --preflight for formula-based estimation",
+                    "Try reducing model complexity",
+                ),
+                device_name=gpu_info.device_name,
+            )
+
+        # Step 5: Save to cache after fresh calibration
+        save_calibration_cache(calibration)
+
+    # Step 6: Extrapolate to target samples
+    projected_gb = calibration.extrapolate(target_samples)
+
+    # Calculate measured peak (max of calibration points)
+    measured_peak_gb = max(
+        calibration.calibration_points[0][1],
+        calibration.calibration_points[1][1],
+    )
+
+    # Step 7: Determine status based on projected_gb vs available_gb
+    available_gb = gpu_info.free_gb
+    headroom_percent = calculate_headroom_percent(available_gb, projected_gb)
+
+    if projected_gb > available_gb:
+        status = PreflightStatus.FAIL
+    elif projected_gb <= available_gb * (1 - headroom_target):
+        # Sufficient headroom
+        status = PreflightStatus.PASS
+    else:
+        # Fits but low headroom
+        status = PreflightStatus.WARNING
+
+    # Step 8: Generate message and suggestions
+    message = _generate_extrapolation_message(
+        status, projected_gb, available_gb, headroom_percent, target_samples
+    )
+    suggestions = _generate_extrapolation_suggestions(
+        status, projected_gb, available_gb, target_samples
+    )
+
+    return ExtrapolationResult(
+        status=status,
+        measured_peak_gb=measured_peak_gb,
+        projected_gb=projected_gb,
+        target_samples=target_samples,
+        calibration_samples=sum(CALIBRATION_SAMPLES),
+        uncertainty_percent=10.0,
+        available_gb=available_gb,
+        total_gpu_gb=gpu_info.total_gb,
+        headroom_percent=headroom_percent,
+        calibration=calibration,
+        from_cache=from_cache,
+        message=message,
+        suggestions=suggestions,
+        device_name=gpu_info.device_name,
+    )
