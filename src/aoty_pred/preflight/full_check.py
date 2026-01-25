@@ -10,17 +10,20 @@ measurement, as CUDA contexts persist within a process.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from aoty_pred.gpu_memory import query_gpu_memory
 from aoty_pred.pipelines.errors import GpuMemoryError
 from aoty_pred.preflight import ExtrapolationResult, FullPreflightResult, PreflightStatus
 
-import logging
+if TYPE_CHECKING:
+    from aoty_pred.preflight.calibrate import CalibrationResult
 
 logger = logging.getLogger(__name__)
 
