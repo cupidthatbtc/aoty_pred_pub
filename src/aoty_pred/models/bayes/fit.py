@@ -8,6 +8,7 @@ with GPU acceleration via JAX. Key features:
 - ArviZ InferenceData conversion with observed/constant data groups
 """
 
+import gc
 import logging
 import subprocess
 import time
@@ -16,6 +17,8 @@ from dataclasses import asdict, dataclass
 
 import arviz as az
 import jax
+import numpy as np
+import xarray as xr
 from jax import random
 from numpyro.infer import MCMC, NUTS
 
@@ -252,9 +255,6 @@ def fit_model(
     # CRITICAL: Access internal _states directly to avoid loading rw_innovations
     # into memory. mcmc.get_samples() would load ALL samples (~3.5 GB for rw_innovations)
     # before we could filter, causing OOM on memory-constrained systems.
-    import gc
-    import numpy as np
-    import xarray as xr
     exclude_patterns = ["rw_innovations"]
 
     # Access internal state to get sample keys without loading values
