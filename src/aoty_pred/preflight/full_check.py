@@ -20,6 +20,49 @@ from aoty_pred.gpu_memory import query_gpu_memory
 from aoty_pred.pipelines.errors import GpuMemoryError
 from aoty_pred.preflight import ExtrapolationResult, FullPreflightResult, PreflightStatus
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _derive_dimensions_from_model_args(model_args: dict) -> tuple[int, int, int, int]:
+    """Derive cache-key dimensions from model_args.
+
+    This is the canonical source of dimension extraction for cache hash
+    computation, used by both full_check and calibrate modules to ensure
+    consistent cache keys.
+
+    Args:
+        model_args: Dictionary of model arguments. Expected keys:
+            - y: Array-like of observations
+            - X: 2D array-like of features
+            - n_artists: Number of unique artists
+            - max_seq: Maximum album sequence number
+
+    Returns:
+        Tuple of (n_observations, n_artists, n_features, max_seq).
+    """
+    # n_observations from y length
+    y = model_args.get("y")
+    n_observations = len(y) if y is not None else 0
+
+    # n_artists directly from model_args
+    n_artists = model_args.get("n_artists", 0)
+
+    # n_features from X shape (handle array-like objects)
+    X = model_args.get("X")
+    if X is None:
+        n_features = 0
+    elif hasattr(X, "shape"):
+        n_features = X.shape[1] if len(X.shape) > 1 else X.shape[0]
+    else:
+        n_features = len(X[0]) if X else 0
+
+    # max_seq directly from model_args
+    max_seq = model_args.get("max_seq", 0)
+
+    return n_observations, n_artists, n_features, max_seq
+
 
 def calculate_headroom_percent(available_gb: float, peak_gb: float) -> float:
     """Calculate headroom as percentage of available memory.
@@ -402,16 +445,26 @@ def run_extrapolated_preflight_check(
     then extrapolates to the target sample count. Uses caching to avoid
     re-running calibration for the same model configuration.
 
+    Note:
+        The explicit dimension parameters (n_observations, n_artists, n_features,
+        max_seq) are kept for backward compatibility but are NOT used for cache
+        key computation. The cache key is derived directly from model_args to
+        ensure consistency with the calibration storage in run_calibration().
+
     Args:
         model_args: Arguments to pass to model (will be serialized to JSON).
             Should contain: artist_idx, album_seq, prev_score, X, y,
             n_artists, max_seq.
         target_samples: Number of samples to project memory for (typically
             num_warmup + num_samples from CLI).
-        n_observations: Number of observations in the dataset.
-        n_artists: Number of unique artists.
-        n_features: Number of features in the feature matrix.
-        max_seq: Maximum album sequence number.
+        n_observations: Number of observations in the dataset (deprecated for
+            cache key, derived from model_args instead).
+        n_artists: Number of unique artists (deprecated for cache key, derived
+            from model_args instead).
+        n_features: Number of features in the feature matrix (deprecated for
+            cache key, derived from model_args instead).
+        max_seq: Maximum album sequence number (deprecated for cache key,
+            derived from model_args instead).
         headroom_target: Target headroom as fraction (default 0.20 = 20%).
             PASS requires at least this much headroom.
         timeout_seconds: Maximum time for each mini-run (default 120s).
@@ -460,8 +513,35 @@ def run_extrapolated_preflight_check(
             suggestions=("Use --preflight for estimation without GPU query",),
         )
 
-    # Step 2: Compute config hash for cache lookup
-    config_hash = compute_config_hash(n_observations, n_artists, n_features, max_seq)
+    # Step 2: Derive dimensions from model_args for consistent cache hash
+    # (matches what run_calibration uses when storing to cache)
+    derived_obs, derived_artists, derived_features, derived_seq = (
+        _derive_dimensions_from_model_args(model_args)
+    )
+
+    # Log if explicit parameters differ from derived (diagnostic for callers)
+    if (n_observations, n_artists, n_features, max_seq) != (
+        derived_obs,
+        derived_artists,
+        derived_features,
+        derived_seq,
+    ):
+        logger.debug(
+            "Explicit dimensions (%d, %d, %d, %d) differ from derived (%d, %d, %d, %d); "
+            "using derived for cache key",
+            n_observations,
+            n_artists,
+            n_features,
+            max_seq,
+            derived_obs,
+            derived_artists,
+            derived_features,
+            derived_seq,
+        )
+
+    config_hash = compute_config_hash(
+        derived_obs, derived_artists, derived_features, derived_seq
+    )
 
     # Step 3: Try loading from cache (unless recalibrate=True)
     calibration: CalibrationResult | None = None
