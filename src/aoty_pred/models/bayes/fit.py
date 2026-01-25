@@ -144,7 +144,6 @@ def fit_model(
     model_args: dict,
     config: MCMCConfig | None = None,
     progress_bar: bool = True,
-    exclude_from_idata: tuple[str, ...] | None = None,
 ) -> FitResult:
     """Fit NumPyro model via MCMC with GPU acceleration.
 
@@ -172,11 +171,6 @@ def fit_model(
         MCMC configuration. If None, uses default MCMCConfig().
     progress_bar : bool, default True
         Whether to display NumPyro's progress bar during sampling.
-    exclude_from_idata : tuple of str, optional
-        Sample site names to exclude from InferenceData collection.
-        Use "~z.site_name" syntax. For example, ("~z.user_rw_innovations",) will
-        prevent the user_rw_innovations site from being collected, avoiding OOM
-        for large auxiliary tensors. If None, all sites are collected.
 
     Returns
     -------
@@ -232,14 +226,9 @@ def fit_model(
     )
     start_time = time.perf_counter()
 
-    # Build extra_fields tuple with optional exclusions
-    extra_fields_list = ["diverging", "num_steps"]
-    if exclude_from_idata:
-        extra_fields_list.extend(exclude_from_idata)
-
     mcmc.run(
         rng_key,
-        extra_fields=tuple(extra_fields_list),
+        extra_fields=("diverging", "num_steps"),
         **model_args,
     )
 
@@ -258,12 +247,7 @@ def fit_model(
         )
 
     # Convert to ArviZ InferenceData
-    # Large auxiliary variables (e.g., rw_innovations) can be excluded at sampling time
-    # via extra_fields="~z.site_name" to prevent OOM. Exclusions are passed via
-    # the exclude_from_idata parameter using NumPyro's public exclusion API.
-    # This avoids collecting large tensors like (n_artists, max_seq-1) per sample.
-
-    # Get samples using public API (exclusions already applied during sampling if specified)
+    # Get samples using public API
     # Use group_by_chain=True to get shape (num_chains, num_draws, *var_shape)
     samples = mcmc.get_samples(group_by_chain=True)
 
