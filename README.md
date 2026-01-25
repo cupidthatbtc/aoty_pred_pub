@@ -29,6 +29,7 @@ Use multiple `-c` flags to layer configs (later files win).
 
 ## Documentation
 
+- `docs/CLI.md` — Complete CLI reference
 - `docs/PIPELINE_PLAN.md` — Detailed build plan
 - `docs/LEAKAGE_CONTROLS.md` — Guardrails and leakage prevention
 - `docs/DECISIONS_TO_LOCK.md` — Publication-critical defaults
