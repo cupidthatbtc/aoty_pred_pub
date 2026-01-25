@@ -148,6 +148,7 @@ def run_calibration(
 
     from aoty_pred.preflight.cache import compute_config_hash
     from aoty_pred.preflight.full_check import (
+        _derive_dimensions_from_model_args,
         _run_mini_mcmc_subprocess,
         serialize_model_args,
     )
@@ -180,22 +181,11 @@ def run_calibration(
         # Calculate linear fit
         fixed, per_sample = calculate_calibration(points[0], points[1])
 
-        # Compute config hash for caching
-        # Extract n_features safely to avoid truthiness evaluation on arrays
-        X = model_args.get("X")
-        if X is None:
-            n_features = 0
-        elif hasattr(X, "shape"):
-            n_features = X.shape[1] if len(X.shape) > 1 else X.shape[0]
-        else:
-            n_features = len(X[0]) if X else 0
-
-        config_hash = compute_config_hash(
-            n_observations=len(model_args.get("y", [])),
-            n_artists=model_args.get("n_artists", 0),
-            n_features=n_features,
-            max_seq=model_args.get("max_seq", 0),
+        # Compute config hash for caching using shared dimension derivation
+        n_obs, n_artists, n_features, max_seq = _derive_dimensions_from_model_args(
+            model_args
         )
+        config_hash = compute_config_hash(n_obs, n_artists, n_features, max_seq)
 
         total_time = time.perf_counter() - start_time
 
