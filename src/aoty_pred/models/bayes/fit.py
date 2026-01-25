@@ -144,6 +144,7 @@ def fit_model(
     model_args: dict,
     config: MCMCConfig | None = None,
     progress_bar: bool = True,
+    exclude_from_idata: tuple[str, ...] | None = None,
 ) -> FitResult:
     """Fit NumPyro model via MCMC with GPU acceleration.
 
@@ -171,6 +172,11 @@ def fit_model(
         MCMC configuration. If None, uses default MCMCConfig().
     progress_bar : bool, default True
         Whether to display NumPyro's progress bar during sampling.
+    exclude_from_idata : tuple of str, optional
+        Sample site names to exclude from InferenceData collection.
+        Use "~z.site_name" syntax. For example, ("~z.user_rw_innovations",) will
+        prevent the user_rw_innovations site from being collected, avoiding OOM
+        for large auxiliary tensors. If None, all sites are collected.
 
     Returns
     -------
@@ -226,9 +232,14 @@ def fit_model(
     )
     start_time = time.perf_counter()
 
+    # Build extra_fields tuple with optional exclusions
+    extra_fields_list = ["diverging", "num_steps"]
+    if exclude_from_idata:
+        extra_fields_list.extend(exclude_from_idata)
+
     mcmc.run(
         rng_key,
-        extra_fields=("diverging", "num_steps"),
+        extra_fields=tuple(extra_fields_list),
         **model_args,
     )
 
@@ -246,48 +257,24 @@ def fit_model(
             "Consider increasing target_accept_prob or checking model specification."
         )
 
-    # Convert to ArviZ InferenceData, excluding large rw_innovations tensor
-    # The rw_innovations tensor is (n_artists, max_seq-1) per sample, which can be
-    # hundreds of MB and causes OOM during conversion. It's not needed for diagnostics
-    # (R-hat, ESS) since we only need to assess convergence on the key parameters.
-    # The init_artist_effect captures the essential artist-level information.
-    #
-    # Transfer samples to host memory first (public API), then access internal
-    # _states to filter samples without loading rw_innovations. NumPyro's get_samples()
-    # loads ALL samples at once with no filtering option, which would cause OOM.
-    # This internal access is stable across NumPyro 0.x (tested with 0.12+).
-    mcmc.transfer_states_to_host()
+    # Convert to ArviZ InferenceData
+    # Large auxiliary variables (e.g., rw_innovations) can be excluded at sampling time
+    # via extra_fields="~z.site_name" to prevent OOM. Exclusions are passed via
+    # the exclude_from_idata parameter using NumPyro's public exclusion API.
+    # This avoids collecting large tensors like (n_artists, max_seq-1) per sample.
 
-    exclude_patterns = ["rw_innovations"]
+    # Get samples using public API (exclusions already applied during sampling if specified)
+    # Use group_by_chain=True to get shape (num_chains, num_draws, *var_shape)
+    samples = mcmc.get_samples(group_by_chain=True)
 
-    # Access internal state to get sample keys without loading all values
-    # Note: _states/_sample_field are internal but required for selective loading
-    raw_samples = mcmc._states[mcmc._sample_field]  # Dict of numpy arrays on host
-    all_keys = list(raw_samples.keys())
-    excluded = [k for k in all_keys if any(p in k for p in exclude_patterns)]
-    keep_keys = [k for k in all_keys if k not in excluded]
-
-    if excluded:
-        logger.info("Excluding large variables from InferenceData: %s", excluded)
-        # Log size estimate for excluded tensors
-        for key in excluded:
-            shape = raw_samples[key].shape
-            size_mb = np.prod(shape) * 4 / (1024 * 1024)  # float32
-            logger.info("  %s: shape=%s, ~%.0f MB", key, shape, size_mb)
-
-    # Load only the samples we need (avoids loading rw_innovations)
-    filtered_samples = {k: np.asarray(raw_samples[k]) for k in keep_keys}
-    del raw_samples
-    gc.collect()
-
-    # Build InferenceData manually with filtered samples
-    # Get dimensions from filtered samples
-    first_var = next(iter(filtered_samples.values()))
+    # Build InferenceData manually with samples
+    # Get dimensions from samples
+    first_var = next(iter(samples.values()))
     n_chains, n_draws = first_var.shape[:2]
 
     # Convert to xarray Dataset
     posterior_dict = {}
-    for var_name, var_data in filtered_samples.items():
+    for var_name, var_data in samples.items():
         # Convert JAX arrays to numpy
         var_data = np.asarray(var_data)
         # Shape is (chains, draws, *var_shape)
@@ -309,11 +296,6 @@ def fit_model(
         )
 
     posterior_ds = xr.Dataset(posterior_dict)
-
-    # Clear filtered_samples to free memory (data is now in posterior_ds)
-    filtered_samples.clear()
-    del filtered_samples
-    gc.collect()
 
     # Get sample stats (divergences, etc.)
     extra_fields = mcmc.get_extra_fields()
