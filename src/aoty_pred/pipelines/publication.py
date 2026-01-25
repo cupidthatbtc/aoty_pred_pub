@@ -96,7 +96,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
     try:
         coef_df = create_coefficient_table(
             idata,
-            var_names=["beta", "mu_artist", "sigma_artist", "sigma_obs"],
+            var_names=["user_beta", "user_mu_artist", "user_sigma_artist", "user_sigma_obs"],
         )
         coef_path = tables_dir / "coefficients"
         export_table(coef_df, str(coef_path), caption="Model coefficient estimates")
@@ -144,7 +144,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
     try:
         pdf_path, png_path = save_trace_plot(
             idata,
-            var_names=["mu_artist", "sigma_artist", "sigma_obs"],
+            var_names=["user_mu_artist", "user_sigma_artist", "user_sigma_obs"],
             output_dir=figures_dir,
             filename_base="trace_plot",
         )
@@ -158,7 +158,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
     try:
         pdf_path, png_path = save_posterior_plot(
             idata,
-            var_names=["mu_artist", "sigma_artist", "sigma_obs"],
+            var_names=["user_mu_artist", "user_sigma_artist", "user_sigma_obs"],
             output_dir=figures_dir,
             filename_base="posterior_plot",
         )
