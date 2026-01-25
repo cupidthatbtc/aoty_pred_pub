@@ -257,6 +257,9 @@ def fit_model(
     # Use group_by_chain=True to get shape (num_chains, num_draws, *var_shape)
     samples = mcmc.get_samples(group_by_chain=True)
 
+    # Release memory from MCMC warmup before processing samples
+    gc.collect()
+
     # Filter out excluded sample sites (post-filtering to avoid OOM on large tensors)
     if exclude_from_idata:
         excluded = [k for k in samples if k in exclude_from_idata]
@@ -264,16 +267,13 @@ def fit_model(
             # Log excluded sites with estimated memory sizes
             for site in excluded:
                 size_mb = samples[site].nbytes / (1024 * 1024)
-                logger.info(f"Excluded '{site}' from InferenceData ({size_mb:.1f} MB)")
+                logger.info("Excluded '%s' from InferenceData (%.1f MB)", site, size_mb)
         samples = {k: v for k, v in samples.items() if k not in exclude_from_idata}
 
     if not samples:
         raise ValueError(
             "exclude_from_idata removed all sample sites; cannot build InferenceData."
         )
-
-    # Release memory pressure after loading samples
-    gc.collect()
 
     # Build InferenceData manually with samples
     first_var = next(iter(samples.values()))
