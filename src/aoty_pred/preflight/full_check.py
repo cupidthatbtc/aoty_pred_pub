@@ -54,7 +54,12 @@ def _derive_dimensions_from_model_args(model_args: dict) -> tuple[int, int, int,
     if X is None:
         n_features = 0
     elif hasattr(X, "shape"):
-        n_features = X.shape[1] if len(X.shape) > 1 else X.shape[0]
+        if len(X.shape) == 1:
+            raise ValueError(
+                f"X must be a 2D array, got 1D array with shape {X.shape}. "
+                "Reshape to (n_samples, n_features) or use X[:, np.newaxis] for single feature."
+            )
+        n_features = X.shape[1]
     else:
         n_features = len(X[0]) if X else 0
 
@@ -407,7 +412,7 @@ def _generate_extrapolation_suggestions(
     return tuple(suggestions)
 
 
-def _create_dummy_calibration(config_hash: str = "") -> "CalibrationResult":
+def _create_dummy_calibration(config_hash: str = "") -> CalibrationResult:
     """Create a minimal CalibrationResult for error cases.
 
     Args:
