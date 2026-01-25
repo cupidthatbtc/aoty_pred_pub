@@ -267,12 +267,15 @@ def fit_model(
                 logger.info(f"Excluded '{site}' from InferenceData ({size_mb:.1f} MB)")
         samples = {k: v for k, v in samples.items() if k not in exclude_from_idata}
 
+    if not samples:
+        raise ValueError(
+            "exclude_from_idata removed all sample sites; cannot build InferenceData."
+        )
+
     # Release memory pressure after loading samples
     gc.collect()
 
     # Build InferenceData manually with samples
-    if not samples:
-        raise ValueError("No samples available after exclusion - check exclude_from_idata")
     first_var = next(iter(samples.values()))
     n_chains, n_draws = first_var.shape[:2]
 
