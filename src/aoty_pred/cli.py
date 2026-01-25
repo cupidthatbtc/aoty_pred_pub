@@ -107,7 +107,12 @@ def run(
     preflight_full: bool = typer.Option(
         False,
         "--preflight-full",
-        help="Run mini-MCMC to measure actual peak memory (~30-60 seconds)",
+        help="Run calibration mini-MCMC and extrapolate to target sample count",
+    ),
+    recalibrate: bool = typer.Option(
+        False,
+        "--recalibrate",
+        help="Force fresh calibration even if cached calibration exists",
     ),
     resume: Optional[str] = typer.Option(
         None,
@@ -244,8 +249,8 @@ def run(
         from aoty_pred.pipelines.train_bayes import load_training_data
         from aoty_pred.preflight import (
             PreflightStatus,
-            render_full_preflight_result,
-            run_full_preflight_check,
+            render_extrapolation_result,
+            run_extrapolated_preflight_check,
         )
 
         console = Console()
@@ -283,15 +288,34 @@ def run(
         model_args["n_exponent"] = n_exponent
         model_args["learn_n_exponent"] = learn_n_exponent
 
+        # Extract data dimensions for calibration cache key
+        n_observations = len(model_args.get("y", []))
+        n_artists_dim = model_args.get("n_artists", 0)
+        n_features = len(model_args.get("X", [[]])[0]) if model_args.get("X") else 0
+
+        # Target samples is total warmup + samples across all chains
+        target_samples = num_warmup + num_samples
+
         # Show progress indicator
-        with console.status("[bold blue]Running mini-MCMC measurement...[/bold blue]"):
-            full_result = run_full_preflight_check(
+        progress_msg = (
+            "[bold blue]Running calibration (10+50 samples)...[/bold blue]"
+            if not recalibrate
+            else "[bold blue]Running fresh calibration...[/bold blue]"
+        )
+        with console.status(progress_msg):
+            full_result = run_extrapolated_preflight_check(
                 model_args=model_args,
+                target_samples=target_samples,
+                n_observations=n_observations,
+                n_artists=n_artists_dim,
+                n_features=n_features,
+                max_seq=max_albums,
                 headroom_target=0.20,
                 timeout_seconds=120,
+                recalibrate=recalibrate,
             )
 
-        render_full_preflight_result(full_result, verbose=verbose)
+        render_extrapolation_result(full_result, verbose=verbose)
 
         if preflight_only:
             raise typer.Exit(full_result.exit_code)
