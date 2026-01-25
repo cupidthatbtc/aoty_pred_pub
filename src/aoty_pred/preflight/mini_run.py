@@ -1,11 +1,12 @@
 """Mini-MCMC run for GPU memory measurement.
 
 This module is designed to be run as a subprocess entry point for measuring
-actual peak GPU memory usage during MCMC. It runs a minimal MCMC (1 chain,
-10 warmup, 1 sample) and reports the peak memory usage via JSON to stdout.
+actual peak GPU memory usage during MCMC. It runs a minimal MCMC with
+configurable warmup and sample counts and reports peak memory via JSON to stdout.
 
 Usage:
     python -m aoty_pred.preflight.mini_run /path/to/model_args.json
+    python -m aoty_pred.preflight.mini_run /path/to/model_args.json --num-warmup 10 --num-samples 50
 
 The model_args.json file should contain:
     - artist_idx: List of integers mapping observations to artists
@@ -53,14 +54,21 @@ __all__ = ["run_and_measure"]
 logger = logging.getLogger(__name__)
 
 
-def run_and_measure(model_args_path: Path) -> dict[str, Any]:
+def run_and_measure(
+    model_args_path: Path,
+    num_warmup: int = 10,
+    num_samples: int = 1,
+) -> dict[str, Any]:
     """Run mini-MCMC and measure peak GPU memory.
 
-    Loads model arguments from JSON, runs a minimal MCMC (1 chain, 10 warmup,
-    1 sample), and returns peak memory usage from JAX device stats.
+    Loads model arguments from JSON, runs MCMC with specified warmup and
+    sample counts (default: 1 chain, 10 warmup, 1 sample), and returns
+    peak memory usage from JAX device stats.
 
     Args:
         model_args_path: Path to JSON file with model arguments.
+        num_warmup: Number of warmup iterations (default 10).
+        num_samples: Number of post-warmup samples (default 1).
 
     Returns:
         Dictionary with:
@@ -120,11 +128,11 @@ def run_and_measure(model_args_path: Path) -> dict[str, Any]:
     kernel = NUTS(model)
 
     # Configure MCMC: mini-run parameters for memory measurement
-    # 1 chain, 10 warmup (captures JIT overhead), 1 sample
+    # 1 chain, configurable warmup (captures JIT overhead), configurable samples
     mcmc = MCMC(
         kernel,
-        num_warmup=10,
-        num_samples=1,
+        num_warmup=num_warmup,
+        num_samples=num_samples,
         num_chains=1,
         chain_method="sequential",
         progress_bar=False,
@@ -154,6 +162,43 @@ def run_and_measure(model_args_path: Path) -> dict[str, Any]:
     }
 
 
+def _parse_args(args: list[str]) -> tuple[Path, int, int]:
+    """Parse command line arguments.
+
+    Args:
+        args: List of command line arguments (excluding script name).
+
+    Returns:
+        Tuple of (model_args_path, num_warmup, num_samples).
+
+    Raises:
+        ValueError: If arguments are invalid.
+    """
+    if not args:
+        raise ValueError(
+            "Usage: python -m aoty_pred.preflight.mini_run <model_args.json> "
+            "[--num-warmup N] [--num-samples N]"
+        )
+
+    model_args_path = Path(args[0])
+    num_warmup = 10
+    num_samples = 1
+
+    # Parse optional arguments
+    i = 1
+    while i < len(args):
+        if args[i] == "--num-warmup" and i + 1 < len(args):
+            num_warmup = int(args[i + 1])
+            i += 2
+        elif args[i] == "--num-samples" and i + 1 < len(args):
+            num_samples = int(args[i + 1])
+            i += 2
+        else:
+            raise ValueError(f"Unknown argument: {args[i]}")
+
+    return model_args_path, num_warmup, num_samples
+
+
 if __name__ == "__main__":
     # Configure logging to stderr only (stdout reserved for JSON output)
     logging.basicConfig(
@@ -162,11 +207,13 @@ if __name__ == "__main__":
         stream=sys.stderr,
     )
 
-    if len(sys.argv) != 2:
+    try:
+        model_args_path, num_warmup, num_samples = _parse_args(sys.argv[1:])
+    except ValueError as e:
         result = {
             "success": False,
             "exit_code": 1,
-            "error": "Usage: python -m aoty_pred.preflight.mini_run <model_args.json>",
+            "error": str(e),
             "peak_memory_bytes": 0,
             "runtime_seconds": 0.0,
         }
@@ -174,7 +221,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     try:
-        result = run_and_measure(Path(sys.argv[1]))
+        result = run_and_measure(model_args_path, num_warmup, num_samples)
         print(json.dumps(result))
     except Exception as e:
         logger.exception("Mini-run failed")

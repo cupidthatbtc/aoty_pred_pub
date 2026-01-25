@@ -76,6 +76,8 @@ def serialize_model_args(model_args: dict) -> Path:
 def _run_mini_mcmc_subprocess(
     args_path: Path,
     timeout_seconds: int,
+    num_warmup: int = 10,
+    num_samples: int = 1,
 ) -> dict:
     """Run mini-MCMC in subprocess and return measured memory.
 
@@ -85,6 +87,8 @@ def _run_mini_mcmc_subprocess(
     Args:
         args_path: Path to JSON file with model arguments.
         timeout_seconds: Maximum time to wait for subprocess.
+        num_warmup: Number of warmup iterations (default 10).
+        num_samples: Number of post-warmup samples (default 1).
 
     Returns:
         Dictionary with keys:
@@ -105,6 +109,10 @@ def _run_mini_mcmc_subprocess(
                 "-m",
                 "aoty_pred.preflight.mini_run",
                 str(args_path),
+                "--num-warmup",
+                str(num_warmup),
+                "--num-samples",
+                str(num_samples),
             ],
             capture_output=True,
             text=True,
