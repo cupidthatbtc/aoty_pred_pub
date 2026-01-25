@@ -307,24 +307,27 @@ def run(
     # Note: Preflight runs BEFORE building PipelineConfig to fail fast
     # Skip quick preflight when full preflight was already run (--preflight-full takes precedence)
     if (preflight or preflight_only) and not preflight_full:
+        from aoty_pred.data.ingest import extract_data_dimensions
         from aoty_pred.preflight import (
             PreflightStatus,
             render_preflight_result,
             run_preflight_check,
         )
 
-        # Use module-level constants for quick preflight dimension estimates
+        # Extract actual data dimensions (graceful fallback to defaults)
+        dimensions = extract_data_dimensions(min_ratings=min_ratings)
+
         result = run_preflight_check(
-            n_observations=QUICK_PREFLIGHT_OBSERVATIONS,
-            n_features=QUICK_PREFLIGHT_FEATURES,
-            n_artists=QUICK_PREFLIGHT_ARTISTS,
+            n_observations=dimensions.n_observations,
+            n_features=QUICK_PREFLIGHT_FEATURES,  # Features built from columns, not counted
+            n_artists=dimensions.n_artists,
             max_seq=max_albums,
             num_chains=num_chains,
             num_samples=num_samples,
             num_warmup=num_warmup,
         )
 
-        render_preflight_result(result, verbose=verbose)
+        render_preflight_result(result, verbose=verbose, dimensions=dimensions)
 
         if preflight_only:
             raise typer.Exit(code=result.exit_code)
