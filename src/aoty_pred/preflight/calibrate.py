@@ -16,7 +16,6 @@ Example:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -103,6 +102,12 @@ def calculate_calibration(
     samples1, gb1 = point1
     samples2, gb2 = point2
 
+    if samples1 == samples2:
+        raise CalibrationError(
+            "Cannot calibrate with identical sample counts "
+            f"(both points have {samples1} samples)"
+        )
+
     # slope = (y2 - y1) / (x2 - x1)
     per_sample_gb = (gb2 - gb1) / (samples2 - samples1)
 
@@ -144,13 +149,13 @@ def run_calibration(
             negative fixed overhead).
     """
     # Import at function level to avoid circular imports
+    import time
+
     from aoty_pred.preflight.cache import compute_config_hash
     from aoty_pred.preflight.full_check import (
         _run_mini_mcmc_subprocess,
         serialize_model_args,
     )
-
-    import time
 
     start_time = time.perf_counter()
 
@@ -181,10 +186,19 @@ def run_calibration(
         fixed, per_sample = calculate_calibration(points[0], points[1])
 
         # Compute config hash for caching
+        # Extract n_features safely to avoid truthiness evaluation on arrays
+        X = model_args.get("X")
+        if X is None:
+            n_features = 0
+        elif hasattr(X, "shape"):
+            n_features = X.shape[1] if len(X.shape) > 1 else X.shape[0]
+        else:
+            n_features = len(X[0]) if X else 0
+
         config_hash = compute_config_hash(
             n_observations=len(model_args.get("y", [])),
             n_artists=model_args.get("n_artists", 0),
-            n_features=len(model_args.get("X", [[]])[0]) if model_args.get("X") else 0,
+            n_features=n_features,
             max_seq=model_args.get("max_seq", 0),
         )
 

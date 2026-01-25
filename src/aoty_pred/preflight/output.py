@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
 def render_preflight_result(
     result: PreflightResult,
+    *,
     verbose: bool = False,
     dimensions: DataDimensions | None = None,
 ) -> None:
@@ -106,7 +107,7 @@ def _format_status_line(status: PreflightStatus, message: str) -> str:
 
 
 def render_full_preflight_result(
-    result: FullPreflightResult, verbose: bool = False
+    result: FullPreflightResult, *, verbose: bool = False
 ) -> None:
     """Render full preflight result with TTY-aware colored output.
 
@@ -176,7 +177,7 @@ def format_uncertainty(projected_gb: float, uncertainty_percent: float) -> str:
 
 
 def render_extrapolation_result(
-    result: ExtrapolationResult, verbose: bool = False
+    result: ExtrapolationResult, *, verbose: bool = False
 ) -> None:
     """Render extrapolation preflight result with TTY-aware colored output.
 

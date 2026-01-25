@@ -560,7 +560,7 @@ class TestRunExtrapolatedPreflightCheck:
     @mock.patch("aoty_pred.preflight.cache.save_calibration_cache")
     @mock.patch("aoty_pred.preflight.calibrate.run_calibration")
     def test_extrapolation_uses_calibration(
-        self, mock_run_cal, mock_save, mock_load, mock_query
+        self, mock_run_cal, _mock_save, mock_load, mock_query
     ):
         """Calibration is used to extrapolate memory."""
         from aoty_pred.preflight.calibrate import CalibrationResult
@@ -635,7 +635,7 @@ class TestRunExtrapolatedPreflightCheck:
     @mock.patch("aoty_pred.preflight.cache.save_calibration_cache")
     @mock.patch("aoty_pred.preflight.calibrate.run_calibration")
     def test_extrapolation_recalibrate_bypasses_cache(
-        self, mock_run_cal, mock_save, mock_load, mock_query
+        self, mock_run_cal, _mock_save, mock_load, mock_query
     ):
         """recalibrate=True forces fresh calibration even if cache exists."""
         from aoty_pred.preflight.calibrate import CalibrationResult
@@ -720,7 +720,7 @@ class TestRunExtrapolatedPreflightCheck:
     @mock.patch("aoty_pred.preflight.cache.save_calibration_cache")
     @mock.patch("aoty_pred.preflight.calibrate.run_calibration")
     def test_extrapolation_status_from_projected_not_measured(
-        self, mock_run_cal, mock_save, mock_load, mock_query
+        self, mock_run_cal, _mock_save, mock_load, mock_query
     ):
         """Status is based on projected memory, not measured peak."""
         from aoty_pred.preflight.calibrate import CalibrationResult
@@ -762,7 +762,7 @@ class TestRunExtrapolatedPreflightCheck:
     @mock.patch("aoty_pred.preflight.cache.save_calibration_cache")
     @mock.patch("aoty_pred.preflight.calibrate.run_calibration")
     def test_extrapolation_status_pass_when_projected_fits(
-        self, mock_run_cal, mock_save, mock_load, mock_query
+        self, mock_run_cal, _mock_save, mock_load, mock_query
     ):
         """Status is PASS when projected memory fits with headroom."""
         from aoty_pred.preflight.calibrate import CalibrationResult

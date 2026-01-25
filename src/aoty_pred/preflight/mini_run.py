@@ -187,14 +187,34 @@ def _parse_args(args: list[str]) -> tuple[Path, int, int]:
     # Parse optional arguments
     i = 1
     while i < len(args):
-        if args[i] == "--num-warmup" and i + 1 < len(args):
-            num_warmup = int(args[i + 1])
+        if args[i] == "--num-warmup":
+            if i + 1 >= len(args):
+                raise ValueError("--num-warmup requires an integer value")
+            try:
+                num_warmup = int(args[i + 1])
+            except ValueError:
+                raise ValueError(
+                    f"--num-warmup requires an integer value, got: {args[i + 1]}"
+                ) from None
             i += 2
-        elif args[i] == "--num-samples" and i + 1 < len(args):
-            num_samples = int(args[i + 1])
+        elif args[i] == "--num-samples":
+            if i + 1 >= len(args):
+                raise ValueError("--num-samples requires an integer value")
+            try:
+                num_samples = int(args[i + 1])
+            except ValueError:
+                raise ValueError(
+                    f"--num-samples requires an integer value, got: {args[i + 1]}"
+                ) from None
             i += 2
         else:
             raise ValueError(f"Unknown argument: {args[i]}")
+
+    # Validate positive values
+    if num_warmup <= 0:
+        raise ValueError(f"--num-warmup must be positive, got: {num_warmup}")
+    if num_samples <= 0:
+        raise ValueError(f"--num-samples must be positive, got: {num_samples}")
 
     return model_args_path, num_warmup, num_samples
 

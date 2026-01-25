@@ -87,7 +87,7 @@ class TestCalculateCalibration:
         """Slope is calculated correctly from two points."""
         # (20, 2.0) and (60, 4.0)
         # slope = (4.0 - 2.0) / (60 - 20) = 2.0 / 40 = 0.05
-        fixed, per_sample = calculate_calibration((20, 2.0), (60, 4.0))
+        _fixed, per_sample = calculate_calibration((20, 2.0), (60, 4.0))
 
         assert per_sample == pytest.approx(0.05)
 
@@ -96,7 +96,7 @@ class TestCalculateCalibration:
         # (20, 2.0) and (60, 4.0)
         # slope = 0.05
         # intercept = 2.0 - 0.05 * 20 = 2.0 - 1.0 = 1.0
-        fixed, per_sample = calculate_calibration((20, 2.0), (60, 4.0))
+        fixed, _per_sample = calculate_calibration((20, 2.0), (60, 4.0))
 
         assert fixed == pytest.approx(1.0)
 

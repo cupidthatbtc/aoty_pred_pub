@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +12,8 @@ import pandas as pd
 from aoty_pred.data.validation import validate_raw_dataframe
 from aoty_pred.io.readers import read_csv
 from aoty_pred.utils.hashing import sha256_file
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -74,7 +77,14 @@ def extract_data_dimensions(
             n_artists=df["Artist"].nunique(),
             source=f"from data: {path.name}",
         )
-    except Exception:
+    except Exception as e:
+        logger.warning(
+            "Failed to extract dimensions from %s (min_ratings=%d): %s. "
+            "Falling back to defaults.",
+            path.name,
+            min_ratings,
+            e,
+        )
         return DataDimensions.from_defaults()
 
 

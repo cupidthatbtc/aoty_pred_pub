@@ -317,18 +317,20 @@ def _generate_extrapolation_message(
     match status:
         case PreflightStatus.PASS:
             return (
-                f"Extrapolation passed: {projected_gb:.1f} GB projected for {target_samples:,} samples, "
+                f"Extrapolation passed: {projected_gb:.1f} GB projected "
+                f"for {target_samples:,} samples, "
                 f"{available_gb:.1f} GB available ({headroom_percent:.0f}% headroom)"
             )
         case PreflightStatus.WARNING:
             return (
-                f"Extrapolation warning: {projected_gb:.1f} GB projected for {target_samples:,} samples, "
+                f"Extrapolation warning: {projected_gb:.1f} GB projected "
+                f"for {target_samples:,} samples, "
                 f"{available_gb:.1f} GB available (low headroom: {headroom_percent:.0f}%)"
             )
         case PreflightStatus.FAIL:
             return (
-                f"Extrapolation failed: {projected_gb:.1f} GB projected for {target_samples:,} samples "
-                f"exceeds {available_gb:.1f} GB available"
+                f"Extrapolation failed: {projected_gb:.1f} GB projected "
+                f"for {target_samples:,} samples exceeds {available_gb:.1f} GB available"
             )
         case PreflightStatus.CANNOT_CHECK:
             return "Cannot complete extrapolation check"
@@ -340,7 +342,6 @@ def _generate_extrapolation_suggestions(
     status: PreflightStatus,
     projected_gb: float,
     available_gb: float,
-    target_samples: int,
 ) -> tuple[str, ...]:
     """Generate suggestions for extrapolation result."""
     if status == PreflightStatus.PASS:
@@ -522,7 +523,7 @@ def run_extrapolated_preflight_check(
         status, projected_gb, available_gb, headroom_percent, target_samples
     )
     suggestions = _generate_extrapolation_suggestions(
-        status, projected_gb, available_gb, target_samples
+        status, projected_gb, available_gb
     )
 
     return ExtrapolationResult(
