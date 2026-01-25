@@ -8,6 +8,7 @@ with GPU acceleration via JAX. Key features:
 - ArviZ InferenceData conversion with observed/constant data groups
 """
 
+import gc
 import logging
 import subprocess
 import time
@@ -143,6 +144,7 @@ def fit_model(
     model_args: dict,
     config: MCMCConfig | None = None,
     progress_bar: bool = True,
+    exclude_from_idata: tuple[str, ...] | None = None,
 ) -> FitResult:
     """Fit NumPyro model via MCMC with GPU acceleration.
 
@@ -170,6 +172,11 @@ def fit_model(
         MCMC configuration. If None, uses default MCMCConfig().
     progress_bar : bool, default True
         Whether to display NumPyro's progress bar during sampling.
+    exclude_from_idata : tuple of str, optional
+        Sample site names to exclude from InferenceData. These sites are filtered
+        out after calling mcmc.get_samples() to prevent large auxiliary tensors
+        (e.g., "rw_innovations") from consuming memory during InferenceData
+        construction. If None, all sampled sites are included.
 
     Returns
     -------
@@ -250,6 +257,13 @@ def fit_model(
     # Use group_by_chain=True to get shape (num_chains, num_draws, *var_shape)
     samples = mcmc.get_samples(group_by_chain=True)
 
+    # Filter out excluded sample sites (post-filtering to avoid OOM on large tensors)
+    if exclude_from_idata:
+        samples = {k: v for k, v in samples.items() if k not in exclude_from_idata}
+
+    # Release memory pressure after loading samples
+    gc.collect()
+
     # Build InferenceData manually with samples
     # Get dimensions from samples
     first_var = next(iter(samples.values()))
@@ -286,7 +300,8 @@ def fit_model(
     for field_name, field_data in extra_fields.items():
         # Convert JAX arrays to numpy
         field_data = np.asarray(field_data)
-        # Reshape from (n_samples_total,) or (n_samples_total, ...) to (chains, draws, ...)
+        # extra_fields from get_extra_fields() are flat arrays (n_samples_total,) or (n_samples_total, ...)
+        # Reshape to (chains, draws, ...) for ArviZ compatibility
         if field_data.ndim == 1:
             reshaped = field_data.reshape(n_chains, n_draws)
             dims = ["chain", "draw"]
