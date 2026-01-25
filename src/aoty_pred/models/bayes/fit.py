@@ -8,7 +8,6 @@ with GPU acceleration via JAX. Key features:
 - ArviZ InferenceData conversion with observed/constant data groups
 """
 
-import gc
 import logging
 import subprocess
 import time
