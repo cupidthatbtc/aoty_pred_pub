@@ -107,7 +107,12 @@ def run(
     preflight_full: bool = typer.Option(
         False,
         "--preflight-full",
-        help="Run mini-MCMC to measure actual peak memory (~30-60 seconds)",
+        help="Run calibration mini-MCMC and extrapolate to target sample count",
+    ),
+    recalibrate: bool = typer.Option(
+        False,
+        "--recalibrate",
+        help="Force fresh calibration even if cached calibration exists",
     ),
     resume: Optional[str] = typer.Option(
         None,
@@ -244,9 +249,10 @@ def run(
         from aoty_pred.pipelines.train_bayes import load_training_data
         from aoty_pred.preflight import (
             PreflightStatus,
-            render_full_preflight_result,
-            run_full_preflight_check,
+            render_extrapolation_result,
+            run_extrapolated_preflight_check,
         )
+        from aoty_pred.preflight.full_check import _derive_dimensions_from_model_args
 
         console = Console()
 
@@ -283,15 +289,34 @@ def run(
         model_args["n_exponent"] = n_exponent
         model_args["learn_n_exponent"] = learn_n_exponent
 
+        # Use shared dimension derivation for consistent validation
+        n_observations, n_artists_dim, n_features, _ = (
+            _derive_dimensions_from_model_args(model_args)
+        )
+
+        # Target samples is total warmup + samples across all chains
+        target_samples = num_warmup + num_samples
+
         # Show progress indicator
-        with console.status("[bold blue]Running mini-MCMC measurement...[/bold blue]"):
-            full_result = run_full_preflight_check(
+        progress_msg = (
+            "[bold blue]Running calibration (10+50 samples)...[/bold blue]"
+            if not recalibrate
+            else "[bold blue]Running fresh calibration...[/bold blue]"
+        )
+        with console.status(progress_msg):
+            full_result = run_extrapolated_preflight_check(
                 model_args=model_args,
+                target_samples=target_samples,
+                n_observations=n_observations,
+                n_artists=n_artists_dim,
+                n_features=n_features,
+                max_seq=max_albums,
                 headroom_target=0.20,
                 timeout_seconds=120,
+                recalibrate=recalibrate,
             )
 
-        render_full_preflight_result(full_result, verbose=verbose)
+        render_extrapolation_result(full_result, verbose=verbose)
 
         if preflight_only:
             raise typer.Exit(full_result.exit_code)
@@ -307,24 +332,27 @@ def run(
     # Note: Preflight runs BEFORE building PipelineConfig to fail fast
     # Skip quick preflight when full preflight was already run (--preflight-full takes precedence)
     if (preflight or preflight_only) and not preflight_full:
+        from aoty_pred.data.ingest import extract_data_dimensions
         from aoty_pred.preflight import (
             PreflightStatus,
             render_preflight_result,
             run_preflight_check,
         )
 
-        # Use module-level constants for quick preflight dimension estimates
+        # Extract actual data dimensions (graceful fallback to defaults)
+        dimensions = extract_data_dimensions(min_ratings=min_ratings)
+
         result = run_preflight_check(
-            n_observations=QUICK_PREFLIGHT_OBSERVATIONS,
-            n_features=QUICK_PREFLIGHT_FEATURES,
-            n_artists=QUICK_PREFLIGHT_ARTISTS,
+            n_observations=dimensions.n_observations,
+            n_features=QUICK_PREFLIGHT_FEATURES,  # Features built from columns, not counted
+            n_artists=dimensions.n_artists,
             max_seq=max_albums,
             num_chains=num_chains,
             num_samples=num_samples,
             num_warmup=num_warmup,
         )
 
-        render_preflight_result(result, verbose=verbose)
+        render_preflight_result(result, verbose=verbose, dimensions=dimensions)
 
         if preflight_only:
             raise typer.Exit(code=result.exit_code)

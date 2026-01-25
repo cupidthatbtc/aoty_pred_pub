@@ -5,10 +5,13 @@ from __future__ import annotations
 import pytest
 
 from aoty_pred.preflight import (
+    ExtrapolationResult,
     FullPreflightResult,
     PreflightStatus,
+    render_extrapolation_result,
     render_full_preflight_result,
 )
+from aoty_pred.preflight.calibrate import CalibrationResult
 
 
 def _make_full_result(**overrides: object) -> FullPreflightResult:
@@ -246,3 +249,182 @@ class TestRenderFullPreflightSuggestions:
 
         # Should not have Suggestions section when empty
         assert "Suggestions:" not in captured.out
+
+
+def _make_extrapolation_result(**overrides: object) -> ExtrapolationResult:
+    """Create ExtrapolationResult with sensible defaults.
+
+    Provides a PASS result with typical values. Override any field
+    by passing keyword arguments.
+    """
+    dummy_calibration = CalibrationResult(
+        fixed_overhead_gb=2.0,
+        per_sample_gb=0.001,
+        calibration_points=((10, 2.01), (50, 2.05)),
+        config_hash="abc123",
+        calibration_time=5.0,
+    )
+
+    defaults = {
+        "status": PreflightStatus.PASS,
+        "measured_peak_gb": 2.05,
+        "projected_gb": 4.0,
+        "target_samples": 2000,
+        "calibration_samples": 60,
+        "uncertainty_percent": 10.0,
+        "available_gb": 12.0,
+        "total_gpu_gb": 16.0,
+        "headroom_percent": 66.7,
+        "calibration": dummy_calibration,
+        "from_cache": False,
+        "message": "Test message",
+        "suggestions": (),
+        "device_name": "Test GPU",
+    }
+    defaults.update(overrides)
+    return ExtrapolationResult(**defaults)
+
+
+class TestRenderExtrapolationResult:
+    """Tests for render_extrapolation_result function."""
+
+    def test_renders_both_measured_and_projected(self, capsys):
+        """Output contains BOTH measured peak AND projected estimate."""
+        result = _make_extrapolation_result(
+            measured_peak_gb=2.05,
+            projected_gb=4.0,
+            target_samples=2000,
+        )
+
+        render_extrapolation_result(result)
+        captured = capsys.readouterr()
+
+        # CRITICAL: Both measured and projected must appear
+        assert "2.05 GB" in captured.out  # Measured peak
+        assert "4.0 GB" in captured.out  # Projected
+        assert "Memory Projection" in captured.out
+
+    def test_measured_peak_shows_calibration_context(self, capsys):
+        """Output mentions calibration context (10+50 samples)."""
+        result = _make_extrapolation_result()
+
+        render_extrapolation_result(result)
+        captured = capsys.readouterr()
+
+        # Should mention calibration at 10+50 samples
+        assert "10+50 samples" in captured.out or "calibration" in captured.out.lower()
+        assert "Measured peak" in captured.out
+
+    def test_projected_shows_target_samples(self, capsys):
+        """Projected line shows target sample count."""
+        result = _make_extrapolation_result(
+            target_samples=2000,
+            projected_gb=4.0,
+        )
+
+        render_extrapolation_result(result)
+        captured = capsys.readouterr()
+
+        # Should show target samples in projected line
+        assert "2,000 samples" in captured.out or "2000 samples" in captured.out
+        assert "Projected" in captured.out
+
+    def test_renders_uncertainty(self, capsys):
+        """Output shows uncertainty percentage."""
+        result = _make_extrapolation_result(
+            projected_gb=4.0,
+            uncertainty_percent=10.0,
+        )
+
+        render_extrapolation_result(result)
+        captured = capsys.readouterr()
+
+        # Should show +/-10%
+        assert "+/-10%" in captured.out
+
+    def test_verbose_shows_calibration_coefficients(self, capsys):
+        """verbose=True shows fixed and per_sample coefficients."""
+        dummy_calibration = CalibrationResult(
+            fixed_overhead_gb=2.0,
+            per_sample_gb=0.001,
+            calibration_points=((10, 2.01), (50, 2.05)),
+            config_hash="abc123",
+            calibration_time=5.0,
+        )
+        result = _make_extrapolation_result(calibration=dummy_calibration)
+
+        render_extrapolation_result(result, verbose=True)
+        captured = capsys.readouterr()
+
+        # Should show calibration formula
+        assert "fixed=" in captured.out or "2.00 GB" in captured.out
+        assert "GB/sample" in captured.out
+
+    def test_shows_cache_status_from_cache(self, capsys):
+        """Output shows 'from cache' when calibration was cached."""
+        result = _make_extrapolation_result(from_cache=True)
+
+        render_extrapolation_result(result)
+        captured = capsys.readouterr()
+
+        assert "from cache" in captured.out
+
+    def test_shows_cache_status_fresh(self, capsys):
+        """Output shows 'fresh' when calibration was not cached."""
+        result = _make_extrapolation_result(from_cache=False)
+
+        render_extrapolation_result(result)
+        captured = capsys.readouterr()
+
+        assert "fresh" in captured.out
+
+    def test_pass_status_shows_pass(self, capsys):
+        """Output contains 'PASS' for PASS status."""
+        result = _make_extrapolation_result(status=PreflightStatus.PASS)
+
+        render_extrapolation_result(result)
+        captured = capsys.readouterr()
+
+        assert "PASS" in captured.out
+
+    def test_fail_status_shows_fail(self, capsys):
+        """Output contains 'FAIL' for FAIL status."""
+        result = _make_extrapolation_result(
+            status=PreflightStatus.FAIL,
+            projected_gb=15.0,
+            available_gb=10.0,
+            message="Extrapolation failed: 15.0 GB projected exceeds 10.0 GB available",
+        )
+
+        render_extrapolation_result(result)
+        captured = capsys.readouterr()
+
+        assert "FAIL" in captured.out
+
+    def test_shows_gpu_info(self, capsys):
+        """Output shows GPU name and memory info."""
+        result = _make_extrapolation_result(
+            device_name="NVIDIA RTX 4090",
+            available_gb=12.0,
+            total_gpu_gb=16.0,
+        )
+
+        render_extrapolation_result(result)
+        captured = capsys.readouterr()
+
+        assert "NVIDIA RTX 4090" in captured.out
+        assert "12.0 GB" in captured.out
+        assert "16.0 GB" in captured.out
+
+    def test_shows_suggestions(self, capsys):
+        """Output shows suggestions when present."""
+        result = _make_extrapolation_result(
+            status=PreflightStatus.FAIL,
+            suggestions=("Try reducing --num-chains",),
+        )
+
+        render_extrapolation_result(result)
+        captured = capsys.readouterr()
+
+        assert "Suggestions" in captured.out
+        assert "--num-chains" in captured.out

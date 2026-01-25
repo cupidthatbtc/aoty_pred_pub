@@ -1,5 +1,8 @@
 """Raw data ingestion with validation and metadata."""
 
+from __future__ import annotations
+
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +12,76 @@ import pandas as pd
 from aoty_pred.data.validation import validate_raw_dataframe
 from aoty_pred.io.readers import read_csv
 from aoty_pred.utils.hashing import sha256_file
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class DataDimensions:
+    """Data dimensions for memory estimation.
+
+    Attributes:
+        n_observations: Number of rows after filtering.
+        n_artists: Number of unique artists.
+        source: Description of data source (e.g., "from data: filename.csv").
+    """
+
+    n_observations: int
+    n_artists: int
+    source: str
+
+    @classmethod
+    def from_defaults(cls) -> DataDimensions:
+        """Create with conservative defaults when data unavailable."""
+        return cls(
+            n_observations=1000,
+            n_artists=100,
+            source="defaults (data unavailable)",
+        )
+
+
+def extract_data_dimensions(
+    csv_path: Path | str = "data/raw/all_albums_full.csv",
+    min_ratings: int = 10,
+) -> DataDimensions:
+    """Extract observation and artist counts from raw CSV.
+
+    Loads only required columns for performance (~0.2s vs ~30s full load).
+
+    Args:
+        csv_path: Path to raw CSV file.
+        min_ratings: Minimum user ratings filter (matches CLI default).
+
+    Returns:
+        DataDimensions with counts and source indicator.
+        Returns conservative defaults if file not found or on error.
+    """
+    path = Path(csv_path)
+
+    if not path.exists():
+        return DataDimensions.from_defaults()
+
+    try:
+        # Only load columns needed for counting
+        df = read_csv(path, usecols=["Artist", "User Ratings"])
+
+        # Apply same filter as training pipeline
+        df = df[df["User Ratings"] >= min_ratings]
+
+        return DataDimensions(
+            n_observations=len(df),
+            n_artists=df["Artist"].nunique(),
+            source=f"from data: {path.name}",
+        )
+    except Exception as e:
+        logger.warning(
+            "Failed to extract dimensions from %s (min_ratings=%d): %s. "
+            "Falling back to defaults.",
+            path.name,
+            min_ratings,
+            e,
+        )
+        return DataDimensions.from_defaults()
 
 
 @dataclass

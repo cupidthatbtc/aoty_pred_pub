@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from aoty_pred.data.ingest import DataDimensions
 from aoty_pred.gpu_memory import MemoryEstimate
 from aoty_pred.preflight import PreflightResult, PreflightStatus, render_preflight_result
 
@@ -179,3 +180,64 @@ class TestRenderPreflightSuggestions:
 
         assert "--num-chains 2" in captured.out
         assert "--num-samples 500" in captured.out
+
+
+class TestRenderPreflightDataSource:
+    """Tests for data source display in output."""
+
+    @pytest.fixture
+    def basic_result(self) -> PreflightResult:
+        """Create a basic result for data source testing."""
+        return PreflightResult(
+            status=PreflightStatus.PASS,
+            estimate=MemoryEstimate(
+                base_model_gb=0.1,
+                per_chain_gb=0.05,
+                jit_buffer_gb=0.12,
+                num_chains=4,
+            ),
+            available_gb=10.0,
+            total_gpu_gb=10.0,
+            headroom_percent=50.0,
+            message="Memory check passed",
+            suggestions=[],
+            device_name="Test GPU",
+        )
+
+    def test_render_shows_data_source_when_dimensions_provided(
+        self, capsys, basic_result: PreflightResult
+    ):
+        """Output shows dimension source when dimensions provided."""
+        dimensions = DataDimensions(
+            n_observations=41234,
+            n_artists=7521,
+            source="from data: all_albums_full.csv",
+        )
+        render_preflight_result(basic_result, dimensions=dimensions)
+        captured = capsys.readouterr()
+
+        assert "41,234 obs" in captured.out
+        assert "7,521 artists" in captured.out
+        assert "from data:" in captured.out
+
+    def test_render_shows_defaults_note_when_dimensions_none(
+        self, capsys, basic_result: PreflightResult
+    ):
+        """Output shows fixed defaults note when dimensions is None."""
+        render_preflight_result(basic_result, dimensions=None)
+        captured = capsys.readouterr()
+
+        assert "fixed defaults" in captured.out
+
+    def test_render_shows_default_dimensions_source(
+        self, capsys, basic_result: PreflightResult
+    ):
+        """Output shows defaults source when using DataDimensions.from_defaults()."""
+        dimensions = DataDimensions.from_defaults()
+        render_preflight_result(basic_result, dimensions=dimensions)
+        captured = capsys.readouterr()
+
+        # Should show the defaults source string, not "fixed defaults" fallback
+        assert "defaults" in captured.out
+        assert "1,000 obs" in captured.out
+        assert "100 artists" in captured.out
