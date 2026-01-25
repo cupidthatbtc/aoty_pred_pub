@@ -291,7 +291,13 @@ def run(
         # Extract data dimensions for calibration cache key
         n_observations = len(model_args.get("y", []))
         n_artists_dim = model_args.get("n_artists", 0)
-        n_features = len(model_args.get("X", [[]])[0]) if model_args.get("X") else 0
+        X = model_args.get("X")
+        if X is None:
+            n_features = 0
+        elif hasattr(X, "shape"):
+            n_features = X.shape[1] if len(X.shape) > 1 else X.shape[0]
+        else:
+            n_features = len(X[0]) if X else 0
 
         # Target samples is total warmup + samples across all chains
         target_samples = num_warmup + num_samples
