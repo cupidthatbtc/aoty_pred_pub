@@ -317,14 +317,18 @@ def fit_model(
     for field_name, field_data in extra_fields.items():
         # Convert JAX arrays to numpy
         field_data = np.asarray(field_data)
-        # Reshape from (n_samples_total,) to (chains, draws)
+        # Reshape from (n_samples_total,) or (n_samples_total, ...) to (chains, draws, ...)
         if field_data.ndim == 1:
             reshaped = field_data.reshape(n_chains, n_draws)
+            dims = ["chain", "draw"]
         else:
             reshaped = field_data.reshape(n_chains, n_draws, *field_data.shape[1:])
+            # Add dimension names for any extra dimensions
+            extra_dims = [f"{field_name}_dim_{i}" for i in range(len(field_data.shape) - 1)]
+            dims = ["chain", "draw"] + extra_dims
         sample_stats_dict[field_name] = xr.DataArray(
             data=reshaped,
-            dims=["chain", "draw"],
+            dims=dims,
             coords={"chain": range(n_chains), "draw": range(n_draws)},
         )
 
