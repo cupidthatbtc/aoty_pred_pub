@@ -376,6 +376,7 @@ def train_models(
         model_args=model_args,
         config=mcmc_config,
         progress_bar=True,  # Always show MCMC progress for real-time feedback
+        exclude_from_idata=("user_rw_innovations",),  # Large tensor, exclude to prevent OOM
     )
 
     log.info(
