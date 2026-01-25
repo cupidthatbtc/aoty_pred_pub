@@ -301,6 +301,7 @@ class PipelineOrchestrator:
                 "num_samples": self.config.num_samples,
                 "num_warmup": self.config.num_warmup,
                 "target_accept": self.config.target_accept,
+                "chain_method": self.config.chain_method,
                 # Convergence thresholds
                 "rhat_threshold": self.config.rhat_threshold,
                 "ess_threshold": self.config.ess_threshold,
@@ -396,6 +397,8 @@ class PipelineOrchestrator:
             parts.append(f"--num-warmup {self.config.num_warmup}")
         if self.config.target_accept != 0.8:
             parts.append(f"--target-accept {self.config.target_accept}")
+        if self.config.chain_method != "sequential":
+            parts.append(f"--chain-method {self.config.chain_method}")
         # Convergence thresholds
         if self.config.rhat_threshold != 1.01:
             parts.append(f"--rhat-threshold {self.config.rhat_threshold}")
