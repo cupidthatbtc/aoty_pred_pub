@@ -259,13 +259,20 @@ def fit_model(
 
     # Filter out excluded sample sites (post-filtering to avoid OOM on large tensors)
     if exclude_from_idata:
+        excluded = [k for k in samples if k in exclude_from_idata]
+        if excluded:
+            # Log excluded sites with estimated memory sizes
+            for site in excluded:
+                size_mb = samples[site].nbytes / (1024 * 1024)
+                logger.info(f"Excluded '{site}' from InferenceData ({size_mb:.1f} MB)")
         samples = {k: v for k, v in samples.items() if k not in exclude_from_idata}
 
     # Release memory pressure after loading samples
     gc.collect()
 
     # Build InferenceData manually with samples
-    # Get dimensions from samples
+    if not samples:
+        raise ValueError("No samples available after exclusion - check exclude_from_idata")
     first_var = next(iter(samples.values()))
     n_chains, n_draws = first_var.shape[:2]
 
