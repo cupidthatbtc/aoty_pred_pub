@@ -35,6 +35,7 @@ class StageContext:
         num_samples: Post-warmup samples per chain.
         num_warmup: Warmup iterations per chain.
         target_accept: Target acceptance probability.
+        chain_method: MCMC chain parallelization method ('sequential', 'vectorized', 'parallel').
         rhat_threshold: Maximum acceptable R-hat.
         ess_threshold: Minimum ESS per chain.
         allow_divergences: If True, don't fail on divergences.
