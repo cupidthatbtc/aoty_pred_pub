@@ -243,14 +243,16 @@ def run(
     if stages:
         stage_list = [s.strip() for s in stages.split(",") if s.strip()]
 
-    # Validate chain_method
+    # Validate chain_method (case-insensitive)
     valid_chain_methods = ("sequential", "vectorized", "parallel")
-    if chain_method not in valid_chain_methods:
+    chain_method_normalized = chain_method.lower()
+    if chain_method_normalized not in valid_chain_methods:
         typer.echo(
             f"Error: Invalid --chain-method '{chain_method}'. "
             f"Must be one of: {', '.join(valid_chain_methods)}"
         )
         raise typer.Exit(code=1)
+    chain_method = chain_method_normalized  # Use normalized value downstream
 
     # Full preflight mode (--preflight-full) takes precedence over quick preflight
     if preflight_full:
