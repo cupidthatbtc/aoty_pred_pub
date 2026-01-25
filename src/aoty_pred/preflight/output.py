@@ -11,10 +11,15 @@ from typing import TYPE_CHECKING
 from rich.console import Console
 
 if TYPE_CHECKING:
+    from aoty_pred.data.ingest import DataDimensions
     from aoty_pred.preflight import FullPreflightResult, PreflightResult, PreflightStatus
 
 
-def render_preflight_result(result: PreflightResult, verbose: bool = False) -> None:
+def render_preflight_result(
+    result: PreflightResult,
+    verbose: bool = False,
+    dimensions: DataDimensions | None = None,
+) -> None:
     """Render preflight result with TTY-aware colored output.
 
     Uses Rich Console which automatically handles TTY detection:
@@ -63,11 +68,18 @@ def render_preflight_result(result: PreflightResult, verbose: bool = False) -> N
         for suggestion in result.suggestions:
             console.print(f"  \u2022 {suggestion}")
 
-    # Note about estimate basis
+    # Note about data source
     console.print()
-    console.print(
-        "[dim]Note: Estimates based on fixed defaults (1000 obs, 20 features, 100 artists).[/dim]"
-    )
+    if dimensions is not None:
+        console.print(
+            f"[dim]Data: {dimensions.n_observations:,} obs, "
+            f"{dimensions.n_artists:,} artists ({dimensions.source})[/dim]"
+        )
+    else:
+        console.print(
+            "[dim]Note: Estimates based on fixed defaults "
+            "(1000 obs, 20 features, 100 artists).[/dim]"
+        )
     console.print("[dim]Use --preflight-full for accurate data-specific checking.[/dim]")
 
 
