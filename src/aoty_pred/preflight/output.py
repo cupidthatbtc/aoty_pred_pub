@@ -12,7 +12,12 @@ from rich.console import Console
 
 if TYPE_CHECKING:
     from aoty_pred.data.ingest import DataDimensions
-    from aoty_pred.preflight import FullPreflightResult, PreflightResult, PreflightStatus
+    from aoty_pred.preflight import (
+        ExtrapolationResult,
+        FullPreflightResult,
+        PreflightResult,
+        PreflightStatus,
+    )
 
 
 def render_preflight_result(
@@ -140,6 +145,88 @@ def render_full_preflight_result(
             "[dim]This is an actual measurement from a 1-chain, "
             "10-warmup, 1-sample mini-run.[/dim]"
         )
+
+    # GPU info (if available)
+    if result.device_name is not None:
+        console.print()
+        console.print(f"[bold]GPU:[/bold] {result.device_name}")
+        console.print(
+            f"  Available: {result.available_gb:.1f} GB / {result.total_gpu_gb:.1f} GB total"
+        )
+
+    # Suggestions
+    if result.suggestions:
+        console.print()
+        console.print("[bold]Suggestions:[/bold]")
+        for suggestion in result.suggestions:
+            console.print(f"  \u2022 {suggestion}")
+
+
+def format_uncertainty(projected_gb: float, uncertainty_percent: float) -> str:
+    """Format projected memory with uncertainty range.
+
+    Args:
+        projected_gb: Projected memory in GB.
+        uncertainty_percent: Uncertainty as percentage (e.g., 10.0 for 10%).
+
+    Returns:
+        Formatted string like "15.8 GB +/-10%"
+    """
+    return f"{projected_gb:.1f} GB +/-{uncertainty_percent:.0f}%"
+
+
+def render_extrapolation_result(
+    result: ExtrapolationResult, verbose: bool = False
+) -> None:
+    """Render extrapolation preflight result with TTY-aware colored output.
+
+    Uses Rich Console which automatically handles TTY detection:
+    - TTY: Displays colored markup
+    - Non-TTY (pipe, file): Strips markup for plain text
+
+    This renderer displays BOTH measured peak memory from calibration runs
+    AND projected estimate extrapolated to target samples.
+
+    Args:
+        result: ExtrapolationResult from run_extrapolated_preflight_check().
+        verbose: If True, show calibration coefficients.
+
+    Example:
+        >>> from aoty_pred.preflight import run_extrapolated_preflight_check
+        >>> result = run_extrapolated_preflight_check(model_args, target_samples=2000, ...)
+        >>> render_extrapolation_result(result, verbose=True)
+    """
+    console = Console()
+
+    # Status line with color
+    status_line = _format_status_line(result.status, result.message)
+    console.print(status_line)
+
+    # Memory Projection section - CRITICAL: show BOTH measured and projected
+    console.print()
+    console.print("[bold]Memory Projection:[/bold]")
+    console.print(
+        f"  Measured peak (calibration at 10+50 samples): {result.measured_peak_gb:.2f} GB"
+    )
+    console.print(
+        f"  Projected ({result.target_samples:,} samples): "
+        f"{format_uncertainty(result.projected_gb, result.uncertainty_percent)}"
+    )
+
+    # Verbose: show calibration coefficients
+    if verbose:
+        console.print()
+        console.print(
+            f"[dim]Calibration: fixed={result.calibration.fixed_overhead_gb:.2f} GB "
+            f"+ {result.calibration.per_sample_gb:.4f} GB/sample[/dim]"
+        )
+
+    # Cache status
+    console.print()
+    if result.from_cache:
+        console.print("[dim]Calibration: from cache[/dim]")
+    else:
+        console.print("[dim]Calibration: fresh (cached for future)[/dim]")
 
     # GPU info (if available)
     if result.device_name is not None:
