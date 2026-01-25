@@ -67,6 +67,7 @@ aoty-pipeline run [OPTIONS]
 | `--preflight-full` | `false` | Mini-MCMC to measure actual peak memory (~30-60s) |
 | `--preflight-only` | `false` | Run memory check and exit (0=pass, 1=fail, 2=warning) |
 | `--force-run` | `false` | Override preflight failure and continue anyway |
+| `--recalibrate` | `false` | Force fresh calibration even if cached calibration exists |
 
 **Note:** `--preflight-full` takes precedence over `--preflight`. The `--preflight-only` flag controls whether to exit after the check:
 
