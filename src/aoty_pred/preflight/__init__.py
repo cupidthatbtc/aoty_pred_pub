@@ -150,6 +150,7 @@ class FullPreflightResult:
 
 # Imports placed after class definitions to avoid circular imports.
 # These modules import PreflightResult/FullPreflightResult from this module.
+from aoty_pred.preflight.cache import compute_config_hash
 from aoty_pred.preflight.calibrate import CalibrationError, CalibrationResult
 from aoty_pred.preflight.check import run_preflight_check
 from aoty_pred.preflight.full_check import run_full_preflight_check
@@ -161,6 +162,7 @@ __all__ = [
     "FullPreflightResult",
     "PreflightResult",
     "PreflightStatus",
+    "compute_config_hash",
     "render_full_preflight_result",
     "render_preflight_result",
     "run_full_preflight_check",
