@@ -252,6 +252,7 @@ def run(
             render_extrapolation_result,
             run_extrapolated_preflight_check,
         )
+        from aoty_pred.preflight.full_check import _derive_dimensions_from_model_args
 
         console = Console()
 
@@ -288,16 +289,10 @@ def run(
         model_args["n_exponent"] = n_exponent
         model_args["learn_n_exponent"] = learn_n_exponent
 
-        # Extract data dimensions for calibration cache key
-        n_observations = len(model_args.get("y", []))
-        n_artists_dim = model_args.get("n_artists", 0)
-        X = model_args.get("X")
-        if X is None:
-            n_features = 0
-        elif hasattr(X, "shape"):
-            n_features = X.shape[1] if len(X.shape) > 1 else X.shape[0]
-        else:
-            n_features = len(X[0]) if X else 0
+        # Use shared dimension derivation for consistent validation
+        n_observations, n_artists_dim, n_features, _ = (
+            _derive_dimensions_from_model_args(model_args)
+        )
 
         # Target samples is total warmup + samples across all chains
         target_samples = num_warmup + num_samples
