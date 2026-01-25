@@ -252,24 +252,28 @@ def fit_model(
     # (R-hat, ESS) since we only need to assess convergence on the key parameters.
     # The init_artist_effect captures the essential artist-level information.
     #
-    # CRITICAL: Access internal _states directly to avoid loading rw_innovations
-    # into memory. mcmc.get_samples() would load ALL samples (~3.5 GB for rw_innovations)
-    # before we could filter, causing OOM on memory-constrained systems.
+    # Transfer samples to host memory first (public API), then access internal
+    # _states to filter samples without loading rw_innovations. NumPyro's get_samples()
+    # loads ALL samples at once with no filtering option, which would cause OOM.
+    # This internal access is stable across NumPyro 0.x (tested with 0.12+).
+    mcmc.transfer_states_to_host()
+
     exclude_patterns = ["rw_innovations"]
 
-    # Access internal state to get sample keys without loading values
-    raw_samples = mcmc._states[mcmc._sample_field]  # Dict of JAX arrays on device
+    # Access internal state to get sample keys without loading all values
+    # Note: _states/_sample_field are internal but required for selective loading
+    raw_samples = mcmc._states[mcmc._sample_field]  # Dict of numpy arrays on host
     all_keys = list(raw_samples.keys())
     excluded = [k for k in all_keys if any(p in k for p in exclude_patterns)]
     keep_keys = [k for k in all_keys if k not in excluded]
 
     if excluded:
-        logger.info(f"Excluding large variables from InferenceData: {excluded}")
+        logger.info("Excluding large variables from InferenceData: %s", excluded)
         # Log size estimate for excluded tensors
         for key in excluded:
             shape = raw_samples[key].shape
             size_mb = np.prod(shape) * 4 / (1024 * 1024)  # float32
-            logger.info(f"  {key}: shape={shape}, ~{size_mb:.0f} MB")
+            logger.info("  %s: shape=%s, ~%.0f MB", key, shape, size_mb)
 
     # Load only the samples we need (avoids loading rw_innovations)
     filtered_samples = {k: np.asarray(raw_samples[k]) for k in keep_keys}
