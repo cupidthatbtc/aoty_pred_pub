@@ -299,6 +299,32 @@ class TestModelLearnedExponent:
         assert np.all(samples["user_n_exponent"] >= 0)
         assert np.all(samples["user_n_exponent"] <= 1)
 
+    def test_model_raises_on_invalid_prior_type(self, sample_data):
+        """Test ValueError when invalid n_exponent_prior is specified."""
+        priors = PriorConfig()
+
+        mcmc = MCMC(
+            NUTS(user_score_model),
+            num_warmup=10,
+            num_samples=10,
+            num_chains=1,
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            mcmc.run(
+                random.PRNGKey(0),
+                n_exponent=0.0,
+                learn_n_exponent=True,
+                n_exponent_prior="invalid-value",
+                priors=priors,
+                **sample_data,
+            )
+
+        error_msg = str(exc_info.value)
+        assert "Invalid n_exponent_prior" in error_msg
+        assert "logit-normal" in error_msg
+        assert "beta" in error_msg
+
     def test_model_raises_when_heteroscedastic_without_n_reviews(self, sample_data):
         """Test ValueError when heteroscedastic mode requested without n_reviews."""
         data_no_n_reviews = {k: v for k, v in sample_data.items() if k != "n_reviews"}
