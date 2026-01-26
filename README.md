@@ -1,5 +1,7 @@
 # AOTY Artist Prediction (Bayesian)
 
+[![CI](https://github.com/cupidthatbtc/aoty_pred_pub/actions/workflows/ci.yml/badge.svg)](https://github.com/cupidthatbtc/aoty_pred_pub/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/cupidthatbtc/aoty_pred_pub/branch/master/graph/badge.svg)](https://codecov.io/gh/cupidthatbtc/aoty_pred_pub)
 ![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![pixi](https://img.shields.io/badge/pixi-package%20manager-brightgreen)](https://pixi.sh)
