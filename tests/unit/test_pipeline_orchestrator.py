@@ -529,3 +529,283 @@ class TestBuildCommandString:
         assert "--dry-run" in cmd
         assert "--strict" in cmd
         assert "--verbose" in cmd
+
+
+class TestResumeConfigRestoration:
+    """Tests for resume config restoration from manifest."""
+
+    @patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked")
+    @patch("aoty_pred.pipelines.orchestrator.verify_environment")
+    @patch("aoty_pred.pipelines.orchestrator.get_execution_order")
+    def test_resume_restores_config_from_manifest(
+        self,
+        mock_order: MagicMock,
+        mock_verify: MagicMock,
+        mock_ensure: MagicMock,
+        tmp_path: Path,
+    ):
+        """Resume restores target_accept and max_tree_depth from manifest."""
+        mock_verify.return_value = MagicMock(
+            is_reproducible=True,
+            pixi_lock_hash="abc123",
+            warnings=[],
+        )
+        mock_order.return_value = []
+
+        # Create run directory with manifest containing old config values
+        run_id = "2026-01-20_120000"
+        run_dir = tmp_path / run_id
+        run_dir.mkdir()
+
+        manifest_data = {
+            "run_id": run_id,
+            "created_at": "2026-01-20T12:00:00",
+            "command": "aoty-pipeline run",
+            "flags": {
+                "seed": 42,
+                "skip_existing": False,
+                "stages": None,
+                "dry_run": False,
+                "strict": False,
+                "verbose": False,
+                "resume": None,
+                "max_albums": 50,
+                "num_chains": 4,
+                "num_samples": 1000,
+                "num_warmup": 1000,
+                "target_accept": 0.75,  # Old value (different from current default 0.90)
+                "max_tree_depth": 10,  # Old value (different from current default 12)
+                "chain_method": "sequential",
+                "rhat_threshold": 1.01,
+                "ess_threshold": 400,
+                "allow_divergences": False,
+                "min_ratings": 10,
+                "min_albums_filter": 2,
+                "enable_genre": True,
+                "enable_artist": True,
+                "enable_temporal": True,
+                "n_exponent": 0.0,
+                "learn_n_exponent": False,
+                "n_exponent_alpha": 2.0,
+                "n_exponent_beta": 4.0,
+                "n_exponent_prior": "logit-normal",
+            },
+            "seed": 42,
+            "git": {
+                "commit": "abc123",
+                "branch": "main",
+                "dirty": False,
+                "untracked_count": 0,
+            },
+            "environment": {
+                "python_version": "3.11.0",
+                "jax_version": "0.4.26",
+                "numpyro_version": "0.15.0",
+                "arviz_version": "0.18.0",
+                "platform": "Linux",
+                "pixi_lock_hash": "abc123",
+            },
+            "input_hashes": {},
+            "stage_hashes": {},
+            "stages_completed": [],
+            "stages_skipped": [],
+            "outputs": {},
+            "success": False,
+            "error": None,
+            "duration_seconds": 0.0,
+        }
+        import json
+
+        (run_dir / "manifest.json").write_text(json.dumps(manifest_data))
+
+        # Create config with current defaults (0.90, 12)
+        config = PipelineConfig(resume=run_id)
+        assert config.target_accept == 0.90  # Current default
+        assert config.max_tree_depth == 12  # Current default
+
+        orchestrator = PipelineOrchestrator(config, output_base=tmp_path)
+        orchestrator.run()
+
+        # After resume, config should have manifest values
+        assert orchestrator.config.target_accept == 0.75
+        assert orchestrator.config.max_tree_depth == 10
+
+    @patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked")
+    @patch("aoty_pred.pipelines.orchestrator.verify_environment")
+    @patch("aoty_pred.pipelines.orchestrator.get_execution_order")
+    def test_resume_warns_on_missing_config_keys(
+        self,
+        mock_order: MagicMock,
+        mock_verify: MagicMock,
+        mock_ensure: MagicMock,
+        tmp_path: Path,
+        caplog,
+    ):
+        """Resume warns when manifest is missing MCMC config keys."""
+        mock_verify.return_value = MagicMock(
+            is_reproducible=True,
+            pixi_lock_hash="abc123",
+            warnings=[],
+        )
+        mock_order.return_value = []
+
+        # Create run directory with manifest missing target_accept and max_tree_depth
+        run_id = "2026-01-20_120000"
+        run_dir = tmp_path / run_id
+        run_dir.mkdir()
+
+        # Manifest without target_accept and max_tree_depth (simulating old manifest)
+        manifest_data = {
+            "run_id": run_id,
+            "created_at": "2026-01-20T12:00:00",
+            "command": "aoty-pipeline run",
+            "flags": {
+                "seed": 42,
+                "skip_existing": False,
+                "stages": None,
+                "dry_run": False,
+                "strict": False,
+                "verbose": False,
+                "resume": None,
+                "max_albums": 50,
+                "num_chains": 4,
+                "num_samples": 1000,
+                "num_warmup": 1000,
+                # target_accept missing
+                # max_tree_depth missing
+                "chain_method": "sequential",
+            },
+            "seed": 42,
+            "git": {
+                "commit": "abc123",
+                "branch": "main",
+                "dirty": False,
+                "untracked_count": 0,
+            },
+            "environment": {
+                "python_version": "3.11.0",
+                "jax_version": "0.4.26",
+                "numpyro_version": "0.15.0",
+                "arviz_version": "0.18.0",
+                "platform": "Linux",
+                "pixi_lock_hash": "abc123",
+            },
+            "input_hashes": {},
+            "stage_hashes": {},
+            "stages_completed": [],
+            "stages_skipped": [],
+            "outputs": {},
+            "success": False,
+            "error": None,
+            "duration_seconds": 0.0,
+        }
+        import json
+
+        (run_dir / "manifest.json").write_text(json.dumps(manifest_data))
+
+        config = PipelineConfig(resume=run_id)
+        orchestrator = PipelineOrchestrator(config, output_base=tmp_path)
+
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            orchestrator.run()
+
+        # Should have logged warnings about missing keys
+        log_messages = caplog.text
+        assert "target_accept" in log_messages
+        assert "max_tree_depth" in log_messages
+        assert "resume_config_missing" in log_messages
+
+        # Config should still have current defaults
+        assert orchestrator.config.target_accept == 0.90
+        assert orchestrator.config.max_tree_depth == 12
+
+    @patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked")
+    @patch("aoty_pred.pipelines.orchestrator.verify_environment")
+    @patch("aoty_pred.pipelines.orchestrator.get_execution_order")
+    def test_resume_partial_config_restoration(
+        self,
+        mock_order: MagicMock,
+        mock_verify: MagicMock,
+        mock_ensure: MagicMock,
+        tmp_path: Path,
+        caplog,
+    ):
+        """Resume restores present keys and warns on missing keys."""
+        mock_verify.return_value = MagicMock(
+            is_reproducible=True,
+            pixi_lock_hash="abc123",
+            warnings=[],
+        )
+        mock_order.return_value = []
+
+        # Create run directory with manifest containing only target_accept
+        run_id = "2026-01-20_120000"
+        run_dir = tmp_path / run_id
+        run_dir.mkdir()
+
+        manifest_data = {
+            "run_id": run_id,
+            "created_at": "2026-01-20T12:00:00",
+            "command": "aoty-pipeline run",
+            "flags": {
+                "seed": 42,
+                "skip_existing": False,
+                "stages": None,
+                "dry_run": False,
+                "strict": False,
+                "verbose": False,
+                "resume": None,
+                "max_albums": 50,
+                "num_chains": 4,
+                "num_samples": 1000,
+                "num_warmup": 1000,
+                "target_accept": 0.85,  # Present with non-default value
+                # max_tree_depth missing
+                "chain_method": "sequential",
+            },
+            "seed": 42,
+            "git": {
+                "commit": "abc123",
+                "branch": "main",
+                "dirty": False,
+                "untracked_count": 0,
+            },
+            "environment": {
+                "python_version": "3.11.0",
+                "jax_version": "0.4.26",
+                "numpyro_version": "0.15.0",
+                "arviz_version": "0.18.0",
+                "platform": "Linux",
+                "pixi_lock_hash": "abc123",
+            },
+            "input_hashes": {},
+            "stage_hashes": {},
+            "stages_completed": [],
+            "stages_skipped": [],
+            "outputs": {},
+            "success": False,
+            "error": None,
+            "duration_seconds": 0.0,
+        }
+        import json
+
+        (run_dir / "manifest.json").write_text(json.dumps(manifest_data))
+
+        config = PipelineConfig(resume=run_id)
+        orchestrator = PipelineOrchestrator(config, output_base=tmp_path)
+
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            orchestrator.run()
+
+        # target_accept should be restored to 0.85
+        assert orchestrator.config.target_accept == 0.85
+
+        # Warning logged for missing max_tree_depth
+        assert "max_tree_depth" in caplog.text
+
+        # max_tree_depth remains at default 12
+        assert orchestrator.config.max_tree_depth == 12
