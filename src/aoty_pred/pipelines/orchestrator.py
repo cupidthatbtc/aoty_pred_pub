@@ -350,6 +350,15 @@ class PipelineOrchestrator:
         # Save initial manifest
         save_run_manifest(self.manifest, self.run_dir)
 
+    # MCMC config keys that should be restored from manifest on resume
+    RESUME_CONFIG_KEYS = [
+        "target_accept",
+        "max_tree_depth",
+        "num_chains",
+        "num_samples",
+        "num_warmup",
+    ]
+
     def _setup_resume(self) -> None:
         """Set up for resuming a previous run."""
         resume_id = self.config.resume
@@ -379,11 +388,42 @@ class PipelineOrchestrator:
             )
 
         self.manifest = load_run_manifest(manifest_path)
+
+        # Restore MCMC config from manifest to prevent config drift
+        self._restore_config_from_manifest()
+
         log.info(
             "resuming_run",
             run_id=resume_id,
             completed_stages=self.manifest.stages_completed,
         )
+
+    def _restore_config_from_manifest(self) -> None:
+        """Restore MCMC config values from manifest flags.
+
+        For each key in RESUME_CONFIG_KEYS:
+        - If present in manifest flags, restore it to self.config
+        - If missing, emit a warning about potential config drift
+        """
+        if self.manifest is None:
+            return
+
+        for key in self.RESUME_CONFIG_KEYS:
+            if key in self.manifest.flags:
+                manifest_value = self.manifest.flags[key]
+                object.__setattr__(self.config, key, manifest_value)
+                log.debug("resume_config_restored", key=key, value=manifest_value)
+            else:
+                current_default = getattr(self.config, key)
+                log.warning(
+                    "resume_config_missing",
+                    key=key,
+                    current_default=current_default,
+                    message=(
+                        f"manifest missing '{key}', using current default {current_default} "
+                        "- verify this matches original run"
+                    ),
+                )
 
     def _build_command_string(self) -> str:
         """Build command string representation for manifest."""
