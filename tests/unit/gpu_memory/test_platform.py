@@ -157,6 +157,7 @@ class TestDetectPlatform:
         """detect_platform handles missing /proc/version gracefully."""
         mock_path = mock.MagicMock()
         mock_path.return_value.read_text.side_effect = FileNotFoundError
+        mock_path.return_value.exists.return_value = False  # /run/WSL doesn't exist
 
         with (
             mock.patch("aoty_pred.gpu_memory.platform.platform.system", return_value="Linux"),

@@ -4,12 +4,19 @@ Tests the CLI entry points for pipeline execution, including the main
 'run' command and individual stage subcommands.
 """
 
+import re
+
 import pytest
 from typer.testing import CliRunner
 
 from aoty_pred.cli import __version__, app
 
 runner = CliRunner()
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text."""
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
 class TestCLIHelp:
@@ -27,14 +34,15 @@ class TestCLIHelp:
         result = runner.invoke(app, ["run", "--help"])
         assert result.exit_code == 0
 
-        # Check all flags are documented
-        assert "--seed" in result.stdout
-        assert "--skip-existing" in result.stdout
-        assert "--stages" in result.stdout
-        assert "--dry-run" in result.stdout
-        assert "--strict" in result.stdout
-        assert "--verbose" in result.stdout
-        assert "--resume" in result.stdout
+        # Check all flags are documented (strip ANSI codes for CI)
+        output = strip_ansi(result.stdout)
+        assert "--seed" in output
+        assert "--skip-existing" in output
+        assert "--stages" in output
+        assert "--dry-run" in output
+        assert "--strict" in output
+        assert "--verbose" in output
+        assert "--resume" in output
 
     def test_stage_help_shows_subcommands(self):
         """Stage help shows all individual stages."""
@@ -51,8 +59,9 @@ class TestCLIHelp:
         """Individual stage help works."""
         result = runner.invoke(app, ["stage", "data", "--help"])
         assert result.exit_code == 0
-        assert "--seed" in result.stdout
-        assert "--verbose" in result.stdout
+        output = strip_ansi(result.stdout)
+        assert "--seed" in output
+        assert "--verbose" in output
 
 
 class TestCLIVersion:
@@ -113,7 +122,7 @@ class TestStageCommands:
         """Train stage has --strict option."""
         result = runner.invoke(app, ["stage", "train", "--help"])
         assert result.exit_code == 0
-        assert "--strict" in result.stdout
+        assert "--strict" in strip_ansi(result.stdout)
 
 
 class TestPackageExports:

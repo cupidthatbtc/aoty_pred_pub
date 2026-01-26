@@ -104,8 +104,8 @@ class TestMCMCConfig:
         assert config.num_chains == 4
         assert config.chain_method == "sequential"
         assert config.seed == 0
-        assert config.max_tree_depth == 10
-        assert config.target_accept_prob == 0.8
+        assert config.max_tree_depth == 12  # v5.0: increased for complex posteriors
+        assert config.target_accept_prob == 0.9  # v5.0: increased for challenging posteriors
 
     def test_mcmc_config_frozen(self):
         """MCMCConfig should be immutable (frozen)."""

@@ -132,7 +132,7 @@ class TestNReviewsDataFlow:
         # Add dummy feature columns
         df["feat_1"] = np.random.RandomState(42).randn(10)
 
-        result = prepare_model_data(df, ["feat_1"], min_albums_filter=1)
+        result, _ = prepare_model_data(df, ["feat_1"], min_albums_filter=1)
 
         # Should have dropped the 1 invalid row (index 3 with n_reviews=0)
         assert len(result["y"]) == 9, f"Expected 9 rows after filtering, got {len(result['y'])}"
