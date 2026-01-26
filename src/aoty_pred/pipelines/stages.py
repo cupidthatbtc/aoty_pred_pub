@@ -45,9 +45,10 @@ class StageContext:
         enable_artist: If False, disable artist features.
         enable_temporal: If False, disable temporal features.
         n_exponent: Scaling exponent for review count noise adjustment.
-        learn_n_exponent: If True, learn exponent from data using Beta prior.
+        learn_n_exponent: If True, learn exponent from data using prior.
         n_exponent_alpha: Beta prior alpha parameter for learned exponent.
         n_exponent_beta: Beta prior beta parameter for learned exponent.
+        n_exponent_prior: Prior type for learned exponent: 'logit-normal' or 'beta'.
 
     Example:
         >>> ctx = StageContext(
@@ -88,6 +89,7 @@ class StageContext:
     learn_n_exponent: bool = False
     n_exponent_alpha: float = 2.0
     n_exponent_beta: float = 4.0
+    n_exponent_prior: str = "logit-normal"
 
 
 @dataclass

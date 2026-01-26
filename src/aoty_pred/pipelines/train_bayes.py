@@ -338,12 +338,14 @@ def train_models(
     # Add heteroscedastic noise configuration to model_args
     model_args["n_exponent"] = ctx.n_exponent
     model_args["learn_n_exponent"] = ctx.learn_n_exponent
+    model_args["n_exponent_prior"] = ctx.n_exponent_prior
 
     # Log heteroscedastic mode
     if ctx.learn_n_exponent:
         log.info(
             "heteroscedastic_mode",
             mode="learned",
+            prior_type=ctx.n_exponent_prior,
             prior_alpha=ctx.n_exponent_alpha,
             prior_beta=ctx.n_exponent_beta,
         )

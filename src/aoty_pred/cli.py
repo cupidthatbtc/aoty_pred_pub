@@ -201,6 +201,11 @@ def run(
         min=0.01,
         help="Beta prior beta parameter for learned exponent (advanced, default 4.0)",
     )] = 4.0,
+    n_exponent_prior: str = typer.Option(
+        "logit-normal",
+        "--n-exponent-prior",
+        help="Prior type for learned n_exponent: 'logit-normal' (default, fixes divergences) or 'beta' (legacy)",
+    ),
 ) -> None:
     """Execute full pipeline from raw data to publication artifacts.
 
@@ -410,6 +415,7 @@ def run(
         learn_n_exponent=learn_n_exponent,
         n_exponent_alpha=n_exponent_alpha,
         n_exponent_beta=n_exponent_beta,
+        n_exponent_prior=n_exponent_prior,
     )
 
     exit_code = run_pipeline(config)

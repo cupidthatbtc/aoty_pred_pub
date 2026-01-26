@@ -83,9 +83,10 @@ class PipelineConfig:
         enable_artist: If False, disable artist features (default True).
         enable_temporal: If False, disable temporal features (default True).
         n_exponent: Scaling exponent for review count noise adjustment (default 0.0).
-        learn_n_exponent: If True, learn exponent from data using Beta prior (default False).
+        learn_n_exponent: If True, learn exponent from data using prior (default False).
         n_exponent_alpha: Beta prior alpha parameter for learned exponent (default 2.0).
         n_exponent_beta: Beta prior beta parameter for learned exponent (default 4.0).
+        n_exponent_prior: Prior type for learned exponent: 'logit-normal' or 'beta' (default 'logit-normal').
 
     Example:
         >>> config = PipelineConfig(seed=42, dry_run=True)
@@ -123,6 +124,7 @@ class PipelineConfig:
     learn_n_exponent: bool = False
     n_exponent_alpha: float = 2.0
     n_exponent_beta: float = 4.0
+    n_exponent_prior: str = "logit-normal"
 
 
 class PipelineOrchestrator:
@@ -318,6 +320,7 @@ class PipelineOrchestrator:
                 "learn_n_exponent": self.config.learn_n_exponent,
                 "n_exponent_alpha": self.config.n_exponent_alpha,
                 "n_exponent_beta": self.config.n_exponent_beta,
+                "n_exponent_prior": self.config.n_exponent_prior,
             },
             seed=self.config.seed,
             git=GitStateModel.from_git_state(git_state),
@@ -427,6 +430,8 @@ class PipelineOrchestrator:
             parts.append(f"--n-exponent-alpha {self.config.n_exponent_alpha}")
         if self.config.n_exponent_beta != 4.0:
             parts.append(f"--n-exponent-beta {self.config.n_exponent_beta}")
+        if self.config.n_exponent_prior != "logit-normal":
+            parts.append(f"--n-exponent-prior {self.config.n_exponent_prior}")
 
         return " ".join(parts)
 
@@ -527,6 +532,7 @@ class PipelineOrchestrator:
             learn_n_exponent=self.config.learn_n_exponent,
             n_exponent_alpha=self.config.n_exponent_alpha,
             n_exponent_beta=self.config.n_exponent_beta,
+            n_exponent_prior=self.config.n_exponent_prior,
         )
 
     def _execute_stage(self, stage: PipelineStage) -> None:
