@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![pixi](https://img.shields.io/badge/pixi-package%20manager-brightgreen)](https://pixi.sh)
 
-A publication-quality Bayesian prediction pipeline for artist-level outcomes (next album score). This repository emphasizes leakage controls, data lineage, and reproducibility.
+A high-quality Bayesian prediction pipeline for artist-level outcomes (next album score). This repository emphasizes leakage controls, data lineage, and reproducibility.
 
 ## Features
 
