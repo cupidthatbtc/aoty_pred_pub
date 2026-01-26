@@ -118,9 +118,10 @@ These features are **enabled by default**. Use these flags to disable them:
 | Option | Default | Range | Description |
 |--------|---------|-------|-------------|
 | `--n-exponent` | `0.0` | 0.0–1.0 | Scaling exponent (0=homoscedastic, 0.5=sqrt) |
-| `--learn-n-exponent` | `false` | | Learn exponent from data using Beta prior |
-| `--n-exponent-alpha` | `2.0` | ≥0.01 | Beta prior alpha parameter (advanced) |
-| `--n-exponent-beta` | `4.0` | ≥0.01 | Beta prior beta parameter (advanced) |
+| `--learn-n-exponent` | `false` | | Learn exponent from data |
+| `--n-exponent-prior` | `logit-normal` | | Prior type: `logit-normal` (recommended) or `beta` (legacy) |
+| `--n-exponent-alpha` | `2.0` | ≥0.01 | Beta prior alpha parameter (only with `--n-exponent-prior beta`) |
+| `--n-exponent-beta` | `4.0` | ≥0.01 | Beta prior beta parameter (only with `--n-exponent-prior beta`) |
 
 #### Examples
 

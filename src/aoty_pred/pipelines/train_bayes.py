@@ -338,15 +338,24 @@ def train_models(
     # Add heteroscedastic noise configuration to model_args
     model_args["n_exponent"] = ctx.n_exponent
     model_args["learn_n_exponent"] = ctx.learn_n_exponent
+    model_args["n_exponent_prior"] = ctx.n_exponent_prior
 
     # Log heteroscedastic mode
     if ctx.learn_n_exponent:
-        log.info(
-            "heteroscedastic_mode",
-            mode="learned",
-            prior_alpha=ctx.n_exponent_alpha,
-            prior_beta=ctx.n_exponent_beta,
-        )
+        if ctx.n_exponent_prior == "beta":
+            log.info(
+                "heteroscedastic_mode",
+                mode="learned",
+                prior_type="beta",
+                prior_alpha=ctx.n_exponent_alpha,
+                prior_beta=ctx.n_exponent_beta,
+            )
+        else:
+            log.info(
+                "heteroscedastic_mode",
+                mode="learned",
+                prior_type=ctx.n_exponent_prior,
+            )
     elif ctx.n_exponent != 0.0:
         log.info("heteroscedastic_mode", mode="fixed", exponent=ctx.n_exponent)
     else:
@@ -360,7 +369,7 @@ def train_models(
         seed=ctx.seed,
         target_accept_prob=ctx.target_accept,
         chain_method=ctx.chain_method,
-        max_tree_depth=10,  # Keep hardcoded - not commonly adjusted
+        # max_tree_depth uses MCMCConfig default (12) for complex posterior geometry
     )
 
     # Get priors with heteroscedastic config from CLI

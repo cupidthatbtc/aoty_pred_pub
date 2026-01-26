@@ -191,7 +191,7 @@ def run(
     learn_n_exponent: bool = typer.Option(
         False,
         "--learn-n-exponent",
-        help="Learn exponent from data using Beta prior (ignores --n-exponent if set)",
+        help="Learn exponent from data (ignores --n-exponent if set)",
     ),
     n_exponent_alpha: Annotated[float, typer.Option(
         min=0.01,
@@ -201,6 +201,11 @@ def run(
         min=0.01,
         help="Beta prior beta parameter for learned exponent (advanced, default 4.0)",
     )] = 4.0,
+    n_exponent_prior: str = typer.Option(
+        "logit-normal",
+        "--n-exponent-prior",
+        help="Prior type for learned n_exponent: 'logit-normal' (default, fixes divergences) or 'beta' (legacy)",
+    ),
 ) -> None:
     """Execute full pipeline from raw data to publication artifacts.
 
@@ -250,6 +255,15 @@ def run(
         typer.echo(
             f"Error: Invalid --chain-method '{chain_method}'. "
             f"Must be one of: {', '.join(valid_chain_methods)}"
+        )
+        raise typer.Exit(code=1)
+
+    # Validate n_exponent_prior
+    valid_priors = ("logit-normal", "beta")
+    if n_exponent_prior not in valid_priors:
+        typer.echo(
+            f"Error: Invalid --n-exponent-prior '{n_exponent_prior}'. "
+            f"Must be one of: {', '.join(valid_priors)}"
         )
         raise typer.Exit(code=1)
     chain_method = chain_method_normalized  # Use normalized value downstream
@@ -410,6 +424,7 @@ def run(
         learn_n_exponent=learn_n_exponent,
         n_exponent_alpha=n_exponent_alpha,
         n_exponent_beta=n_exponent_beta,
+        n_exponent_prior=n_exponent_prior,
     )
 
     exit_code = run_pipeline(config)

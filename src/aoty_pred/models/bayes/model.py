@@ -172,6 +172,7 @@ def make_score_model(score_type: str) -> Callable:
         n_reviews: jnp.ndarray | None = None,
         n_exponent: float = 0.0,
         learn_n_exponent: bool = False,
+        n_exponent_prior: str = "logit-normal",
     ) -> None:
         """Centered parameterization of score model (internal).
 
@@ -201,8 +202,13 @@ def make_score_model(score_type: str) -> Callable:
             n_exponent: Fixed exponent for heteroscedastic noise scaling.
                 Default 0.0 gives homoscedastic (constant) noise. Higher values
                 give more noise reduction for albums with many reviews.
-            learn_n_exponent: If True, sample the exponent from a Beta prior
+            learn_n_exponent: If True, sample the exponent from a prior distribution
                 instead of using the fixed n_exponent value.
+            n_exponent_prior: Prior type for learned n_exponent. Options:
+                - "logit-normal" (default): Uses TransformedDistribution with
+                  Normal(loc, scale) and SigmoidTransform. Avoids funnel geometry.
+                - "beta" (legacy): Uses Beta(alpha, beta) distribution. May cause
+                  divergences due to funnel geometry in the likelihood.
 
         Model structure:
             - Population-level hyperpriors for artist effect distribution
@@ -312,10 +318,27 @@ def make_score_model(score_type: str) -> Callable:
 
         # === Exponent for heteroscedastic noise (fixed or learned) ===
         if learn_n_exponent:
-            n_exp = numpyro.sample(
-                f"{prefix}n_exponent",
-                dist.Beta(priors.n_exponent_alpha, priors.n_exponent_beta),
-            )
+            if n_exponent_prior == "logit-normal":
+                # Logit-normal: sample in unbounded space, transform via sigmoid
+                # This avoids funnel geometry that causes divergences with Beta prior
+                n_exp = numpyro.sample(
+                    f"{prefix}n_exponent",
+                    dist.TransformedDistribution(
+                        dist.Normal(priors.n_exponent_loc, priors.n_exponent_scale),
+                        [dist.transforms.SigmoidTransform()]
+                    )
+                )
+            elif n_exponent_prior == "beta":
+                # Beta prior (legacy, may cause divergences)
+                n_exp = numpyro.sample(
+                    f"{prefix}n_exponent",
+                    dist.Beta(priors.n_exponent_alpha, priors.n_exponent_beta),
+                )
+            else:
+                raise ValueError(
+                    f"Invalid n_exponent_prior: '{n_exponent_prior}'. "
+                    f"Must be 'logit-normal' or 'beta'."
+                )
         else:
             n_exp = n_exponent  # Use fixed value from config
 
@@ -384,8 +407,14 @@ Args:
         homoscedastic noise is used (scalar sigma_obs for all observations).
     n_exponent: Fixed exponent for heteroscedastic noise scaling.
         Default 0.0 gives homoscedastic (constant) noise.
-    learn_n_exponent: If True, sample the exponent from a Beta prior
+    learn_n_exponent: If True, sample the exponent from a prior distribution
         instead of using the fixed n_exponent value.
+    n_exponent_prior: Prior type for learned n_exponent. Options:
+        - "logit-normal" (default): Uses TransformedDistribution with
+          Normal(loc, scale) and SigmoidTransform. Recommended to avoid
+          funnel geometry that causes divergences.
+        - "beta" (legacy): Uses Beta(alpha, beta) distribution. May cause
+          divergences due to challenging posterior geometry.
 
 Returns:
     None. Model samples are tracked by NumPyro internally.
