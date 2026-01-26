@@ -559,7 +559,7 @@ class TestResumeConfigRestoration:
         self,
         mock_order: MagicMock,
         mock_verify: MagicMock,
-        mock_ensure: MagicMock,
+        _mock_ensure: MagicMock,
         tmp_path: Path,
     ):
         """Resume restores target_accept and max_tree_depth from manifest."""
@@ -653,7 +653,7 @@ class TestResumeConfigRestoration:
         self,
         mock_order: MagicMock,
         mock_verify: MagicMock,
-        mock_ensure: MagicMock,
+        _mock_ensure: MagicMock,
         tmp_path: Path,
         caplog,
     ):
@@ -740,7 +740,7 @@ class TestResumeConfigRestoration:
         self,
         mock_order: MagicMock,
         mock_verify: MagicMock,
-        mock_ensure: MagicMock,
+        _mock_ensure: MagicMock,
         tmp_path: Path,
         caplog,
     ):
