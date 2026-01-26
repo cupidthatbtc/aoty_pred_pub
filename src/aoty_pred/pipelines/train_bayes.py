@@ -366,8 +366,8 @@ def train_models(
         num_chains=ctx.num_chains,
         seed=ctx.seed,
         target_accept_prob=ctx.target_accept,
+        max_tree_depth=ctx.max_tree_depth,
         chain_method=ctx.chain_method,
-        # max_tree_depth uses MCMCConfig default (12) for complex posterior geometry
     )
 
     # Get priors with heteroscedastic config from CLI
