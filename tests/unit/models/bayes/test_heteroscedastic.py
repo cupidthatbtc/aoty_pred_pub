@@ -217,8 +217,35 @@ class TestModelLearnedExponent:
             ),
         }
 
-    def test_model_samples_exponent_when_learned(self, sample_data):
-        """Test that model samples n_exponent when learn_n_exponent=True."""
+    def test_model_samples_exponent_with_logit_normal(self, sample_data):
+        """Test that model samples n_exponent when using logit-normal prior."""
+        priors = PriorConfig()  # Has n_exponent_loc=0.0, n_exponent_scale=1.0
+
+        mcmc = MCMC(
+            NUTS(user_score_model),
+            num_warmup=10,
+            num_samples=10,
+            num_chains=1,
+        )
+
+        mcmc.run(
+            random.PRNGKey(0),
+            n_exponent=0.0,
+            learn_n_exponent=True,
+            n_exponent_prior="logit-normal",
+            priors=priors,
+            **sample_data,
+        )
+
+        samples = mcmc.get_samples()
+        assert "user_n_exponent" in samples
+        assert samples["user_n_exponent"].shape == (10,)  # num_samples
+        # Logit-normal samples should be in [0,1]
+        assert np.all(samples["user_n_exponent"] >= 0)
+        assert np.all(samples["user_n_exponent"] <= 1)
+
+    def test_model_samples_exponent_with_beta(self, sample_data):
+        """Test that model samples n_exponent when using beta prior (legacy)."""
         priors = PriorConfig()  # Default alpha=2.0, beta=4.0
 
         mcmc = MCMC(
@@ -232,6 +259,7 @@ class TestModelLearnedExponent:
             random.PRNGKey(0),
             n_exponent=0.0,  # Ignored when learning
             learn_n_exponent=True,
+            n_exponent_prior="beta",
             priors=priors,
             **sample_data,
         )
@@ -240,6 +268,34 @@ class TestModelLearnedExponent:
         assert "user_n_exponent" in samples
         assert samples["user_n_exponent"].shape == (10,)  # num_samples
         # Beta(2,4) samples should be in [0,1]
+        assert np.all(samples["user_n_exponent"] >= 0)
+        assert np.all(samples["user_n_exponent"] <= 1)
+
+    def test_default_prior_is_logit_normal(self, sample_data):
+        """Test that default prior type is logit-normal when not specified."""
+        # This test verifies backward compatibility - existing code without
+        # n_exponent_prior parameter should use logit-normal default
+        priors = PriorConfig()
+
+        mcmc = MCMC(
+            NUTS(user_score_model),
+            num_warmup=10,
+            num_samples=10,
+            num_chains=1,
+        )
+
+        # Do not specify n_exponent_prior - should default to logit-normal
+        mcmc.run(
+            random.PRNGKey(0),
+            n_exponent=0.0,
+            learn_n_exponent=True,
+            priors=priors,
+            **sample_data,
+        )
+
+        samples = mcmc.get_samples()
+        assert "user_n_exponent" in samples
+        # Samples should be bounded in [0,1]
         assert np.all(samples["user_n_exponent"] >= 0)
         assert np.all(samples["user_n_exponent"] <= 1)
 
