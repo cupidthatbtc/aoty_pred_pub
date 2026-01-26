@@ -127,7 +127,7 @@ aoty-pipeline run --num-chains 1 --num-samples 500
 aoty-pipeline run
 ```
 
-**Publication-quality run** (~2-4 hours on GPU):
+**Quality run** (~2-4 hours on GPU):
 ```bash
 aoty-pipeline run --num-chains 8 --num-samples 2000 --target-accept 0.95 --strict
 ```
