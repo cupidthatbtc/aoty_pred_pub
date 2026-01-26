@@ -18,23 +18,23 @@ Usage:
 
 from .calibration import (
     CoverageResult,
+    ReliabilityData,
     compute_coverage,
     compute_multi_coverage,
-    ReliabilityData,
     compute_reliability_data,
 )
 from .cv import (
-    compute_log_likelihood,
-    add_log_likelihood_to_idata,
     LOOResult,
-    compute_loo,
+    add_log_likelihood_to_idata,
     compare_models,
+    compute_log_likelihood,
+    compute_loo,
     generate_prior_predictive,
 )
 from .metrics import (
     CRPSResult,
-    compute_crps,
     PointMetrics,
+    compute_crps,
     compute_point_metrics,
     posterior_mean,
 )

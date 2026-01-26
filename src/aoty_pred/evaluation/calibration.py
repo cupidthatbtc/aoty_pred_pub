@@ -145,8 +145,7 @@ def compute_coverage(
         raise ValueError(f"y_samples must be 2D, got shape {y_samples.shape}")
     if y_samples.shape[1] != len(y_true):
         raise ValueError(
-            f"y_samples has {y_samples.shape[1]} observations, "
-            f"but y_true has {len(y_true)}"
+            f"y_samples has {y_samples.shape[1]} observations, " f"but y_true has {len(y_true)}"
         )
 
     # Compute credible interval bounds
@@ -261,9 +260,6 @@ def compute_reliability_data(
         raise ValueError(f"y_true must be 1D, got shape {y_true.shape}")
     if y_samples.ndim != 2:
         raise ValueError(f"y_samples must be 2D, got shape {y_samples.shape}")
-
-    n_obs = len(y_true)
-    n_samples = y_samples.shape[0]
 
     # Compute P(Y < y_true) for each observation
     # This is the proportion of samples below the observed value

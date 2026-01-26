@@ -4,7 +4,6 @@ These tests verify genre vocabulary learning, multi-hot encoding,
 PCA dimensionality reduction, and proper fit/transform enforcement.
 """
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -22,16 +21,18 @@ def ctx():
 @pytest.fixture
 def sample_df():
     """Create a sample DataFrame with genres for testing."""
-    return pd.DataFrame({
-        "Genres": [
-            "Rock, Alternative",
-            "Rock, Indie Rock",
-            "Electronic, Ambient",
-            "Rock, Punk",
-            "Alternative, Indie Rock",
-        ],
-        "Artist": ["A", "B", "C", "D", "E"],
-    })
+    return pd.DataFrame(
+        {
+            "Genres": [
+                "Rock, Alternative",
+                "Rock, Indie Rock",
+                "Electronic, Ambient",
+                "Rock, Punk",
+                "Alternative, Indie Rock",
+            ],
+            "Artist": ["A", "B", "C", "D", "E"],
+        }
+    )
 
 
 @pytest.fixture
@@ -50,10 +51,12 @@ def large_df():
         "Jazz, Fusion",
         "Classical, Orchestral",
     ] * 10  # 100 samples
-    return pd.DataFrame({
-        "Genres": genres_list,
-        "Artist": [f"Artist_{i}" for i in range(100)],
-    })
+    return pd.DataFrame(
+        {
+            "Genres": genres_list,
+            "Artist": [f"Artist_{i}" for i in range(100)],
+        }
+    )
 
 
 class TestFitTransformEnforcement:
@@ -96,15 +99,17 @@ class TestVocabularyLearning:
 
     def test_rare_genres_excluded(self, ctx):
         """Genres below min_genre_count should be excluded."""
-        df = pd.DataFrame({
-            "Genres": [
-                "Rock, Rare1",
-                "Rock, Alternative",
-                "Rock, Alternative",
-                "Rock, Rare2",
-                "Alternative, Rare3",
-            ]
-        })
+        df = pd.DataFrame(
+            {
+                "Genres": [
+                    "Rock, Rare1",
+                    "Rock, Alternative",
+                    "Rock, Alternative",
+                    "Rock, Rare2",
+                    "Alternative, Rare3",
+                ]
+            }
+        )
         block = GenreBlock({"min_genre_count": 3, "n_components": None})
         block.fit(df, ctx)
 
@@ -130,13 +135,15 @@ class TestMultiHotEncoding:
 
     def test_multi_hot_encoding_correct(self, ctx):
         """Multi-hot encoding should set 1 for present genres."""
-        df = pd.DataFrame({
-            "Genres": [
-                "A",
-                "B",
-                "A, B",
-            ]
-        })
+        df = pd.DataFrame(
+            {
+                "Genres": [
+                    "A",
+                    "B",
+                    "A, B",
+                ]
+            }
+        )
         block = GenreBlock({"min_genre_count": 1, "n_components": None})
         block.fit(df, ctx)
         output = block.transform(df, ctx)
@@ -158,11 +165,13 @@ class TestMultiHotEncoding:
 
     def test_multi_genre_album_multiple_ones(self, ctx):
         """Albums with multiple genres should have multiple 1s."""
-        df = pd.DataFrame({
-            "Genres": [
-                "Rock, Alternative, Indie",
-            ]
-        })
+        df = pd.DataFrame(
+            {
+                "Genres": [
+                    "Rock, Alternative, Indie",
+                ]
+            }
+        )
         block = GenreBlock({"min_genre_count": 1, "n_components": None})
         block.fit(df, ctx)
         output = block.transform(df, ctx)
@@ -176,12 +185,8 @@ class TestMultiHotEncoding:
 
     def test_unknown_genre_ignored(self, ctx):
         """Genres not in vocabulary should produce zeros."""
-        train_df = pd.DataFrame({
-            "Genres": ["A", "A", "B", "B"]
-        })
-        test_df = pd.DataFrame({
-            "Genres": ["A, Unknown", "C"]
-        })
+        train_df = pd.DataFrame({"Genres": ["A", "A", "B", "B"]})
+        test_df = pd.DataFrame({"Genres": ["A, Unknown", "C"]})
 
         block = GenreBlock({"min_genre_count": 1, "n_components": None})
         block.fit(train_df, ctx)
@@ -196,12 +201,8 @@ class TestMultiHotEncoding:
 
     def test_missing_genres_column_all_zeros(self, ctx):
         """Missing/null Genres should produce all zeros."""
-        train_df = pd.DataFrame({
-            "Genres": ["A", "B", "A", "B"]
-        })
-        test_df = pd.DataFrame({
-            "Genres": [None, "", "A"]
-        })
+        train_df = pd.DataFrame({"Genres": ["A", "B", "A", "B"]})
+        test_df = pd.DataFrame({"Genres": [None, "", "A"]})
 
         block = GenreBlock({"min_genre_count": 1, "n_components": None})
         block.fit(train_df, ctx)
@@ -249,8 +250,10 @@ class TestPCAReduction:
 
         # Should have genre_NAME columns, not genre_pca_N
         assert block._use_pca_ is False
-        assert all(col.startswith("genre_") and not col.startswith("genre_pca_")
-                   for col in output.data.columns)
+        assert all(
+            col.startswith("genre_") and not col.startswith("genre_pca_")
+            for col in output.data.columns
+        )
 
     def test_explained_variance_in_metadata(self, large_df, ctx):
         """Metadata should contain explained variance when PCA used."""
@@ -265,9 +268,11 @@ class TestPCAReduction:
 
     def test_pca_skipped_if_fewer_genres_than_components(self, ctx):
         """PCA should be skipped if vocab size < n_components."""
-        df = pd.DataFrame({
-            "Genres": ["A", "B", "A", "B"]  # Only 2 genres
-        })
+        df = pd.DataFrame(
+            {
+                "Genres": ["A", "B", "A", "B"]  # Only 2 genres
+            }
+        )
         block = GenreBlock({"min_genre_count": 1, "n_components": 10})
         block.fit(df, ctx)
 
@@ -280,10 +285,7 @@ class TestOutputFormat:
 
     def test_output_preserves_original_index(self, ctx):
         """Output DataFrame should preserve the original index."""
-        df = pd.DataFrame(
-            {"Genres": ["Rock", "Pop", "Jazz"]},
-            index=[100, 200, 300]
-        )
+        df = pd.DataFrame({"Genres": ["Rock", "Pop", "Jazz"]}, index=[100, 200, 300])
         block = GenreBlock({"min_genre_count": 1, "n_components": None})
         block.fit(df, ctx)
         output = block.transform(df, ctx)

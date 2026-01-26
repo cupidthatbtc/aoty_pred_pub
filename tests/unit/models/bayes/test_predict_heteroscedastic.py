@@ -11,7 +11,6 @@ Verifies that:
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from jax import random
 
 from aoty_pred.models.bayes.predict import predict_new_artist
 
@@ -322,9 +321,8 @@ class TestGetTracePlotVars:
     @pytest.fixture
     def mock_idata_heteroscedastic(self, mock_idata_homoscedastic):
         """Create mock InferenceData with n_exponent (heteroscedastic learned)."""
-        import xarray as xr
-
         import arviz as az
+        import xarray as xr
 
         # Add n_exponent to posterior
         posterior = mock_idata_homoscedastic.posterior.copy()

@@ -24,7 +24,6 @@ from aoty_pred.features.base import FeatureContext
 from aoty_pred.features.pipeline import FeaturePipeline
 from aoty_pred.features.temporal import TemporalBlock
 
-
 # Path to test fixture
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "raw_all_albums_full.csv"
 
@@ -66,27 +65,33 @@ def generate_synthetic_albums(
 
         for album_idx in range(albums_per_artist):
             year = base_year + album_idx
-            release_date = pd.Timestamp(year=year, month=np.random.randint(1, 13), day=np.random.randint(1, 28))
+            release_date = pd.Timestamp(
+                year=year, month=np.random.randint(1, 13), day=np.random.randint(1, 28)
+            )
 
             # Scores vary around artist baseline
             user_score = np.clip(artist_base_score + np.random.normal(0, 8), 0, 100)
             critic_score = np.clip(artist_base_score + np.random.normal(0, 10), 0, 100)
 
-            records.append({
-                "Artist": artist_name,
-                "Album": f"Album_{artist_idx:03d}_{album_idx:02d}",
-                "Year": year,
-                "Release_Date": release_date.strftime("%B %d, %Y"),
-                "Release_Date_Parsed": release_date,
-                "User_Score": user_score,
-                "Critic_Score": critic_score,
-                "User_Ratings": np.random.randint(100, 5000),
-                "Critic_Reviews": np.random.randint(5, 50),
-                "Album_Type": np.random.choice(["Album", "EP", "Mixtape"], p=[0.7, 0.2, 0.1]),
-                "Genres": np.random.choice(["Rock, Indie", "Pop, Dance", "Hip Hop, Rap", "Electronic, Ambient"]),
-                "date_risk": np.random.choice(["low", "medium", "high"], p=[0.8, 0.15, 0.05]),
-                "original_row_id": artist_idx * albums_per_artist + album_idx,
-            })
+            records.append(
+                {
+                    "Artist": artist_name,
+                    "Album": f"Album_{artist_idx:03d}_{album_idx:02d}",
+                    "Year": year,
+                    "Release_Date": release_date.strftime("%B %d, %Y"),
+                    "Release_Date_Parsed": release_date,
+                    "User_Score": user_score,
+                    "Critic_Score": critic_score,
+                    "User_Ratings": np.random.randint(100, 5000),
+                    "Critic_Reviews": np.random.randint(5, 50),
+                    "Album_Type": np.random.choice(["Album", "EP", "Mixtape"], p=[0.7, 0.2, 0.1]),
+                    "Genres": np.random.choice(
+                        ["Rock, Indie", "Pop, Dance", "Hip Hop, Rap", "Electronic, Ambient"]
+                    ),
+                    "date_risk": np.random.choice(["low", "medium", "high"], p=[0.8, 0.15, 0.05]),
+                    "original_row_id": artist_idx * albums_per_artist + album_idx,
+                }
+            )
 
     return pd.DataFrame(records)
 
@@ -127,8 +132,10 @@ def create_mock_posterior_samples(
     data_vars = {}
     for name, shape in param_shapes.items():
         full_shape = (n_chains, n_draws) + shape
-        data_vars[name] = (("chain", "draw") + tuple(f"dim_{i}" for i in range(len(shape))),
-                          np.random.normal(0, 1, full_shape))
+        data_vars[name] = (
+            ("chain", "draw") + tuple(f"dim_{i}" for i in range(len(shape))),
+            np.random.normal(0, 1, full_shape),
+        )
 
     return xr.Dataset(
         data_vars,
@@ -258,14 +265,19 @@ def mock_idata() -> az.InferenceData:
     # Posterior samples
     posterior = xr.Dataset(
         {
-            "user_beta": (["chain", "draw", "beta_dim"],
-                         np.random.normal(0, 1, (n_chains, n_draws, 5))),
-            "user_sigma_obs": (["chain", "draw"],
-                              np.abs(np.random.normal(10, 2, (n_chains, n_draws)))),
-            "user_mu_artist": (["chain", "draw"],
-                              np.random.normal(70, 5, (n_chains, n_draws))),
-            "user_sigma_artist": (["chain", "draw"],
-                                 np.abs(np.random.normal(5, 1, (n_chains, n_draws)))),
+            "user_beta": (
+                ["chain", "draw", "beta_dim"],
+                np.random.normal(0, 1, (n_chains, n_draws, 5)),
+            ),
+            "user_sigma_obs": (
+                ["chain", "draw"],
+                np.abs(np.random.normal(10, 2, (n_chains, n_draws))),
+            ),
+            "user_mu_artist": (["chain", "draw"], np.random.normal(70, 5, (n_chains, n_draws))),
+            "user_sigma_artist": (
+                ["chain", "draw"],
+                np.abs(np.random.normal(5, 1, (n_chains, n_draws))),
+            ),
         },
         coords={"chain": range(n_chains), "draw": range(n_draws)},
     )
@@ -279,10 +291,8 @@ def mock_idata() -> az.InferenceData:
     # Sample stats (including divergences)
     sample_stats = xr.Dataset(
         {
-            "diverging": (["chain", "draw"],
-                         np.zeros((n_chains, n_draws), dtype=bool)),
-            "tree_depth": (["chain", "draw"],
-                          np.random.randint(5, 10, (n_chains, n_draws))),
+            "diverging": (["chain", "draw"], np.zeros((n_chains, n_draws), dtype=bool)),
+            "tree_depth": (["chain", "draw"], np.random.randint(5, 10, (n_chains, n_draws))),
         },
         coords={"chain": range(n_chains), "draw": range(n_draws)},
     )
@@ -310,8 +320,7 @@ def mock_idata_with_log_lik(mock_idata: az.InferenceData) -> az.InferenceData:
 
     # Log-likelihood (negative values, typical for log probs)
     log_likelihood = xr.Dataset(
-        {"y": (["chain", "draw", "y_dim"],
-               np.random.normal(-5, 1, (n_chains, n_draws, n_obs)))},
+        {"y": (["chain", "draw", "y_dim"], np.random.normal(-5, 1, (n_chains, n_draws, n_obs)))},
         coords={
             "chain": range(n_chains),
             "draw": range(n_draws),

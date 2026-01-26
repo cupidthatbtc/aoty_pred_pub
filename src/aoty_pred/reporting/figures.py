@@ -649,8 +649,10 @@ def save_forest_plot(
                 ax.errorbar(
                     row[estimate_col],
                     y_pos,
-                    xerr=[[row[estimate_col] - row[lower_col]],
-                          [row[upper_col] - row[estimate_col]]],
+                    xerr=[
+                        [row[estimate_col] - row[lower_col]],
+                        [row[upper_col] - row[estimate_col]],
+                    ],
                     fmt="o",
                     color=color,
                     markersize=6,

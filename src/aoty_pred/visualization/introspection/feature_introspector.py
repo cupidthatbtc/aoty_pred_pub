@@ -28,15 +28,15 @@ __all__ = ["FeatureBlockIntrospector", "FEATURE_OUTPUT_ESTIMATES"]
 # Estimated output feature counts for each block.
 # Based on default parameters and typical usage.
 FEATURE_OUTPUT_ESTIMATES: dict[str, int] = {
-    "core_numeric": 3,      # The 3 numeric columns (User_Score, Critic_Score, etc.)
-    "temporal": 5,          # album_sequence, career_years, release_gap_days, release_year, date_risk_ordinal
-    "artist_reputation": 9, # Alias for artist_history
-    "artist_history": 9,    # user_prior_*, critic_prior_*, is_debut (9 features)
-    "genre": 30,            # n_components default (after PCA)
-    "genre_pca": 30,        # Alias for genre
-    "descriptor_pca": 10,   # n_components default
-    "album_type": 4,        # One-hot categories (Album, EP, Mixtape, Compilation)
-    "collaboration": 3,     # is_collaboration, num_artists, collab_type_ordinal
+    "core_numeric": 3,  # The 3 numeric columns
+    "temporal": 5,  # album_sequence, career_years, release_gap_days, etc.
+    "artist_reputation": 9,  # Alias for artist_history
+    "artist_history": 9,  # user_prior_*, critic_prior_*, is_debut (9 features)
+    "genre": 30,  # n_components default (after PCA)
+    "genre_pca": 30,  # Alias for genre
+    "descriptor_pca": 10,  # n_components default
+    "album_type": 4,  # One-hot categories (Album, EP, Mixtape, Compilation)
+    "collaboration": 3,  # is_collaboration, num_artists, collab_type_ordinal
 }
 
 

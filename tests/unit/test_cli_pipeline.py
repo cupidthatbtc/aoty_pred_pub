@@ -7,7 +7,7 @@ Tests the CLI entry points for pipeline execution, including the main
 import pytest
 from typer.testing import CliRunner
 
-from aoty_pred.cli import app, __version__
+from aoty_pred.cli import __version__, app
 
 runner = CliRunner()
 
@@ -143,7 +143,6 @@ class TestPackageExports:
     def test_stages_import(self):
         """Stage-related exports work."""
         from aoty_pred.pipelines import (
-            PipelineStage,
             build_pipeline_stages,
             get_execution_order,
             get_stage,
@@ -170,9 +169,6 @@ class TestPackageExports:
     def test_manifest_import(self):
         """Manifest-related exports work."""
         from aoty_pred.pipelines import (
-            EnvironmentInfo,
-            RunManifest,
-            capture_environment,
             generate_run_id,
         )
 

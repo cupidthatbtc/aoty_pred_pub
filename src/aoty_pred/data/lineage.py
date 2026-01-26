@@ -1,17 +1,19 @@
 """Data lineage and audit logging."""
 
 import json
-import structlog
-from pathlib import Path
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from dataclasses import dataclass, field, asdict
+from pathlib import Path
 from typing import Any, Optional
+
 import pandas as pd
+import structlog
 
 
 @dataclass
 class ExclusionRecord:
     """Record of a single row exclusion."""
+
     original_row_id: int
     artist: str
     album: str
@@ -23,6 +25,7 @@ class ExclusionRecord:
 @dataclass
 class FilterStats:
     """Statistics for a single filter application."""
+
     filter_name: str
     rows_before: int
     rows_excluded: int

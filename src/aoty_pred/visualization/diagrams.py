@@ -402,7 +402,8 @@ def create_high_level_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph
     # FEEDBACK LOOP
     # ─────────────────────────────────────────────────────────────────────────
     graph.edge(
-        "evaluation", "model",
+        "evaluation",
+        "model",
         style="dashed",
         color=colors["edge_feedback"],
         xlabel="tune",
@@ -652,7 +653,8 @@ def create_aoty_pipeline_diagram(theme: DiagramTheme = "light") -> graphviz.Digr
 
     # Feedback loops
     graph.edge(
-        "convergence", "mcmc_sampling",
+        "convergence",
+        "mcmc_sampling",
         style="dashed",
         color=colors["edge_feedback"],
         xlabel="retry",
@@ -660,7 +662,8 @@ def create_aoty_pipeline_diagram(theme: DiagramTheme = "light") -> graphviz.Digr
         constraint="false",
     )
     graph.edge(
-        "sensitivity", "prior_config",
+        "sensitivity",
+        "prior_config",
         style="dashed",
         color=colors["edge_feedback"],
         xlabel="tune",
@@ -670,7 +673,8 @@ def create_aoty_pipeline_diagram(theme: DiagramTheme = "light") -> graphviz.Digr
 
     # Test evaluation
     graph.edge(
-        "test_set", "predictions",
+        "test_set",
+        "predictions",
         style="dashed",
         color=colors["edge_feedback"],
     )
@@ -958,7 +962,8 @@ def create_detailed_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph:
 
     # Feedback loops
     graph.edge(
-        "convergence", "mcmc_sampling",
+        "convergence",
+        "mcmc_sampling",
         style="dashed",
         color=colors["edge_feedback"],
         xlabel="retry",
@@ -966,7 +971,8 @@ def create_detailed_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph:
         constraint="false",
     )
     graph.edge(
-        "sensitivity", "prior_config",
+        "sensitivity",
+        "prior_config",
         style="dashed",
         color=colors["edge_feedback"],
         xlabel="tune",
@@ -976,7 +982,8 @@ def create_detailed_diagram(theme: DiagramTheme = "light") -> graphviz.Digraph:
 
     # Test evaluation
     graph.edge(
-        "test_set", "predictions",
+        "test_set",
+        "predictions",
         style="dashed",
         color=colors["edge_feedback"],
     )

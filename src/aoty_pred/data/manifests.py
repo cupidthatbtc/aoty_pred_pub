@@ -12,6 +12,7 @@ import pandas as pd
 @dataclass
 class SplitAssignment:
     """Per-row split assignment with reasoning."""
+
     original_row_id: int
     split: str  # "train", "validation", or "test"
     reason: str  # e.g., "last_album_for_artist", "artist_in_test_group"
@@ -20,6 +21,7 @@ class SplitAssignment:
 @dataclass
 class SplitStats:
     """Statistics for a single split."""
+
     row_count: int
     unique_artists: int
     sha256: str
@@ -32,6 +34,7 @@ class SplitManifest:
 
     Records all metadata needed to reproduce and audit the split.
     """
+
     version: str
     created_at: str
     split_type: str  # "within_artist_temporal" or "artist_disjoint"
@@ -130,41 +133,53 @@ def create_split_assignments(
     if split_type == "within_artist_temporal":
         # For temporal splits, reason includes album position
         for _, row in test_df.iterrows():
-            assignments.append(SplitAssignment(
-                original_row_id=int(row["original_row_id"]),
-                split="test",
-                reason=f"last_album_for_{row[artist_col][:50]}"
-            ))
+            assignments.append(
+                SplitAssignment(
+                    original_row_id=int(row["original_row_id"]),
+                    split="test",
+                    reason=f"last_album_for_{row[artist_col][:50]}",
+                )
+            )
         for _, row in val_df.iterrows():
-            assignments.append(SplitAssignment(
-                original_row_id=int(row["original_row_id"]),
-                split="validation",
-                reason=f"second_last_album_for_{row[artist_col][:50]}"
-            ))
+            assignments.append(
+                SplitAssignment(
+                    original_row_id=int(row["original_row_id"]),
+                    split="validation",
+                    reason=f"second_last_album_for_{row[artist_col][:50]}",
+                )
+            )
         for _, row in train_df.iterrows():
-            assignments.append(SplitAssignment(
-                original_row_id=int(row["original_row_id"]),
-                split="train",
-                reason=f"earlier_album_for_{row[artist_col][:50]}"
-            ))
+            assignments.append(
+                SplitAssignment(
+                    original_row_id=int(row["original_row_id"]),
+                    split="train",
+                    reason=f"earlier_album_for_{row[artist_col][:50]}",
+                )
+            )
     else:  # artist_disjoint
         for _, row in test_df.iterrows():
-            assignments.append(SplitAssignment(
-                original_row_id=int(row["original_row_id"]),
-                split="test",
-                reason="artist_in_test_group"
-            ))
+            assignments.append(
+                SplitAssignment(
+                    original_row_id=int(row["original_row_id"]),
+                    split="test",
+                    reason="artist_in_test_group",
+                )
+            )
         for _, row in val_df.iterrows():
-            assignments.append(SplitAssignment(
-                original_row_id=int(row["original_row_id"]),
-                split="validation",
-                reason="artist_in_validation_group"
-            ))
+            assignments.append(
+                SplitAssignment(
+                    original_row_id=int(row["original_row_id"]),
+                    split="validation",
+                    reason="artist_in_validation_group",
+                )
+            )
         for _, row in train_df.iterrows():
-            assignments.append(SplitAssignment(
-                original_row_id=int(row["original_row_id"]),
-                split="train",
-                reason="artist_in_train_group"
-            ))
+            assignments.append(
+                SplitAssignment(
+                    original_row_id=int(row["original_row_id"]),
+                    split="train",
+                    reason="artist_in_train_group",
+                )
+            )
 
     return assignments

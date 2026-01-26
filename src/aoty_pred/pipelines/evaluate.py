@@ -13,12 +13,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import structlog
-import arviz as az
 
-from aoty_pred.models.bayes.io import load_model, load_manifest
+from aoty_pred.evaluation.calibration import compute_coverage
+from aoty_pred.evaluation.metrics import compute_point_metrics
 from aoty_pred.models.bayes.diagnostics import check_convergence, get_divergence_info
-from aoty_pred.evaluation.metrics import compute_point_metrics, compute_crps, posterior_mean
-from aoty_pred.evaluation.calibration import compute_coverage, compute_multi_coverage
+from aoty_pred.models.bayes.io import load_manifest, load_model
 
 if TYPE_CHECKING:
     from aoty_pred.pipelines.stages import StageContext
@@ -56,7 +55,7 @@ def evaluate_models(ctx: "StageContext") -> dict:
     # Check convergence
     log.info("checking_convergence")
     diagnostics = check_convergence(idata)
-    divergence_info = get_divergence_info(idata)
+    _ = get_divergence_info(idata)  # Used for side-effect logging
 
     diagnostics_result = {
         "passed": diagnostics.passed,
@@ -78,7 +77,8 @@ def evaluate_models(ctx: "StageContext") -> dict:
     features_dir = Path("data/features")
     splits_dir = Path("data/splits/within_artist_temporal")
 
-    test_features = pd.read_parquet(features_dir / "test_features.parquet")
+    # test_features loaded for potential future use in feature-aware evaluation
+    _ = pd.read_parquet(features_dir / "test_features.parquet")
     test_df = pd.read_parquet(splits_dir / "test.parquet")
 
     log.info("test_data_loaded", n_test=len(test_df))
@@ -95,12 +95,10 @@ def evaluate_models(ctx: "StageContext") -> dict:
     if "y_pred" in posterior:
         y_pred_samples = posterior["y_pred"].values
         y_pred_mean = np.mean(y_pred_samples, axis=(0, 1))  # Average over chains and draws
-        y_pred_std = np.std(y_pred_samples, axis=(0, 1))
     else:
         # Fallback: use training data predictions from model
         log.warning("no_posterior_predictive", message="Using placeholder metrics")
         y_pred_mean = np.full_like(y_true, y_true.mean())
-        y_pred_std = np.full_like(y_true, y_true.std())
 
     # Point prediction metrics
     log.info("computing_point_metrics")
@@ -133,7 +131,9 @@ def evaluate_models(ctx: "StageContext") -> dict:
         coverage_50 = compute_coverage(y_true, y_samples_2d, prob=0.50)
     else:
         # Fallback: cannot compute calibration without samples
-        log.warning("no_posterior_samples", message="Cannot compute calibration without y_pred samples")
+        log.warning(
+            "no_posterior_samples", message="Cannot compute calibration without y_pred samples"
+        )
         coverage_90 = None
         coverage_50 = None
 

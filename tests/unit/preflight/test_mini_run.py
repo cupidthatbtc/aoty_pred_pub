@@ -64,9 +64,7 @@ class TestMiniRunJsonOutputFormat:
             "max_seq": 2,
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(model_args, f)
             temp_path = Path(f.name)
 
@@ -128,9 +126,7 @@ class TestMiniRunJsonOutputFormat:
             "learn_n_exponent": False,
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(model_args, f)
             temp_path = Path(f.name)
 
@@ -173,9 +169,7 @@ class TestMiniRunExceptionHandling:
         mock_mcmc.run.side_effect = RuntimeError("CUDA out of memory")
         mock_mcmc_class.return_value = mock_mcmc
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(minimal_model_args, f)
             temp_path = Path(f.name)
 
@@ -193,9 +187,7 @@ class TestMiniRunExceptionHandling:
         """run_and_measure raises on invalid JSON file."""
         from aoty_pred.preflight.mini_run import run_and_measure
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("not valid json {{{")
             temp_path = Path(f.name)
 
@@ -243,9 +235,7 @@ class TestMiniRunMCMCConfiguration:
         mock_stats.peak_gb = 1.0
         mock_get_stats.return_value = mock_stats
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(minimal_model_args, f)
             temp_path = Path(f.name)
 

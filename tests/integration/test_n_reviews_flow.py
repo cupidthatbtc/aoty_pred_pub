@@ -59,17 +59,18 @@ class TestNReviewsDataFlow:
         Verifies DATA-02: n_reviews array aligns with target y.
         """
         # Create data with known values
-        df = pd.DataFrame({
-            "Artist": ["A", "A", "B", "B", "C"],
-            "Album": ["A1", "A2", "B1", "B2", "C1"],
-            "Year": [2010, 2011, 2010, 2012, 2015],
-            "User_Score": [70.0, 75.0, 80.0, 85.0, 90.0],
-            "User_Ratings": [100, 200, 300, 400, 500],
-            "Release_Date_Parsed": pd.to_datetime([
-                "2010-01-01", "2011-01-01", "2010-06-01",
-                "2012-01-01", "2015-01-01"
-            ]),
-        })
+        df = pd.DataFrame(
+            {
+                "Artist": ["A", "A", "B", "B", "C"],
+                "Album": ["A1", "A2", "B1", "B2", "C1"],
+                "Year": [2010, 2011, 2010, 2012, 2015],
+                "User_Score": [70.0, 75.0, 80.0, 85.0, 90.0],
+                "User_Ratings": [100, 200, 300, 400, 500],
+                "Release_Date_Parsed": pd.to_datetime(
+                    ["2010-01-01", "2011-01-01", "2010-06-01", "2012-01-01", "2015-01-01"]
+                ),
+            }
+        )
 
         # Extract y and n_reviews in same order
         y = df["User_Score"].values
@@ -90,16 +91,18 @@ class TestNReviewsDataFlow:
         from aoty_pred.pipelines.train_bayes import prepare_model_data
 
         # Create data with >50% invalid n_reviews (90% zeros)
-        df = pd.DataFrame({
-            "Artist": ["A"] * 10,
-            "Album": [f"A{i}" for i in range(10)],
-            "Year": [2010 + i for i in range(10)],
-            "User_Score": [70.0] * 10,
-            "User_Ratings": [100, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 90% invalid
-            "Release_Date_Parsed": pd.to_datetime([f"201{i}-01-01" for i in range(10)]),
-            "prev_score": [0.0] * 10,
-            "album_seq": list(range(10)),
-        })
+        df = pd.DataFrame(
+            {
+                "Artist": ["A"] * 10,
+                "Album": [f"A{i}" for i in range(10)],
+                "Year": [2010 + i for i in range(10)],
+                "User_Score": [70.0] * 10,
+                "User_Ratings": [100, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 90% invalid
+                "Release_Date_Parsed": pd.to_datetime([f"201{i}-01-01" for i in range(10)]),
+                "prev_score": [0.0] * 10,
+                "album_seq": list(range(10)),
+            }
+        )
         df["feat_1"] = np.random.RandomState(42).randn(10)
 
         # Should raise ValueError for >50% invalid
@@ -114,16 +117,18 @@ class TestNReviewsDataFlow:
         from aoty_pred.pipelines.train_bayes import prepare_model_data
 
         # Create data with 1 invalid n_reviews (10%)
-        df = pd.DataFrame({
-            "Artist": ["A"] * 10,
-            "Album": [f"A{i}" for i in range(10)],
-            "Year": [2010 + i for i in range(10)],
-            "User_Score": [70.0 + i for i in range(10)],
-            "User_Ratings": [100, 200, 300, 0, 400, 500, 600, 700, 800, 900],  # 1 invalid
-            "Release_Date_Parsed": pd.to_datetime([f"201{i}-01-01" for i in range(10)]),
-            "prev_score": [0.0] * 10,
-            "album_seq": list(range(10)),
-        })
+        df = pd.DataFrame(
+            {
+                "Artist": ["A"] * 10,
+                "Album": [f"A{i}" for i in range(10)],
+                "Year": [2010 + i for i in range(10)],
+                "User_Score": [70.0 + i for i in range(10)],
+                "User_Ratings": [100, 200, 300, 0, 400, 500, 600, 700, 800, 900],  # 1 invalid
+                "Release_Date_Parsed": pd.to_datetime([f"201{i}-01-01" for i in range(10)]),
+                "prev_score": [0.0] * 10,
+                "album_seq": list(range(10)),
+            }
+        )
         # Add dummy feature columns
         df["feat_1"] = np.random.RandomState(42).randn(10)
 

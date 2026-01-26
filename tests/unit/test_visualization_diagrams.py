@@ -12,15 +12,9 @@ These tests verify the diagram generation infrastructure including:
 - Multi-format export
 """
 
-from pathlib import Path
-
-import pytest
-
 from aoty_pred.visualization.diagrams import (
-    DetailLevel,
     LEVEL_FUNCTIONS,
     THEME_COLORS,
-    DiagramTheme,
     create_aoty_pipeline_diagram,
     create_detailed_diagram,
     create_high_level_diagram,
@@ -76,7 +70,9 @@ class TestThemeColors:
         }
         for theme in THEME_COLORS:
             theme_keys = set(THEME_COLORS[theme].keys())
-            assert required_keys.issubset(theme_keys), f"{theme} missing keys: {required_keys - theme_keys}"
+            assert required_keys.issubset(
+                theme_keys
+            ), f"{theme} missing keys: {required_keys - theme_keys}"
 
 
 class TestCreateAotyPipelineDiagram:

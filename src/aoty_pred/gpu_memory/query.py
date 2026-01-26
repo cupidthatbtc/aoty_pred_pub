@@ -35,6 +35,7 @@ except ImportError as e:
     class NVMLError(Exception):  # type: ignore[no-redef]
         """Placeholder for NVMLError when pynvml is not installed."""
 
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -147,13 +148,10 @@ def query_gpu_memory(device_index: int = 0) -> GpuMemoryInfo:
         with _nvml_context():
             count = nvmlDeviceGetCount()
             if count == 0:
-                raise GpuMemoryError(
-                    "No NVIDIA GPU detected. Use --force-run to run on CPU."
-                )
+                raise GpuMemoryError("No NVIDIA GPU detected. Use --force-run to run on CPU.")
             if device_index >= count:
                 raise GpuMemoryError(
-                    f"GPU index {device_index} out of range. "
-                    f"Available GPUs: 0-{count - 1}."
+                    f"GPU index {device_index} out of range. " f"Available GPUs: 0-{count - 1}."
                 )
 
             handle = nvmlDeviceGetHandleByIndex(device_index)

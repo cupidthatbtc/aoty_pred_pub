@@ -12,6 +12,7 @@ from aoty_pred.pipelines.errors import GpuMemoryError
 # Check if NVML is available (for conditional test skipping)
 try:
     import pynvml
+
     NVML_AVAILABLE = True
 except ImportError:
     NVML_AVAILABLE = False
@@ -26,8 +27,8 @@ class TestGpuMemoryInfo:
         return GpuMemoryInfo(
             device_name="NVIDIA GeForce RTX 3080",
             total_bytes=8 * 1024**3,  # 8 GB
-            used_bytes=2 * 1024**3,   # 2 GB
-            free_bytes=6 * 1024**3,   # 6 GB
+            used_bytes=2 * 1024**3,  # 2 GB
+            free_bytes=6 * 1024**3,  # 6 GB
         )
 
     def test_frozen_dataclass(self, sample_info: GpuMemoryInfo):
@@ -263,11 +264,15 @@ class TestQueryGpuMemoryErrorHandling:
         # Use mock exception that looks like NVMLError
         error = _MockNVMLError("NVML Shared Library Not Found")
 
-        with mock.patch(
-            "aoty_pred.gpu_memory.query.NVMLError", _MockNVMLError,
-        ), mock.patch(
-            "aoty_pred.gpu_memory.query.nvmlInit",
-            side_effect=error,
+        with (
+            mock.patch(
+                "aoty_pred.gpu_memory.query.NVMLError",
+                _MockNVMLError,
+            ),
+            mock.patch(
+                "aoty_pred.gpu_memory.query.nvmlInit",
+                side_effect=error,
+            ),
         ):
             with pytest.raises(GpuMemoryError) as exc_info:
                 query_gpu_memory()
@@ -279,11 +284,15 @@ class TestQueryGpuMemoryErrorHandling:
         """query_gpu_memory converts driver not loaded to GpuMemoryError."""
         error = _MockNVMLError("Driver Not Loaded")
 
-        with mock.patch(
-            "aoty_pred.gpu_memory.query.NVMLError", _MockNVMLError,
-        ), mock.patch(
-            "aoty_pred.gpu_memory.query.nvmlInit",
-            side_effect=error,
+        with (
+            mock.patch(
+                "aoty_pred.gpu_memory.query.NVMLError",
+                _MockNVMLError,
+            ),
+            mock.patch(
+                "aoty_pred.gpu_memory.query.nvmlInit",
+                side_effect=error,
+            ),
         ):
             with pytest.raises(GpuMemoryError) as exc_info:
                 query_gpu_memory()
@@ -295,11 +304,15 @@ class TestQueryGpuMemoryErrorHandling:
         """query_gpu_memory converts permission error to GpuMemoryError."""
         error = _MockNVMLError("Permission Denied")
 
-        with mock.patch(
-            "aoty_pred.gpu_memory.query.NVMLError", _MockNVMLError,
-        ), mock.patch(
-            "aoty_pred.gpu_memory.query.nvmlInit",
-            side_effect=error,
+        with (
+            mock.patch(
+                "aoty_pred.gpu_memory.query.NVMLError",
+                _MockNVMLError,
+            ),
+            mock.patch(
+                "aoty_pred.gpu_memory.query.nvmlInit",
+                side_effect=error,
+            ),
         ):
             with pytest.raises(GpuMemoryError) as exc_info:
                 query_gpu_memory()
@@ -310,11 +323,15 @@ class TestQueryGpuMemoryErrorHandling:
         """query_gpu_memory wraps generic NVML errors."""
         error = _MockNVMLError("Unknown Error XYZ")
 
-        with mock.patch(
-            "aoty_pred.gpu_memory.query.NVMLError", _MockNVMLError,
-        ), mock.patch(
-            "aoty_pred.gpu_memory.query.nvmlInit",
-            side_effect=error,
+        with (
+            mock.patch(
+                "aoty_pred.gpu_memory.query.NVMLError",
+                _MockNVMLError,
+            ),
+            mock.patch(
+                "aoty_pred.gpu_memory.query.nvmlInit",
+                side_effect=error,
+            ),
         ):
             with pytest.raises(GpuMemoryError) as exc_info:
                 query_gpu_memory()

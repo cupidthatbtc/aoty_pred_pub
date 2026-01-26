@@ -21,12 +21,14 @@ def ctx():
 @pytest.fixture
 def sample_df():
     """Create a sample DataFrame with collaboration columns."""
-    return pd.DataFrame({
-        "is_collaboration": [False, True, False, True, False],
-        "collab_type": ["solo", "duo", "solo", "small_group", "solo"],
-        "num_artists": [1, 2, 1, 3, 1],
-        "Artist": ["A", "B & C", "D", "E, F & G", "H"],
-    })
+    return pd.DataFrame(
+        {
+            "is_collaboration": [False, True, False, True, False],
+            "collab_type": ["solo", "duo", "solo", "small_group", "solo"],
+            "num_artists": [1, 2, 1, 3, 1],
+            "Artist": ["A", "B & C", "D", "E, F & G", "H"],
+        }
+    )
 
 
 class TestFitTransformEnforcement:
@@ -111,16 +113,20 @@ class TestFeaturePassthrough:
 
     def test_unknown_collab_type_uses_unknown_idx(self, ctx):
         """Unknown collab_type should use unknown_idx (-1)."""
-        train_df = pd.DataFrame({
-            "is_collaboration": [False, True],
-            "collab_type": ["solo", "duo"],
-            "num_artists": [1, 2],
-        })
-        test_df = pd.DataFrame({
-            "is_collaboration": [True],
-            "collab_type": ["mega_ensemble"],  # Not in training
-            "num_artists": [10],
-        })
+        train_df = pd.DataFrame(
+            {
+                "is_collaboration": [False, True],
+                "collab_type": ["solo", "duo"],
+                "num_artists": [1, 2],
+            }
+        )
+        test_df = pd.DataFrame(
+            {
+                "is_collaboration": [True],
+                "collab_type": ["mega_ensemble"],  # Not in training
+                "num_artists": [10],
+            }
+        )
 
         block = CollaborationBlock()
         block.fit(train_df, ctx)
@@ -144,11 +150,14 @@ class TestOutputFormat:
 
     def test_output_preserves_original_index(self, ctx):
         """Output DataFrame should preserve the original index."""
-        df = pd.DataFrame({
-            "is_collaboration": [False, True, False],
-            "collab_type": ["solo", "duo", "solo"],
-            "num_artists": [1, 2, 1],
-        }, index=[100, 200, 300])
+        df = pd.DataFrame(
+            {
+                "is_collaboration": [False, True, False],
+                "collab_type": ["solo", "duo", "solo"],
+                "num_artists": [1, 2, 1],
+            },
+            index=[100, 200, 300],
+        )
 
         block = CollaborationBlock()
         output = block.fit_transform(df, ctx)
@@ -179,10 +188,12 @@ class TestMissingColumns:
 
     def test_missing_column_raises_error(self, ctx):
         """Missing required column should raise ValueError."""
-        df = pd.DataFrame({
-            "is_collaboration": [False],
-            # Missing collab_type and num_artists
-        })
+        df = pd.DataFrame(
+            {
+                "is_collaboration": [False],
+                # Missing collab_type and num_artists
+            }
+        )
 
         block = CollaborationBlock()
 

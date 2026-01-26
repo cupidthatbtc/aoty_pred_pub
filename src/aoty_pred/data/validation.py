@@ -3,7 +3,6 @@
 import pandas as pd
 import pandera.pandas as pa
 
-
 # Expected column names from raw CSV (all 18 columns)
 REQUIRED_RAW_COLUMNS = [
     "Artist",
@@ -70,9 +69,7 @@ def validate_raw_dataframe(df: pd.DataFrame, lazy: bool = True) -> pd.DataFrame:
         return validated
     except pa.errors.SchemaErrors as e:
         # Re-raise with helpful context
-        raise pa.errors.SchemaErrors(
-            schema_errors=e.schema_errors, data=e.data
-        ) from None
+        raise pa.errors.SchemaErrors(schema_errors=e.schema_errors, data=e.data) from None
 
 
 def validate_raw_schema(df: pd.DataFrame) -> None:

@@ -497,7 +497,6 @@ def run_extrapolated_preflight_check(
     from aoty_pred.preflight.calibrate import (
         CALIBRATION_SAMPLES,
         CalibrationError,
-        CalibrationResult,
         run_calibration,
     )
 
@@ -547,9 +546,7 @@ def run_extrapolated_preflight_check(
             derived_seq,
         )
 
-    config_hash = compute_config_hash(
-        derived_obs, derived_artists, derived_features, derived_seq
-    )
+    config_hash = compute_config_hash(derived_obs, derived_artists, derived_features, derived_seq)
 
     # Step 3: Try loading from cache (unless recalibrate=True)
     calibration: CalibrationResult | None = None
@@ -615,9 +612,7 @@ def run_extrapolated_preflight_check(
     message = _generate_extrapolation_message(
         status, projected_gb, available_gb, headroom_percent, target_samples
     )
-    suggestions = _generate_extrapolation_suggestions(
-        status, projected_gb, available_gb
-    )
+    suggestions = _generate_extrapolation_suggestions(status, projected_gb, available_gb)
 
     return ExtrapolationResult(
         status=status,

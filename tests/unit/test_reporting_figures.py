@@ -33,7 +33,6 @@ from aoty_pred.reporting.figures import (
     set_publication_style,
 )
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -144,9 +143,7 @@ class TestSaveTracePlot:
 
     def test_creates_pdf_and_png(self, tmp_path, mock_idata):
         """Should create both PDF and PNG files."""
-        pdf_path, png_path = save_trace_plot(
-            mock_idata, ["mu"], tmp_path, "trace_test"
-        )
+        pdf_path, png_path = save_trace_plot(mock_idata, ["mu"], tmp_path, "trace_test")
         assert pdf_path.exists()
         assert png_path.exists()
         assert pdf_path.suffix == ".pdf"
@@ -154,40 +151,31 @@ class TestSaveTracePlot:
 
     def test_returns_paths(self, tmp_path, mock_idata):
         """Should return tuple of Path objects."""
-        pdf_path, png_path = save_trace_plot(
-            mock_idata, ["mu"], tmp_path, "trace_test"
-        )
+        pdf_path, png_path = save_trace_plot(mock_idata, ["mu"], tmp_path, "trace_test")
         assert isinstance(pdf_path, Path)
         assert isinstance(png_path, Path)
 
     def test_auto_figsize(self, tmp_path, mock_idata):
         """Figure size should scale with variable count."""
         # Test with one variable - should create valid files
-        pdf_path, _ = save_trace_plot(
-            mock_idata, ["mu"], tmp_path, "trace_one"
-        )
+        pdf_path, _ = save_trace_plot(mock_idata, ["mu"], tmp_path, "trace_one")
         assert pdf_path.exists()
 
         # Test with two variables - should also work
-        pdf_path2, _ = save_trace_plot(
-            mock_idata, ["mu", "sigma"], tmp_path, "trace_two"
-        )
+        pdf_path2, _ = save_trace_plot(mock_idata, ["mu", "sigma"], tmp_path, "trace_two")
         assert pdf_path2.exists()
 
     def test_output_dir_created(self, tmp_path, mock_idata):
         """Should create output directory if missing."""
         new_dir = tmp_path / "subdir" / "figures"
-        pdf_path, png_path = save_trace_plot(
-            mock_idata, ["mu"], new_dir, "trace_test"
-        )
+        pdf_path, png_path = save_trace_plot(mock_idata, ["mu"], new_dir, "trace_test")
         assert new_dir.exists()
         assert pdf_path.exists()
 
     def test_custom_figsize(self, tmp_path, mock_idata):
         """Should accept custom figure size."""
         pdf_path, png_path = save_trace_plot(
-            mock_idata, ["mu"], tmp_path, "trace_custom",
-            figsize=(12, 4)
+            mock_idata, ["mu"], tmp_path, "trace_custom", figsize=(12, 4)
         )
         assert pdf_path.exists()
 
@@ -202,33 +190,26 @@ class TestSavePosteriorPlot:
 
     def test_creates_dual_format(self, tmp_path, mock_idata):
         """Should create both PDF and PNG files."""
-        pdf_path, png_path = save_posterior_plot(
-            mock_idata, ["mu"], tmp_path, "posterior_test"
-        )
+        pdf_path, png_path = save_posterior_plot(mock_idata, ["mu"], tmp_path, "posterior_test")
         assert pdf_path.exists()
         assert png_path.exists()
 
     def test_custom_hdi_prob(self, tmp_path, mock_idata):
         """Should work with different HDI probability."""
         pdf_path, _ = save_posterior_plot(
-            mock_idata, ["mu"], tmp_path, "posterior_90",
-            hdi_prob=0.90
+            mock_idata, ["mu"], tmp_path, "posterior_90", hdi_prob=0.90
         )
         assert pdf_path.exists()
 
     def test_returns_correct_paths(self, tmp_path, mock_idata):
         """Paths should match expected filenames."""
-        pdf_path, png_path = save_posterior_plot(
-            mock_idata, ["mu"], tmp_path, "posterior_test"
-        )
+        pdf_path, png_path = save_posterior_plot(mock_idata, ["mu"], tmp_path, "posterior_test")
         assert pdf_path.name == "posterior_test.pdf"
         assert png_path.name == "posterior_test.png"
 
     def test_multiple_variables(self, tmp_path, mock_idata):
         """Should handle multiple variables."""
-        pdf_path, _ = save_posterior_plot(
-            mock_idata, ["mu", "sigma"], tmp_path, "posterior_multi"
-        )
+        pdf_path, _ = save_posterior_plot(mock_idata, ["mu", "sigma"], tmp_path, "posterior_multi")
         assert pdf_path.exists()
 
 
@@ -244,8 +225,7 @@ class TestSavePredictionsPlot:
         """Should create both formats."""
         y_true, y_pred_mean, y_pred_lower, y_pred_upper = mock_predictions
         pdf_path, png_path = save_predictions_plot(
-            y_true, y_pred_mean, y_pred_lower, y_pred_upper,
-            tmp_path, "pred_test"
+            y_true, y_pred_mean, y_pred_lower, y_pred_upper, tmp_path, "pred_test"
         )
         assert pdf_path.exists()
         assert png_path.exists()
@@ -256,8 +236,7 @@ class TestSavePredictionsPlot:
         y_true = np.random.randn(n) * 10 + 50
         y_pred = y_true + np.random.randn(n) * 2
         pdf_path, _ = save_predictions_plot(
-            y_true, y_pred, y_pred - 3, y_pred + 3,
-            tmp_path, "pred_numpy"
+            y_true, y_pred, y_pred - 3, y_pred + 3, tmp_path, "pred_numpy"
         )
         assert pdf_path.exists()
 
@@ -265,9 +244,13 @@ class TestSavePredictionsPlot:
         """Should accept custom CI label."""
         y_true, y_pred_mean, y_pred_lower, y_pred_upper = mock_predictions
         pdf_path, _ = save_predictions_plot(
-            y_true, y_pred_mean, y_pred_lower, y_pred_upper,
-            tmp_path, "pred_custom_label",
-            ci_label="95% CI"
+            y_true,
+            y_pred_mean,
+            y_pred_lower,
+            y_pred_upper,
+            tmp_path,
+            "pred_custom_label",
+            ci_label="95% CI",
         )
         assert pdf_path.exists()
 
@@ -278,8 +261,7 @@ class TestSavePredictionsPlot:
         y_lower = [48, 54, 68, 74]
         y_upper = [56, 62, 76, 82]
         pdf_path, _ = save_predictions_plot(
-            y_true, y_pred, y_lower, y_upper,
-            tmp_path, "pred_lists"
+            y_true, y_pred, y_lower, y_upper, tmp_path, "pred_lists"
         )
         assert pdf_path.exists()
 
@@ -310,8 +292,7 @@ class TestSaveReliabilityPlot:
     def test_custom_figsize(self, tmp_path, mock_reliability_data):
         """Should accept custom figure size."""
         pdf_path, _ = save_reliability_plot(
-            mock_reliability_data, tmp_path, "reliability_custom",
-            figsize=(8, 6)
+            mock_reliability_data, tmp_path, "reliability_custom", figsize=(8, 6)
         )
         assert pdf_path.exists()
 
@@ -326,17 +307,13 @@ class TestSaveForestPlot:
 
     def test_creates_files(self, tmp_path, mock_comparison_df):
         """Should create both formats."""
-        pdf_path, png_path = save_forest_plot(
-            mock_comparison_df, tmp_path, "forest_test"
-        )
+        pdf_path, png_path = save_forest_plot(mock_comparison_df, tmp_path, "forest_test")
         assert pdf_path.exists()
         assert png_path.exists()
 
     def test_accepts_comparison_df(self, tmp_path, mock_comparison_df):
         """Should work with DataFrame from sensitivity analysis."""
-        pdf_path, _ = save_forest_plot(
-            mock_comparison_df, tmp_path, "forest_df"
-        )
+        pdf_path, _ = save_forest_plot(mock_comparison_df, tmp_path, "forest_df")
         assert pdf_path.exists()
 
     def test_custom_column_names(self, tmp_path):
@@ -351,21 +328,21 @@ class TestSaveForestPlot:
             }
         )
         pdf_path, _ = save_forest_plot(
-            df, tmp_path, "forest_custom",
+            df,
+            tmp_path,
+            "forest_custom",
             param_col="parameter",
             variant_col="model",
             estimate_col="estimate",
             lower_col="lower",
-            upper_col="upper"
+            upper_col="upper",
         )
         assert pdf_path.exists()
 
     def test_auto_figsize(self, tmp_path, mock_comparison_df):
         """Figure height should auto-scale with number of rows."""
         # Basic test that auto-sizing works
-        pdf_path, _ = save_forest_plot(
-            mock_comparison_df, tmp_path, "forest_auto"
-        )
+        pdf_path, _ = save_forest_plot(mock_comparison_df, tmp_path, "forest_auto")
         assert pdf_path.exists()
 
 
@@ -390,8 +367,7 @@ class TestFigureMemoryCleanup:
         y_true, y_pred_mean, y_pred_lower, y_pred_upper = mock_predictions
         n_figures_before = len(plt.get_fignums())
         save_predictions_plot(
-            y_true, y_pred_mean, y_pred_lower, y_pred_upper,
-            tmp_path, "pred_cleanup"
+            y_true, y_pred_mean, y_pred_lower, y_pred_upper, tmp_path, "pred_cleanup"
         )
         n_figures_after = len(plt.get_fignums())
         assert n_figures_after == n_figures_before

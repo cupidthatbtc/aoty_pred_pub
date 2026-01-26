@@ -15,7 +15,6 @@ from aoty_pred.evaluation.metrics import (
     posterior_mean,
 )
 
-
 # ============================================================================
 # Test Fixtures
 # ============================================================================
@@ -97,9 +96,7 @@ class TestComputeCRPS:
         assert result.mean_crps < 0.1
         assert result.n_obs == len(y_true)
 
-    def test_compute_crps_worse_prediction(
-        self, perfect_prediction_data, noisy_prediction_data
-    ):
+    def test_compute_crps_worse_prediction(self, perfect_prediction_data, noisy_prediction_data):
         """CRPS should be higher for worse predictions."""
         y_true_perfect, y_samples_perfect = perfect_prediction_data
         y_true_noisy, y_samples_noisy = noisy_prediction_data
@@ -334,11 +331,13 @@ class TestPosteriorMean:
 
     def test_posterior_mean_known_values(self):
         """Test with known values."""
-        y_samples = np.array([
-            [1.0, 2.0, 3.0],
-            [3.0, 4.0, 5.0],
-            [5.0, 6.0, 7.0],
-        ])  # Shape: (3, 3)
+        y_samples = np.array(
+            [
+                [1.0, 2.0, 3.0],
+                [3.0, 4.0, 5.0],
+                [5.0, 6.0, 7.0],
+            ]
+        )  # Shape: (3, 3)
 
         result = posterior_mean(y_samples)
         expected = np.array([3.0, 4.0, 5.0])  # Mean across axis 0

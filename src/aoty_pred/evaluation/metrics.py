@@ -160,8 +160,7 @@ def compute_crps(
         raise ValueError(f"y_samples must be 2D, got shape {y_samples.shape}")
     if y_samples.shape[1] != len(y_true):
         raise ValueError(
-            f"y_samples has {y_samples.shape[1]} observations, "
-            f"but y_true has {len(y_true)}"
+            f"y_samples has {y_samples.shape[1]} observations, " f"but y_true has {len(y_true)}"
         )
 
     n_obs = len(y_true)
@@ -230,8 +229,7 @@ def compute_point_metrics(
         raise ValueError(f"y_pred_mean must be 1D, got shape {y_pred_mean.shape}")
     if len(y_true) != len(y_pred_mean):
         raise ValueError(
-            f"y_true has {len(y_true)} observations, "
-            f"but y_pred_mean has {len(y_pred_mean)}"
+            f"y_true has {len(y_true)} observations, " f"but y_pred_mean has {len(y_pred_mean)}"
         )
 
     # Compute errors

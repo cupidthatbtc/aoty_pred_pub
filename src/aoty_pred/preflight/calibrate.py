@@ -171,9 +171,7 @@ def run_calibration(
 
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
-                raise CalibrationError(
-                    f"Calibration failed at {num_samples} samples: {error_msg}"
-                )
+                raise CalibrationError(f"Calibration failed at {num_samples} samples: {error_msg}")
 
             peak_gb = result["peak_memory_bytes"] / (1024**3)
             points.append((num_samples, peak_gb))
@@ -182,9 +180,7 @@ def run_calibration(
         fixed, per_sample = calculate_calibration(points[0], points[1])
 
         # Compute config hash for caching using shared dimension derivation
-        n_obs, n_artists, n_features, max_seq = _derive_dimensions_from_model_args(
-            model_args
-        )
+        n_obs, n_artists, n_features, max_seq = _derive_dimensions_from_model_args(model_args)
         config_hash = compute_config_hash(n_obs, n_artists, n_features, max_seq)
 
         total_time = time.perf_counter() - start_time

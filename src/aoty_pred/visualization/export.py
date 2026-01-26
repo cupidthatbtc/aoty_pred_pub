@@ -138,8 +138,7 @@ def export_figure(
         fmt_lower = fmt.lower()
         if fmt_lower not in supported_formats:
             raise ValueError(
-                f"Unsupported format: {fmt}. "
-                f"Supported: {', '.join(sorted(supported_formats))}"
+                f"Unsupported format: {fmt}. " f"Supported: {', '.join(sorted(supported_formats))}"
             )
 
         file_path = output_path.with_suffix(f".{fmt_lower}")
@@ -296,10 +295,12 @@ def export_dashboard_html(
         html_parts.append(f"        {fig_html}")
         html_parts.append("    </div>")
 
-    html_parts.extend([
-        "</body>",
-        "</html>",
-    ])
+    html_parts.extend(
+        [
+            "</body>",
+            "</html>",
+        ]
+    )
 
     html_content = "\n".join(html_parts)
 

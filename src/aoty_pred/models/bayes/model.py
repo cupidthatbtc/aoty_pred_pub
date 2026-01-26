@@ -116,9 +116,7 @@ def compute_sigma_scaled(
     # Only apply single-review penalty in heteroscedastic mode (exponent > 0)
     # In homoscedastic mode, sigma_scaled already equals sigma_obs, so no penalty needed
     apply_penalty = jnp.logical_and(is_single_review, exponent > 0)
-    sigma_scaled = jnp.where(
-        apply_penalty, sigma_obs * single_review_multiplier, sigma_scaled
-    )
+    sigma_scaled = jnp.where(apply_penalty, sigma_obs * single_review_multiplier, sigma_scaled)
 
     # Apply minimum floor for numerical stability
     sigma_scaled = jnp.maximum(sigma_scaled, min_sigma)
@@ -144,8 +142,8 @@ def make_score_model(score_type: str) -> Callable:
     -------
     Callable
         NumPyro model function with non-centered parameterization.
-        The returned function has signature:
-            model(artist_idx, album_seq, prev_score, X, y=None, n_artists=None, max_seq=None, priors=None)
+        The returned function has signature: model(artist_idx, album_seq,
+            prev_score, X, y=None, n_artists=None, max_seq=None, priors=None)
 
     Example
     -------
@@ -225,7 +223,9 @@ def make_score_model(score_type: str) -> Callable:
             raise ValueError("n_artists must be provided")
 
         if max_seq is None:
-            raise ValueError("max_seq must be provided (compute as int(album_seq.max()) before calling)")
+            raise ValueError(
+                "max_seq must be provided (compute as int(album_seq.max()) before calling)"
+            )
 
         n_features = X.shape[1]
 
@@ -284,10 +284,14 @@ def make_score_model(score_type: str) -> Callable:
             rw_trajectory = jnp.cumsum(rw_innovations, axis=1)
             # Full artist effects: init_effect + trajectory
             # Shape: (max_seq, n_artists) - transpose for [time, artist] indexing
-            artist_effects = jnp.vstack([
-                init_artist_effect[None, :],  # Shape: (1, n_artists)
-                (init_artist_effect[None, :] + rw_trajectory.T)  # Shape: (max_seq-1, n_artists)
-            ])
+            artist_effects = jnp.vstack(
+                [
+                    init_artist_effect[None, :],  # Shape: (1, n_artists)
+                    (
+                        init_artist_effect[None, :] + rw_trajectory.T
+                    ),  # Shape: (max_seq-1, n_artists)
+                ]
+            )
         else:
             # Only one time step, no random walk needed
             artist_effects = init_artist_effect[None, :]
@@ -325,8 +329,8 @@ def make_score_model(score_type: str) -> Callable:
                     f"{prefix}n_exponent",
                     dist.TransformedDistribution(
                         dist.Normal(priors.n_exponent_loc, priors.n_exponent_scale),
-                        [dist.transforms.SigmoidTransform()]
-                    )
+                        [dist.transforms.SigmoidTransform()],
+                    ),
                 )
             elif n_exponent_prior == "beta":
                 # Beta prior (legacy, may cause divergences)

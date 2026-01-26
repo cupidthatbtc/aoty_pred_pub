@@ -224,6 +224,5 @@ def validate_temporal_split(
                 )
             if val_max > test_min:
                 raise ValueError(
-                    f"Temporal violation for {artist}: "
-                    f"val max {val_max} > test min {test_min}"
+                    f"Temporal violation for {artist}: " f"val max {val_max} > test min {test_min}"
                 )

@@ -106,9 +106,7 @@ def _format_status_line(status: PreflightStatus, message: str) -> str:
             return f"[dim]UNKNOWN[/dim] {message}"
 
 
-def render_full_preflight_result(
-    result: FullPreflightResult, *, verbose: bool = False
-) -> None:
+def render_full_preflight_result(result: FullPreflightResult, *, verbose: bool = False) -> None:
     """Render full preflight result with TTY-aware colored output.
 
     Uses Rich Console which automatically handles TTY detection:
@@ -176,9 +174,7 @@ def format_uncertainty(projected_gb: float, uncertainty_percent: float) -> str:
     return f"{projected_gb:.1f} GB +/-{uncertainty_percent:.0f}%"
 
 
-def render_extrapolation_result(
-    result: ExtrapolationResult, *, verbose: bool = False
-) -> None:
+def render_extrapolation_result(result: ExtrapolationResult, *, verbose: bool = False) -> None:
     """Render extrapolation preflight result with TTY-aware colored output.
 
     Uses Rich Console which automatically handles TTY detection:

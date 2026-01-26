@@ -123,9 +123,7 @@ class TestEstimateMemoryGb:
     def test_estimate_large_config(self):
         """Many artists (500), long sequences (20) produces larger estimate."""
         small_result = estimate_memory_gb(**STANDARD_PARAMS)
-        large_result = estimate_memory_gb(
-            **{**STANDARD_PARAMS, "n_artists": 500, "max_seq": 20}
-        )
+        large_result = estimate_memory_gb(**{**STANDARD_PARAMS, "n_artists": 500, "max_seq": 20})
 
         # Large config should produce significantly larger estimate
         assert large_result.total_gb > small_result.total_gb

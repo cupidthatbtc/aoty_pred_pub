@@ -5,7 +5,6 @@ using mock/synthetic data. Full integration tests with actual
 MCMC fitting are deferred to integration tests.
 """
 
-from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
 import arviz as az
@@ -18,11 +17,10 @@ from aoty_pred.evaluation.cv import (
     LOOResult,
     add_log_likelihood_to_idata,
     compare_models,
-    compute_loo,
     compute_log_likelihood,
+    compute_loo,
     generate_prior_predictive,
 )
-
 
 # ============================================================================
 # Fixtures
@@ -126,9 +124,7 @@ class TestComputeLogLikelihood:
             "user_y": np.random.normal(size=(400, n_obs)),  # flattened samples
         }
 
-        with patch(
-            "aoty_pred.evaluation.cv.log_likelihood", return_value=mock_log_lik
-        ):
+        with patch("aoty_pred.evaluation.cv.log_likelihood", return_value=mock_log_lik):
             model_args = {
                 "artist_idx": np.zeros(n_obs, dtype=int),
                 "album_seq": np.ones(n_obs, dtype=int),
@@ -139,9 +135,7 @@ class TestComputeLogLikelihood:
                 "max_seq": 5,
             }
 
-            result = compute_log_likelihood(
-                mock_model, mock_mcmc, model_args, obs_name="user_y"
-            )
+            result = compute_log_likelihood(mock_model, mock_mcmc, model_args, obs_name="user_y")
 
         # Check dims
         assert result.dims == ("chain", "draw", "obs")
@@ -158,9 +152,7 @@ class TestComputeLogLikelihood:
             "user_y": np.random.normal(size=(400, n_obs)),
         }
 
-        with patch(
-            "aoty_pred.evaluation.cv.log_likelihood", return_value=mock_log_lik
-        ):
+        with patch("aoty_pred.evaluation.cv.log_likelihood", return_value=mock_log_lik):
             model_args = {
                 "artist_idx": np.zeros(n_obs, dtype=int),
                 "album_seq": np.ones(n_obs, dtype=int),
@@ -171,9 +163,7 @@ class TestComputeLogLikelihood:
                 "max_seq": 5,
             }
 
-            result = compute_log_likelihood(
-                mock_model, mock_mcmc, model_args, obs_name="user_y"
-            )
+            result = compute_log_likelihood(mock_model, mock_mcmc, model_args, obs_name="user_y")
 
         assert np.issubdtype(result.dtype, np.floating)
 
@@ -188,9 +178,7 @@ class TestComputeLogLikelihood:
             "other_y": np.random.normal(size=(400, 30)),
         }
 
-        with patch(
-            "aoty_pred.evaluation.cv.log_likelihood", return_value=mock_log_lik
-        ):
+        with patch("aoty_pred.evaluation.cv.log_likelihood", return_value=mock_log_lik):
             model_args = {
                 "artist_idx": np.zeros(30, dtype=int),
                 "album_seq": np.ones(30, dtype=int),
@@ -202,9 +190,7 @@ class TestComputeLogLikelihood:
             }
 
             with pytest.raises(KeyError) as exc_info:
-                compute_log_likelihood(
-                    mock_model, mock_mcmc, model_args, obs_name="user_y"
-                )
+                compute_log_likelihood(mock_model, mock_mcmc, model_args, obs_name="user_y")
 
             assert "user_y" in str(exc_info.value)
             assert "other_y" in str(exc_info.value)
@@ -419,10 +405,12 @@ class TestCompareModels:
         idata_better.add_groups(log_likelihood=xr.Dataset({"y": log_lik_da_better}))
 
         # Use the fixture as "worse" model (mean=-2.0)
-        result = compare_models({
-            "better_model": idata_better,
-            "worse_model": mock_idata_with_log_lik,
-        })
+        result = compare_models(
+            {
+                "better_model": idata_better,
+                "worse_model": mock_idata_with_log_lik,
+            }
+        )
 
         # Better model should be ranked first (rank 0)
         assert result.loc["better_model", "rank"] == 0

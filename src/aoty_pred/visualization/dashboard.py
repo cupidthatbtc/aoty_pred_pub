@@ -20,8 +20,6 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger(__name__)
-
 from aoty_pred.visualization.charts import (
     create_forest_plot,
     create_predictions_plot,
@@ -30,7 +28,9 @@ from aoty_pred.visualization.charts import (
 )
 
 if TYPE_CHECKING:
-    import arviz as az
+    pass
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "DashboardData",
@@ -404,14 +404,18 @@ def create_coefficients_table(coefficients: pd.DataFrame) -> str:
     for _, row in coefficients.iterrows():
         html_parts.append("<tr>")
         html_parts.append(f"    <td>{html.escape(str(row[label_col]))}</td>")
-        html_parts.append(f'    <td data-value="{row[estimate_col]:.6f}">{row[estimate_col]:.3f}</td>')
+        html_parts.append(
+            f'    <td data-value="{row[estimate_col]:.6f}">{row[estimate_col]:.3f}</td>'
+        )
         html_parts.append(f'    <td data-value="{row[lower_col]:.6f}">{row[lower_col]:.3f}</td>')
         html_parts.append(f'    <td data-value="{row[upper_col]:.6f}">{row[upper_col]:.3f}</td>')
         html_parts.append("</tr>")
 
-    html_parts.extend([
-        "</tbody>",
-        "</table>",
-    ])
+    html_parts.extend(
+        [
+            "</tbody>",
+            "</table>",
+        ]
+    )
 
     return "\n".join(html_parts)

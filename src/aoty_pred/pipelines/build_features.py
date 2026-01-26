@@ -13,13 +13,13 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import structlog
 
-from aoty_pred.features.base import FeatureContext
-from aoty_pred.features.pipeline import FeaturePipeline
-from aoty_pred.features.temporal import TemporalBlock
 from aoty_pred.features.album_type import AlbumTypeBlock
 from aoty_pred.features.artist import ArtistHistoryBlock
-from aoty_pred.features.genre import GenreBlock
+from aoty_pred.features.base import FeatureContext
 from aoty_pred.features.collaboration import CollaborationBlock
+from aoty_pred.features.genre import GenreBlock
+from aoty_pred.features.pipeline import FeaturePipeline
+from aoty_pred.features.temporal import TemporalBlock
 
 if TYPE_CHECKING:
     from aoty_pred.pipelines.stages import StageContext

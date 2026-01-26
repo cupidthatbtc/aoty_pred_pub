@@ -78,9 +78,7 @@ class SchemaIntrospector:
         ...     print(f"{node.id}: {node.metadata.get('column_count')} columns")
     """
 
-    def __init__(
-        self, schemas: dict[str, pa.DataFrameSchema] | None = None
-    ) -> None:
+    def __init__(self, schemas: dict[str, pa.DataFrameSchema] | None = None) -> None:
         """Initialize SchemaIntrospector.
 
         Args:

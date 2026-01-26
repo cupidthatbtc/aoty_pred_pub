@@ -2,21 +2,25 @@
 
 import hashlib
 import json
-import structlog
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Optional, Dict, Any
-import pandas as pd
+from typing import Any, Dict, Optional
 
+import pandas as pd
+import structlog
+
+from aoty_pred.data.manifests import (
+    SplitManifest,
+    SplitStats,
+    create_split_assignments,
+    save_manifest,
+)
 from aoty_pred.data.split import (
-    within_artist_temporal_split,
     artist_disjoint_split,
     assert_no_artist_overlap,
     validate_temporal_split,
-)
-from aoty_pred.data.manifests import (
-    SplitManifest, SplitStats, create_split_assignments, save_manifest
+    within_artist_temporal_split,
 )
 from aoty_pred.utils.hashing import hash_dataframe
 
@@ -24,6 +28,7 @@ from aoty_pred.utils.hashing import hash_dataframe
 @dataclass
 class SplitConfig:
     """Configuration for split pipeline."""
+
     min_ratings: int = 10
     output_dir: Path = Path("data/splits")
     version: str = "v1"
@@ -52,6 +57,7 @@ class SplitConfig:
 @dataclass
 class SplitResult:
     """Result of split pipeline execution."""
+
     source_path: Path
     temporal_manifest_path: Path
     disjoint_manifest_path: Path
@@ -135,9 +141,7 @@ def create_splits(config: Optional[SplitConfig] = None) -> SplitResult:
     test_t_hash = hash_dataframe(test_t)
 
     # Combined content hash
-    combined_t = hashlib.sha256(
-        (train_t_hash + val_t_hash + test_t_hash).encode()
-    ).hexdigest()
+    combined_t = hashlib.sha256((train_t_hash + val_t_hash + test_t_hash).encode()).hexdigest()
 
     # Create manifest
     temporal_manifest = SplitManifest(
@@ -172,9 +176,7 @@ def create_splits(config: Optional[SplitConfig] = None) -> SplitResult:
                 sha256=test_t_hash,
             ),
         },
-        assignments=create_split_assignments(
-            train_t, val_t, test_t, "within_artist_temporal"
-        ),
+        assignments=create_split_assignments(train_t, val_t, test_t, "within_artist_temporal"),
         content_hash=combined_t,
     )
     temporal_manifest_path = save_manifest(temporal_manifest, temporal_dir)
@@ -224,9 +226,7 @@ def create_splits(config: Optional[SplitConfig] = None) -> SplitResult:
     train_d_hash = hash_dataframe(train_d)
     val_d_hash = hash_dataframe(val_d)
     test_d_hash = hash_dataframe(test_d)
-    combined_d = hashlib.sha256(
-        (train_d_hash + val_d_hash + test_d_hash).encode()
-    ).hexdigest()
+    combined_d = hashlib.sha256((train_d_hash + val_d_hash + test_d_hash).encode()).hexdigest()
 
     # Create manifest
     disjoint_manifest = SplitManifest(
@@ -261,9 +261,7 @@ def create_splits(config: Optional[SplitConfig] = None) -> SplitResult:
                 sha256=test_d_hash,
             ),
         },
-        assignments=create_split_assignments(
-            train_d, val_d, test_d, "artist_disjoint"
-        ),
+        assignments=create_split_assignments(train_d, val_d, test_d, "artist_disjoint"),
         content_hash=combined_d,
     )
     disjoint_manifest_path = save_manifest(disjoint_manifest, disjoint_dir)
@@ -359,17 +357,19 @@ def main() -> None:
     print(f"  Rows: {s['source']['rows']:,}")
     print(f"  Artists: {s['source']['artists']:,}")
 
-    print(f"\nWithin-Artist Temporal Split:")
+    print("\nWithin-Artist Temporal Split:")
     print(f"  Train:      {s['within_artist_temporal']['train_rows']:,} rows")
     print(f"  Validation: {s['within_artist_temporal']['val_rows']:,} rows")
     print(f"  Test:       {s['within_artist_temporal']['test_rows']:,} rows")
     print(f"  Artists included: {s['within_artist_temporal']['artists_included']:,}")
-    print(f"  Artists excluded: {s['within_artist_temporal']['artists_excluded']:,} (insufficient albums)")
+    excl = s["within_artist_temporal"]["artists_excluded"]
+    print(f"  Artists excluded: {excl:,} (insufficient albums)")
 
-    print(f"\nArtist-Disjoint Split:")
-    print(f"  Train:      {s['artist_disjoint']['train_rows']:,} rows ({s['artist_disjoint']['train_artists']:,} artists)")
-    print(f"  Validation: {s['artist_disjoint']['val_rows']:,} rows ({s['artist_disjoint']['val_artists']:,} artists)")
-    print(f"  Test:       {s['artist_disjoint']['test_rows']:,} rows ({s['artist_disjoint']['test_artists']:,} artists)")
+    print("\nArtist-Disjoint Split:")
+    ad = s["artist_disjoint"]
+    print(f"  Train:      {ad['train_rows']:,} rows ({ad['train_artists']:,} artists)")
+    print(f"  Validation: {ad['val_rows']:,} rows ({ad['val_artists']:,} artists)")
+    print(f"  Test:       {ad['test_rows']:,} rows ({ad['test_artists']:,} artists)")
 
     print(f"\nOutput directory: {result.temporal_splits['train'].parent.parent}")
     print("=" * 60)

@@ -25,7 +25,6 @@ from aoty_pred.reporting.tables import (
     export_table,
 )
 
-
 # =============================================================================
 # Test Fixtures
 # =============================================================================
@@ -346,7 +345,11 @@ class TestCreateDiagnosticsTable:
             }
         )
         sample_stats = xr.Dataset(
-            {"diverging": xr.DataArray(np.zeros((n_chains, n_draws), dtype=bool), dims=["chain", "draw"])}
+            {
+                "diverging": xr.DataArray(
+                    np.zeros((n_chains, n_draws), dtype=bool), dims=["chain", "draw"]
+                )
+            }
         )
         idata = az.InferenceData(posterior=posterior, sample_stats=sample_stats)
 
@@ -405,9 +408,7 @@ class TestCreateComparisonTable:
         idata2 = make_mock_idata(add_log_likelihood=True, n_obs=50)
 
         # Make model2 have better log_likelihood
-        idata2.log_likelihood["y"].values[:] = (
-            idata2.log_likelihood["y"].values + 10
-        )
+        idata2.log_likelihood["y"].values[:] = idata2.log_likelihood["y"].values + 10
 
         models = {"model1": idata1, "model2": idata2}
         result = create_comparison_table(models)

@@ -188,17 +188,9 @@ def create_posterior_plot(
             name="Posterior",
             marker=dict(color=COLORBLIND_COLORS[0]),
             opacity=0.7,
-            hovertemplate=(
-                f"{var_name}: %{{x:.4f}}<br>"
-                "Count: %{y}"
-                "<extra></extra>"
-            ),
+            hovertemplate=(f"{var_name}: %{{x:.4f}}<br>" "Count: %{y}" "<extra></extra>"),
         )
     )
-
-    # Get y-axis range for vertical lines
-    # Use histogram data to estimate height
-    y_max = len(samples) / 20  # Rough estimate for line height
 
     # HDI lower bound line
     fig.add_vline(
@@ -410,7 +402,7 @@ def create_forest_plot(
             hovertemplate=(
                 "<b>%{y}</b><br>"
                 "Estimate: %{x:.3f}<br>"
-                f"95% HDI: [%{{customdata[0]:.3f}}, %{{customdata[1]:.3f}}]"
+                "95% HDI: [%{customdata[0]:.3f}, %{customdata[1]:.3f}]"
                 "<extra></extra>"
             ),
             customdata=df[[lower_col, upper_col]].values,

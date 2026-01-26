@@ -1,7 +1,8 @@
 """Input readers for data loading."""
 
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
 
 
 def read_csv(path: str | Path, encoding: str = "utf-8-sig", **kwargs) -> pd.DataFrame:

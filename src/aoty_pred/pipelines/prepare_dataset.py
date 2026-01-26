@@ -3,18 +3,18 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
+
 import pandas as pd
 import structlog
 
-from aoty_pred.data.ingest import load_raw_albums, LoadMetadata
 from aoty_pred.data.cleaning import (
-    clean_albums,
-    filter_for_user_score_model,
-    filter_for_critic_score_model,
     CleaningConfig,
+    clean_albums,
+    filter_for_critic_score_model,
+    filter_for_user_score_model,
 )
+from aoty_pred.data.ingest import LoadMetadata, load_raw_albums
 from aoty_pred.data.lineage import AuditLogger
-
 
 log = structlog.get_logger()
 
@@ -22,6 +22,7 @@ log = structlog.get_logger()
 @dataclass
 class PrepareConfig:
     """Configuration for dataset preparation."""
+
     raw_path: str = "data/raw/all_albums_full.csv"
     output_dir: str = "data/processed"
     audit_dir: str = "data/audit"
@@ -33,6 +34,7 @@ class PrepareConfig:
 @dataclass
 class PrepareResult:
     """Result of dataset preparation."""
+
     load_metadata: LoadMetadata
     datasets_created: dict[str, Path]
     audit_paths: dict[str, Path]
@@ -179,7 +181,7 @@ def main():
     print("=" * 60)
     print(f"\nRaw data: {result.load_metadata.row_count:,} rows")
     print(f"File hash: {result.load_metadata.file_hash[:32]}...")
-    print(f"\nDatasets created:")
+    print("\nDatasets created:")
     for name, path in result.datasets_created.items():
         rows = result.summary["datasets"][name]["rows"]
         print(f"  - {name}: {rows:,} rows")

@@ -17,11 +17,11 @@ import numpy as np
 import pandas as pd
 import structlog
 
-from aoty_pred.models.bayes.fit import fit_model, MCMCConfig
+from aoty_pred.models.bayes.diagnostics import check_convergence
+from aoty_pred.models.bayes.fit import MCMCConfig, fit_model
 from aoty_pred.models.bayes.io import save_model
 from aoty_pred.models.bayes.model import compute_sigma_scaled, user_score_model
-from aoty_pred.models.bayes.priors import PriorConfig, get_default_priors
-from aoty_pred.models.bayes.diagnostics import check_convergence
+from aoty_pred.models.bayes.priors import PriorConfig
 from aoty_pred.pipelines.errors import ConvergenceError
 from aoty_pred.utils.hashing import hash_dataframe
 
@@ -162,8 +162,8 @@ def prepare_model_data(
         invalid_pct = n_invalid / len(n_reviews_raw) * 100
         if invalid_pct > 50:
             raise ValueError(
-                f"Too many invalid n_reviews: {n_invalid}/{len(n_reviews_raw)} ({invalid_pct:.1f}%). "
-                "This indicates a data problem. Check source data for missing User_Ratings."
+                f"Too many invalid n_reviews: {n_invalid}/{len(n_reviews_raw)} "
+                f"({invalid_pct:.1f}%). Check source data for missing User_Ratings."
             )
         # Log warning about rows that will be dropped
         log.warning(
@@ -186,9 +186,7 @@ def prepare_model_data(
     # Compute album counts per artist (indexed by artist_idx, not artist name)
     artist_album_counts = pd.Series(artist_idx).value_counts().sort_index()
     # Reindex to full range so _apply_max_albums_cap doesn't get IndexError
-    artist_album_counts = artist_album_counts.reindex(
-        range(len(artists)), fill_value=0
-    )
+    artist_album_counts = artist_album_counts.reindex(range(len(artists)), fill_value=0)
 
     model_args = {
         "artist_idx": artist_idx,
@@ -249,7 +247,7 @@ def _apply_max_albums_cap(
             "max_albums_applied",
             max_albums=max_albums_cap,
             artists_capped=int(n_capped_artists),
-            message=f"Using {max_albums_cap} most recent albums per artist; older albums share position 1",
+            message=f"Using {max_albums_cap} most recent albums per artist",
         )
 
     model_args["album_seq"] = album_seq
@@ -427,10 +425,11 @@ def train_models(
         )
 
     if ctx.strict and not diagnostics.passed:
+        ess_thresh = ctx.ess_threshold * ctx.num_chains
         raise ConvergenceError(
-            f"Convergence diagnostics failed: "
-            f"rhat_max={diagnostics.rhat_max:.4f} (threshold {ctx.rhat_threshold}), "
-            f"ess_bulk_min={diagnostics.ess_bulk_min:.0f} (threshold {ctx.ess_threshold * ctx.num_chains})",
+            f"Convergence failed: rhat_max={diagnostics.rhat_max:.4f} "
+            f"(thresh {ctx.rhat_threshold}), ess_min={diagnostics.ess_bulk_min:.0f} "
+            f"(thresh {ess_thresh})",
             stage="train",
         )
 
@@ -506,10 +505,14 @@ def train_models(
         # Min sigma at max n_reviews, max sigma at min n_reviews
         # Wrap numpy scalars in JAX arrays for compute_sigma_scaled compatibility
         sigma_at_max_n = float(
-            compute_sigma_scaled(sigma_obs_mean, jnp.array(np.max(n_reviews)), jnp.array(n_exp_mean))
+            compute_sigma_scaled(
+                sigma_obs_mean, jnp.array(np.max(n_reviews)), jnp.array(n_exp_mean)
+            )
         )
         sigma_at_min_n = float(
-            compute_sigma_scaled(sigma_obs_mean, jnp.array(np.min(n_reviews)), jnp.array(n_exp_mean))
+            compute_sigma_scaled(
+                sigma_obs_mean, jnp.array(np.min(n_reviews)), jnp.array(n_exp_mean)
+            )
         )
 
         # Reference scaling values for interpretation
@@ -553,10 +556,14 @@ def train_models(
         sigma_obs_mean = float(fit_result.idata.posterior["user_sigma_obs"].mean())
         # Wrap numpy scalars in JAX arrays for compute_sigma_scaled compatibility
         sigma_at_max_n = float(
-            compute_sigma_scaled(sigma_obs_mean, jnp.array(np.max(n_reviews)), jnp.array(ctx.n_exponent))
+            compute_sigma_scaled(
+                sigma_obs_mean, jnp.array(np.max(n_reviews)), jnp.array(ctx.n_exponent)
+            )
         )
         sigma_at_min_n = float(
-            compute_sigma_scaled(sigma_obs_mean, jnp.array(np.min(n_reviews)), jnp.array(ctx.n_exponent))
+            compute_sigma_scaled(
+                sigma_obs_mean, jnp.array(np.min(n_reviews)), jnp.array(ctx.n_exponent)
+            )
         )
 
         summary["heteroscedastic_mode"] = {

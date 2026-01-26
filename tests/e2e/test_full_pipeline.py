@@ -53,11 +53,10 @@ class TestFullPipeline:
                 strict=False,
             )
 
-            with patch(
-                "aoty_pred.pipelines.orchestrator.ensure_environment_locked"
-            ), patch(
-                "aoty_pred.pipelines.orchestrator.verify_environment"
-            ) as mock_verify:
+            with (
+                patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked"),
+                patch("aoty_pred.pipelines.orchestrator.verify_environment") as mock_verify,
+            ):
                 mock_verify.return_value = MagicMock(
                     is_reproducible=True,
                     pixi_lock_hash="test_hash_123",
@@ -106,11 +105,10 @@ class TestFullPipeline:
         def track_splits_run(ctx):
             run_fn_called["splits"] = True
 
-        with patch(
-            "aoty_pred.pipelines.orchestrator.ensure_environment_locked"
-        ), patch(
-            "aoty_pred.pipelines.orchestrator.verify_environment"
-        ) as mock_verify:
+        with (
+            patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked"),
+            patch("aoty_pred.pipelines.orchestrator.verify_environment") as mock_verify,
+        ):
             mock_verify.return_value = MagicMock(
                 is_reproducible=True,
                 pixi_lock_hash="test_hash_123",
@@ -118,9 +116,7 @@ class TestFullPipeline:
             )
 
             # Patch stages to track execution
-            with patch(
-                "aoty_pred.pipelines.orchestrator.get_execution_order"
-            ) as mock_order:
+            with patch("aoty_pred.pipelines.orchestrator.get_execution_order") as mock_order:
                 mock_data_stage = MagicMock()
                 mock_data_stage.name = "data"
                 mock_data_stage.description = "Prepare data"
@@ -160,11 +156,10 @@ class TestFullPipeline:
         - Second run with skip_existing=True skips stage
         - Stage appears in stages_skipped list
         """
-        with patch(
-            "aoty_pred.pipelines.orchestrator.ensure_environment_locked"
-        ), patch(
-            "aoty_pred.pipelines.orchestrator.verify_environment"
-        ) as mock_verify:
+        with (
+            patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked"),
+            patch("aoty_pred.pipelines.orchestrator.verify_environment") as mock_verify,
+        ):
             mock_verify.return_value = MagicMock(
                 is_reproducible=True,
                 pixi_lock_hash="test_hash_123",
@@ -177,9 +172,7 @@ class TestFullPipeline:
             def counting_run_fn(ctx):
                 run_count["data"] += 1
 
-            with patch(
-                "aoty_pred.pipelines.orchestrator.get_execution_order"
-            ) as mock_order:
+            with patch("aoty_pred.pipelines.orchestrator.get_execution_order") as mock_order:
                 mock_stage = MagicMock()
                 mock_stage.name = "data"
                 mock_stage.description = "Prepare data"
@@ -230,11 +223,10 @@ class TestFullPipeline:
         - Error message is captured in manifest
         - Manifest marks success=False
         """
-        with patch(
-            "aoty_pred.pipelines.orchestrator.ensure_environment_locked"
-        ), patch(
-            "aoty_pred.pipelines.orchestrator.verify_environment"
-        ) as mock_verify:
+        with (
+            patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked"),
+            patch("aoty_pred.pipelines.orchestrator.verify_environment") as mock_verify,
+        ):
             mock_verify.return_value = MagicMock(
                 is_reproducible=True,
                 pixi_lock_hash="test_hash_123",
@@ -246,9 +238,7 @@ class TestFullPipeline:
             def failing_run_fn(ctx):
                 raise DataValidationError("Missing required column: User_Score", stage="data")
 
-            with patch(
-                "aoty_pred.pipelines.orchestrator.get_execution_order"
-            ) as mock_order:
+            with patch("aoty_pred.pipelines.orchestrator.get_execution_order") as mock_order:
                 mock_stage = MagicMock()
                 mock_stage.name = "data"
                 mock_stage.description = "Prepare data"
@@ -280,11 +270,10 @@ class TestFullPipeline:
         - Unknown stage name causes KeyError
         - Exit code is 1 (general error)
         """
-        with patch(
-            "aoty_pred.pipelines.orchestrator.ensure_environment_locked"
-        ), patch(
-            "aoty_pred.pipelines.orchestrator.verify_environment"
-        ) as mock_verify:
+        with (
+            patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked"),
+            patch("aoty_pred.pipelines.orchestrator.verify_environment") as mock_verify,
+        ):
             mock_verify.return_value = MagicMock(
                 is_reproducible=True,
                 pixi_lock_hash="test_hash_123",
@@ -314,11 +303,10 @@ class TestFullPipeline:
         - Stage is recorded in stages_skipped
         - Exit code is 0
         """
-        with patch(
-            "aoty_pred.pipelines.orchestrator.ensure_environment_locked"
-        ), patch(
-            "aoty_pred.pipelines.orchestrator.verify_environment"
-        ) as mock_verify:
+        with (
+            patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked"),
+            patch("aoty_pred.pipelines.orchestrator.verify_environment") as mock_verify,
+        ):
             mock_verify.return_value = MagicMock(
                 is_reproducible=True,
                 pixi_lock_hash="test_hash_123",
@@ -330,9 +318,7 @@ class TestFullPipeline:
             def skipping_run_fn(ctx):
                 raise StageSkipped("No new data to process")
 
-            with patch(
-                "aoty_pred.pipelines.orchestrator.get_execution_order"
-            ) as mock_order:
+            with patch("aoty_pred.pipelines.orchestrator.get_execution_order") as mock_order:
                 mock_stage = MagicMock()
                 mock_stage.name = "data"
                 mock_stage.description = "Prepare data"
@@ -364,11 +350,10 @@ class TestFullPipeline:
         - Manifest contains required fields
         - Manifest is valid JSON
         """
-        with patch(
-            "aoty_pred.pipelines.orchestrator.ensure_environment_locked"
-        ), patch(
-            "aoty_pred.pipelines.orchestrator.verify_environment"
-        ) as mock_verify:
+        with (
+            patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked"),
+            patch("aoty_pred.pipelines.orchestrator.verify_environment") as mock_verify,
+        ):
             mock_verify.return_value = MagicMock(
                 is_reproducible=True,
                 pixi_lock_hash="test_hash_123",
@@ -377,9 +362,7 @@ class TestFullPipeline:
 
             output_dir = tmp_path / "outputs"
 
-            with patch(
-                "aoty_pred.pipelines.orchestrator.get_execution_order"
-            ) as mock_order:
+            with patch("aoty_pred.pipelines.orchestrator.get_execution_order") as mock_order:
                 mock_stage = MagicMock()
                 mock_stage.name = "data"
                 mock_stage.description = "Prepare data"
@@ -420,11 +403,10 @@ class TestFullPipeline:
         - outputs/latest link/junction is created
         - Link points to the current run directory
         """
-        with patch(
-            "aoty_pred.pipelines.orchestrator.ensure_environment_locked"
-        ), patch(
-            "aoty_pred.pipelines.orchestrator.verify_environment"
-        ) as mock_verify:
+        with (
+            patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked"),
+            patch("aoty_pred.pipelines.orchestrator.verify_environment") as mock_verify,
+        ):
             mock_verify.return_value = MagicMock(
                 is_reproducible=True,
                 pixi_lock_hash="test_hash_123",
@@ -433,9 +415,7 @@ class TestFullPipeline:
 
             output_dir = tmp_path / "outputs"
 
-            with patch(
-                "aoty_pred.pipelines.orchestrator.get_execution_order"
-            ) as mock_order:
+            with patch("aoty_pred.pipelines.orchestrator.get_execution_order") as mock_order:
                 mock_order.return_value = []  # No stages
 
                 config = PipelineConfig(seed=42)
@@ -491,11 +471,10 @@ class TestPipelineErrorScenarios:
         - RuntimeError becomes exit code 1
         - Error is captured in manifest
         """
-        with patch(
-            "aoty_pred.pipelines.orchestrator.ensure_environment_locked"
-        ), patch(
-            "aoty_pred.pipelines.orchestrator.verify_environment"
-        ) as mock_verify:
+        with (
+            patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked"),
+            patch("aoty_pred.pipelines.orchestrator.verify_environment") as mock_verify,
+        ):
             mock_verify.return_value = MagicMock(
                 is_reproducible=True,
                 pixi_lock_hash="test_hash_123",
@@ -507,9 +486,7 @@ class TestPipelineErrorScenarios:
             def unexpected_error(ctx):
                 raise RuntimeError("Unexpected failure in stage")
 
-            with patch(
-                "aoty_pred.pipelines.orchestrator.get_execution_order"
-            ) as mock_order:
+            with patch("aoty_pred.pipelines.orchestrator.get_execution_order") as mock_order:
                 mock_stage = MagicMock()
                 mock_stage.name = "data"
                 mock_stage.description = "Prepare data"
@@ -544,11 +521,10 @@ class TestPipelineResume:
         - Resume finds previous run directory
         - Already completed stages are not re-run
         """
-        with patch(
-            "aoty_pred.pipelines.orchestrator.ensure_environment_locked"
-        ), patch(
-            "aoty_pred.pipelines.orchestrator.verify_environment"
-        ) as mock_verify:
+        with (
+            patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked"),
+            patch("aoty_pred.pipelines.orchestrator.verify_environment") as mock_verify,
+        ):
             mock_verify.return_value = MagicMock(
                 is_reproducible=True,
                 pixi_lock_hash="test_hash_123",
@@ -566,9 +542,7 @@ class TestPipelineResume:
             def count_splits(ctx):
                 run_count["splits"] += 1
 
-            with patch(
-                "aoty_pred.pipelines.orchestrator.get_execution_order"
-            ) as mock_order:
+            with patch("aoty_pred.pipelines.orchestrator.get_execution_order") as mock_order:
                 mock_data = MagicMock()
                 mock_data.name = "data"
                 mock_data.description = "Data"
@@ -623,11 +597,10 @@ class TestPipelineResume:
         - PipelineError is raised for missing run
         - Error contains helpful message
         """
-        with patch(
-            "aoty_pred.pipelines.orchestrator.ensure_environment_locked"
-        ), patch(
-            "aoty_pred.pipelines.orchestrator.verify_environment"
-        ) as mock_verify:
+        with (
+            patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked"),
+            patch("aoty_pred.pipelines.orchestrator.verify_environment") as mock_verify,
+        ):
             mock_verify.return_value = MagicMock(
                 is_reproducible=True,
                 pixi_lock_hash="test_hash_123",

@@ -207,9 +207,7 @@ class ConfigIntrospector:
 
         return run
 
-    def _extract_param_info(
-        self, name: str, param: inspect.Parameter
-    ) -> dict[str, Any]:
+    def _extract_param_info(self, name: str, param: inspect.Parameter) -> dict[str, Any]:
         """Extract metadata from a single parameter.
 
         Args:

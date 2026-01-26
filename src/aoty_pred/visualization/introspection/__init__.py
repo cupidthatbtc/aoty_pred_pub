@@ -46,31 +46,31 @@ from aoty_pred.visualization.introspection.base import (
     Introspector,
     NodeSpec,
 )
-from aoty_pred.visualization.introspection.diagram_builder import (
-    SECTION_COLORS,
-    SECTION_HIERARCHY,
-    StructuredDiagramBuilder,
-)
 from aoty_pred.visualization.introspection.cleaning_introspector import (
     CleaningIntrospector,
 )
 from aoty_pred.visualization.introspection.config_introspector import (
     ConfigIntrospector,
 )
+from aoty_pred.visualization.introspection.csv_introspector import CSVIntrospector
+from aoty_pred.visualization.introspection.diagram_builder import (
+    SECTION_COLORS,
+    SECTION_HIERARCHY,
+    StructuredDiagramBuilder,
+)
 from aoty_pred.visualization.introspection.feature_introspector import (
     FeatureBlockIntrospector,
 )
-from aoty_pred.visualization.introspection.csv_introspector import CSVIntrospector
 from aoty_pred.visualization.introspection.mcmc_introspector import MCMCIntrospector
 from aoty_pred.visualization.introspection.model_introspector import ModelIntrospector
 from aoty_pred.visualization.introspection.prior_introspector import PriorIntrospector
 from aoty_pred.visualization.introspection.renderer import (
-    DiagramRenderer,
     EXTENDED_THEME_COLORS,
     FEEDBACK_LOOPS,
     FEEDBACK_STYLES,
     LEGEND_EDGE_TYPES,
     LEGEND_SHAPES,
+    DiagramRenderer,
 )
 from aoty_pred.visualization.introspection.schema_introspector import SchemaIntrospector
 from aoty_pred.visualization.introspection.split_introspector import SplitIntrospector

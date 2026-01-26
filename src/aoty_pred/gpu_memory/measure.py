@@ -92,8 +92,7 @@ def get_jax_memory_stats(device_index: int = 0) -> JaxMemoryStats:
 
     if device_index >= len(devices):
         raise RuntimeError(
-            f"GPU index {device_index} out of range. "
-            f"Available GPUs: 0-{len(devices) - 1}"
+            f"GPU index {device_index} out of range. " f"Available GPUs: 0-{len(devices) - 1}"
         )
 
     device = devices[device_index]

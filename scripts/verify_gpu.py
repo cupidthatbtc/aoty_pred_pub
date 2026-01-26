@@ -180,7 +180,6 @@ def check_numpyro_mcmc() -> CheckResult:
     """
     try:
         import jax
-        import jax.numpy as jnp
         import numpyro
         import numpyro.distributions as dist
         from numpyro.infer import MCMC, NUTS

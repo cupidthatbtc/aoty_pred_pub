@@ -3,14 +3,17 @@
 
 import sys
 
+
 def check_jax():
     try:
         import jax
+
         print(f"JAX version: {jax.__version__}")
         print(f"JAX default backend: {jax.default_backend()}")
         print(f"JAX devices: {jax.devices()}")
 
         import jaxlib
+
         print(f"jaxlib version: {jaxlib.__version__}")
 
         # Check for CUDA
@@ -28,6 +31,7 @@ def check_jax():
     except Exception as e:  # Broad catch: JAX init can fail many ways (device, driver, etc.)
         print(f"Error: {e}")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(check_jax())

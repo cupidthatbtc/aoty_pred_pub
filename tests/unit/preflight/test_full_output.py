@@ -109,9 +109,7 @@ class TestRenderFullPreflightStatus:
         captured = capsys.readouterr()
         assert "FAIL" in captured.out
 
-    def test_render_warning_contains_warning(
-        self, capsys, warning_result: FullPreflightResult
-    ):
+    def test_render_warning_contains_warning(self, capsys, warning_result: FullPreflightResult):
         """Output contains 'WARNING' for WARNING status."""
         render_full_preflight_result(warning_result)
         captured = capsys.readouterr()

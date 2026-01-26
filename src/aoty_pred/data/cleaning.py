@@ -2,11 +2,10 @@
 
 from dataclasses import dataclass
 from typing import Optional
+
 import pandas as pd
-import numpy as np
 
 from aoty_pred.data.lineage import AuditLogger
-
 
 # Column name mapping from raw to canonical
 RAW_TO_CANONICAL = {
@@ -28,6 +27,7 @@ RAW_TO_CANONICAL = {
 @dataclass
 class CleaningConfig:
     """Configuration for cleaning pipeline."""
+
     min_year: int = 1950
     max_year: int = 2025
     score_min: float = 0.0
@@ -213,7 +213,9 @@ def clean_albums(
     if config.drop_descriptors and "Descriptors" in df.columns:
         df = df.drop(columns=["Descriptors"])
         if logger:
-            logger.log.info("column_dropped", column="Descriptors", reason="low_coverage_selection_bias")
+            logger.log.info(
+                "column_dropped", column="Descriptors", reason="low_coverage_selection_bias"
+            )
 
     return df
 
@@ -300,5 +302,3 @@ def filter_for_critic_score_model(
     )
 
     return df
-
-

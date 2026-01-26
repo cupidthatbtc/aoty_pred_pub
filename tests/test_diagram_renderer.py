@@ -9,17 +9,17 @@ Tests the enhanced DiagramRenderer with:
 import pytest
 
 from aoty_pred.visualization.introspection import (
-    DiagramRenderer,
     DiagramData,
-    NodeSpec,
+    DiagramRenderer,
     EdgeSpec,
+    NodeSpec,
 )
 from aoty_pred.visualization.introspection.renderer import (
     EXTENDED_THEME_COLORS,
-    FEEDBACK_STYLES,
     FEEDBACK_LOOPS,
-    LEGEND_SHAPES,
+    FEEDBACK_STYLES,
     LEGEND_EDGE_TYPES,
+    LEGEND_SHAPES,
 )
 
 
@@ -214,8 +214,16 @@ class TestExtendedThemeColors:
     def test_light_theme_has_10_section_fills(self) -> None:
         """Light theme has fill color for each SECTION_HIERARCHY section."""
         sections = [
-            "CONFIG", "DATA_RAW", "DATA_CLEAN", "DATA_SPLIT", "FEATURES",
-            "PRIORS", "MODEL", "CONVERGENCE", "EVALUATION", "OUTPUT"
+            "CONFIG",
+            "DATA_RAW",
+            "DATA_CLEAN",
+            "DATA_SPLIT",
+            "FEATURES",
+            "PRIORS",
+            "MODEL",
+            "CONVERGENCE",
+            "EVALUATION",
+            "OUTPUT",
         ]
         for section in sections:
             key = f"{section}_fill"
@@ -225,9 +233,15 @@ class TestExtendedThemeColors:
     def test_all_themes_have_9_edge_colors(self) -> None:
         """All themes have colors for 9 edge types."""
         edge_types = [
-            "edge_data_flow", "edge_secondary", "edge_fit_only",
-            "edge_retry", "edge_tune", "edge_refit", "edge_ablate",
-            "edge_cross_ref", "edge_annotation"
+            "edge_data_flow",
+            "edge_secondary",
+            "edge_fit_only",
+            "edge_retry",
+            "edge_tune",
+            "edge_refit",
+            "edge_ablate",
+            "edge_cross_ref",
+            "edge_annotation",
         ]
         for theme in EXTENDED_THEME_COLORS:
             for edge in edge_types:

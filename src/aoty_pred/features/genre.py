@@ -102,9 +102,7 @@ class GenreBlock(BaseFeatureBlock):
                     genre_counts[g] = genre_counts.get(g, 0) + 1
 
         # Filter to genres with sufficient count
-        frequent_genres = [
-            g for g, count in genre_counts.items() if count >= self.min_genre_count
-        ]
+        frequent_genres = [g for g, count in genre_counts.items() if count >= self.min_genre_count]
 
         # Sort for deterministic ordering
         self._genre_vocab_ = tuple(sorted(frequent_genres))
@@ -115,11 +113,7 @@ class GenreBlock(BaseFeatureBlock):
 
         # Fit PCA if configured and have enough genres
         n_genres = len(self._genre_vocab_)
-        if (
-            self.n_components is not None
-            and n_genres > 0
-            and self.n_components < n_genres
-        ):
+        if self.n_components is not None and n_genres > 0 and self.n_components < n_genres:
             self._pca_ = PCA(n_components=self.n_components, random_state=ctx.random_state)
             self._pca_.fit(X)
             self._use_pca_ = True
@@ -203,9 +197,7 @@ class GenreBlock(BaseFeatureBlock):
         }
         if self._use_pca_ and self._explained_variance_ratio_ is not None:
             metadata["explained_variance_ratio"] = self._explained_variance_ratio_.tolist()
-            metadata["total_explained_variance"] = float(
-                self._explained_variance_ratio_.sum()
-            )
+            metadata["total_explained_variance"] = float(self._explained_variance_ratio_.sum())
 
         return FeatureOutput(data=data, feature_names=feature_names, metadata=metadata)
 

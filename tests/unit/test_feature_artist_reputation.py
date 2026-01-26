@@ -12,7 +12,6 @@ from aoty_pred.features.artist import ArtistHistoryBlock, ArtistReputationBlock
 from aoty_pred.features.base import FeatureContext, FeatureOutput
 from aoty_pred.features.errors import NotFittedError
 
-
 # --------------------------------------------------------------------------
 # Fixtures
 # --------------------------------------------------------------------------
@@ -27,40 +26,51 @@ def ctx():
 @pytest.fixture
 def single_artist_df():
     """Single artist with 3 albums: scores 70, 80, 90."""
-    return pd.DataFrame({
-        "Artist": ["TestArtist", "TestArtist", "TestArtist"],
-        "Album": ["Album1", "Album2", "Album3"],
-        "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2021-01-01", "2022-01-01"]),
-        "User_Score": [70.0, 80.0, 90.0],
-        "Critic_Score": [65.0, 75.0, 85.0],
-    })
+    return pd.DataFrame(
+        {
+            "Artist": ["TestArtist", "TestArtist", "TestArtist"],
+            "Album": ["Album1", "Album2", "Album3"],
+            "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2021-01-01", "2022-01-01"]),
+            "User_Score": [70.0, 80.0, 90.0],
+            "Critic_Score": [65.0, 75.0, 85.0],
+        }
+    )
 
 
 @pytest.fixture
 def multi_artist_df():
     """Two artists with different histories."""
-    return pd.DataFrame({
-        "Artist": ["ArtistA", "ArtistA", "ArtistA", "ArtistB", "ArtistB"],
-        "Album": ["A1", "A2", "A3", "B1", "B2"],
-        "Release_Date_Parsed": pd.to_datetime([
-            "2020-01-01", "2021-01-01", "2022-01-01",  # ArtistA
-            "2019-06-01", "2020-06-01",  # ArtistB
-        ]),
-        "User_Score": [70.0, 80.0, 90.0, 60.0, 50.0],
-        "Critic_Score": [75.0, 85.0, 95.0, 55.0, 45.0],
-    })
+    return pd.DataFrame(
+        {
+            "Artist": ["ArtistA", "ArtistA", "ArtistA", "ArtistB", "ArtistB"],
+            "Album": ["A1", "A2", "A3", "B1", "B2"],
+            "Release_Date_Parsed": pd.to_datetime(
+                [
+                    "2020-01-01",
+                    "2021-01-01",
+                    "2022-01-01",  # ArtistA
+                    "2019-06-01",
+                    "2020-06-01",  # ArtistB
+                ]
+            ),
+            "User_Score": [70.0, 80.0, 90.0, 60.0, 50.0],
+            "Critic_Score": [75.0, 85.0, 95.0, 55.0, 45.0],
+        }
+    )
 
 
 @pytest.fixture
 def debut_only_artist_df():
     """Artist with only one album (debut)."""
-    return pd.DataFrame({
-        "Artist": ["DebutArtist"],
-        "Album": ["OnlyAlbum"],
-        "Release_Date_Parsed": pd.to_datetime(["2020-01-01"]),
-        "User_Score": [75.0],
-        "Critic_Score": [70.0],
-    })
+    return pd.DataFrame(
+        {
+            "Artist": ["DebutArtist"],
+            "Album": ["OnlyAlbum"],
+            "Release_Date_Parsed": pd.to_datetime(["2020-01-01"]),
+            "User_Score": [75.0],
+            "Critic_Score": [70.0],
+        }
+    )
 
 
 # --------------------------------------------------------------------------
@@ -267,13 +277,15 @@ class TestTrajectory:
 
     def test_trajectory_negative_for_declining(self, ctx):
         """Artist declining should have negative trajectory."""
-        df = pd.DataFrame({
-            "Artist": ["Declining", "Declining", "Declining"],
-            "Album": ["D1", "D2", "D3"],
-            "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2021-01-01", "2022-01-01"]),
-            "User_Score": [90.0, 80.0, 70.0],
-            "Critic_Score": [85.0, 75.0, 65.0],
-        })
+        df = pd.DataFrame(
+            {
+                "Artist": ["Declining", "Declining", "Declining"],
+                "Album": ["D1", "D2", "D3"],
+                "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2021-01-01", "2022-01-01"]),
+                "User_Score": [90.0, 80.0, 70.0],
+                "Critic_Score": [85.0, 75.0, 65.0],
+            }
+        )
 
         block = ArtistHistoryBlock()
         output = block.fit_transform(df, ctx)
@@ -287,13 +299,15 @@ class TestTrajectory:
 
     def test_trajectory_zero_for_flat(self, ctx):
         """Artist with constant scores should have zero trajectory."""
-        df = pd.DataFrame({
-            "Artist": ["Flat", "Flat", "Flat"],
-            "Album": ["F1", "F2", "F3"],
-            "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2021-01-01", "2022-01-01"]),
-            "User_Score": [80.0, 80.0, 80.0],
-            "Critic_Score": [75.0, 75.0, 75.0],
-        })
+        df = pd.DataFrame(
+            {
+                "Artist": ["Flat", "Flat", "Flat"],
+                "Album": ["F1", "F2", "F3"],
+                "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2021-01-01", "2022-01-01"]),
+                "User_Score": [80.0, 80.0, 80.0],
+                "Critic_Score": [75.0, 75.0, 75.0],
+            }
+        )
 
         block = ArtistHistoryBlock()
         output = block.fit_transform(df, ctx)
@@ -359,13 +373,15 @@ class TestEdgeCases:
     def test_single_album_artist_all_nan_imputed(self, debut_only_artist_df, ctx):
         """Single-album artist should have all prior stats imputed."""
         # Create training data with multiple albums to get meaningful global stats
-        train_df = pd.DataFrame({
-            "Artist": ["Other", "Other"],
-            "Album": ["O1", "O2"],
-            "Release_Date_Parsed": pd.to_datetime(["2019-01-01", "2020-01-01"]),
-            "User_Score": [60.0, 80.0],
-            "Critic_Score": [55.0, 75.0],
-        })
+        train_df = pd.DataFrame(
+            {
+                "Artist": ["Other", "Other"],
+                "Album": ["O1", "O2"],
+                "Release_Date_Parsed": pd.to_datetime(["2019-01-01", "2020-01-01"]),
+                "User_Score": [60.0, 80.0],
+                "Critic_Score": [55.0, 75.0],
+            }
+        )
 
         block = ArtistHistoryBlock()
         block.fit(train_df, ctx)
@@ -392,13 +408,15 @@ class TestEdgeCases:
 
     def test_deterministic_with_same_date_albums(self, ctx):
         """Albums on same date should have deterministic ordering (by Album name)."""
-        df = pd.DataFrame({
-            "Artist": ["SameDay", "SameDay", "SameDay"],
-            "Album": ["C_Album", "A_Album", "B_Album"],  # Deliberately unsorted
-            "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2020-01-01", "2020-01-01"]),
-            "User_Score": [70.0, 80.0, 90.0],
-            "Critic_Score": [65.0, 75.0, 85.0],
-        })
+        df = pd.DataFrame(
+            {
+                "Artist": ["SameDay", "SameDay", "SameDay"],
+                "Album": ["C_Album", "A_Album", "B_Album"],  # Deliberately unsorted
+                "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2020-01-01", "2020-01-01"]),
+                "User_Score": [70.0, 80.0, 90.0],
+                "Critic_Score": [65.0, 75.0, 85.0],
+            }
+        )
 
         block = ArtistHistoryBlock()
         output1 = block.fit_transform(df, ctx)

@@ -305,9 +305,7 @@ def create_diagnostics_table(
 
     # Handle empty var_names
     if var_names is not None and len(var_names) == 0:
-        return pd.DataFrame(
-            columns=["R-hat", "ESS Bulk", "ESS Tail", "MCSE Mean", "Status"]
-        )
+        return pd.DataFrame(columns=["R-hat", "ESS Bulk", "ESS Tail", "MCSE Mean", "Status"])
 
     # Get number of chains for ESS threshold
     num_chains = idata.posterior.sizes.get("chain", 1)

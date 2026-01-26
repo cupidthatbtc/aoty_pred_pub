@@ -166,12 +166,14 @@ class DiagramAggregator:
                 else:
                     label = ""
 
-                edges.append(EdgeSpec(
-                    source=source_id,
-                    target=target_id,
-                    label=label,
-                    category="flow",
-                ))
+                edges.append(
+                    EdgeSpec(
+                        source=source_id,
+                        target=target_id,
+                        label=label,
+                        category="flow",
+                    )
+                )
 
         return edges
 
@@ -211,10 +213,7 @@ class DiagramAggregator:
             all_edges.extend(result.edges)
 
         # Validate edges: filter to only edges where source and target exist
-        valid_edges = [
-            edge for edge in all_edges
-            if edge.source in nodes and edge.target in nodes
-        ]
+        valid_edges = [edge for edge in all_edges if edge.source in nodes and edge.target in nodes]
 
         # Generate data flow edges after merging all nodes
         flow_edges = self._generate_data_flow_edges(nodes)

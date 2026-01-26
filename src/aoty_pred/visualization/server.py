@@ -18,15 +18,14 @@ import logging
 import threading
 import webbrowser
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import plotly.graph_objects as go
 
 from aoty_pred.visualization.charts import (
     create_forest_plot,
@@ -41,7 +40,7 @@ from aoty_pred.visualization.dashboard import (
     create_dashboard_figures,
     get_artist_list,
 )
-from aoty_pred.visualization.export import ensure_kaleido_chrome, export_figure
+from aoty_pred.visualization.export import ensure_kaleido_chrome
 
 __all__ = [
     "app",
@@ -123,9 +122,13 @@ def load_dashboard_data(run_dir: Path | None = None) -> DashboardData:
         model_files = []
         if run_dir is not None:
             # Look for NetCDF files in run directory
-            model_files = sorted(run_dir.glob("models/*.nc"), key=lambda f: f.stat().st_mtime, reverse=True)
+            model_files = sorted(
+                run_dir.glob("models/*.nc"), key=lambda f: f.stat().st_mtime, reverse=True
+            )
             if not model_files:
-                model_files = sorted(run_dir.glob("*.nc"), key=lambda f: f.stat().st_mtime, reverse=True)
+                model_files = sorted(
+                    run_dir.glob("*.nc"), key=lambda f: f.stat().st_mtime, reverse=True
+                )
 
         # Fallback: check models/ directory relative to project root
         if not model_files:
@@ -137,7 +140,9 @@ def load_dashboard_data(run_dir: Path | None = None) -> DashboardData:
                     break
             models_dir = project_root / "models"
             if models_dir.exists():
-                model_files = sorted(models_dir.glob("*.nc"), key=lambda f: f.stat().st_mtime, reverse=True)
+                model_files = sorted(
+                    models_dir.glob("*.nc"), key=lambda f: f.stat().st_mtime, reverse=True
+                )
                 if model_files:
                     logger.info("Using fallback models directory: %s", models_dir)
 
@@ -148,7 +153,6 @@ def load_dashboard_data(run_dir: Path | None = None) -> DashboardData:
         logger.warning("Could not load inference data: %s", e)
 
     if run_dir is not None:
-
         # Try to load predictions from evaluation
         try:
             pred_files = list(run_dir.glob("evaluation/*.json"))
@@ -499,9 +503,7 @@ async def export_chart(
         return Response(
             content=img_bytes,
             media_type=content_types[format_lower],
-            headers={
-                "Content-Disposition": f'attachment; filename="{chart_id}.{format_lower}"'
-            },
+            headers={"Content-Disposition": f'attachment; filename="{chart_id}.{format_lower}"'},
         )
     except Exception as e:
         logger.error("Export failed for %s: %s", chart_id, e)
@@ -534,6 +536,7 @@ def open_browser_delayed(url: str, delay: float = 1.5) -> None:
     delay : float, default 1.5
         Delay in seconds before opening browser.
     """
+
     def _open() -> None:
         webbrowser.open(url)
 

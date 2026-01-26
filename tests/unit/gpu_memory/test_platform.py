@@ -124,7 +124,9 @@ class TestDetectPlatform:
     def test_detects_wsl2_by_proc_version(self):
         """detect_platform returns WSL2 when /proc/version contains 'microsoft'."""
         mock_path = mock.MagicMock()
-        mock_path.return_value.read_text.return_value = "linux version 5.15.0-microsoft-standard-wsl2"
+        mock_path.return_value.read_text.return_value = (
+            "linux version 5.15.0-microsoft-standard-wsl2"
+        )
         mock_path.return_value.exists.return_value = True  # /run/WSL exists
 
         with (

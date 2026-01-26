@@ -8,9 +8,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from .base import FeatureBlock
 from .album_type import AlbumTypeBlock
 from .artist import ArtistHistoryBlock, ArtistReputationBlock
+from .base import FeatureBlock
 from .collaboration import CollaborationBlock
 from .core import CoreNumericBlock
 from .descriptor_pca import DescriptorPCABlock
@@ -61,7 +61,9 @@ def build_default_registry() -> FeatureRegistry:
     registry.register("artist_reputation", lambda params: ArtistReputationBlock(params))
     registry.register("artist_history", lambda params: ArtistHistoryBlock(params))
     registry.register("genre", lambda params: GenreBlock(params))
-    registry.register("genre_pca", lambda params: GenrePCABlock(params))  # Alias for backwards compat
+    registry.register(
+        "genre_pca", lambda params: GenrePCABlock(params)
+    )  # Alias for backwards compat
     registry.register("descriptor_pca", lambda params: DescriptorPCABlock(params))
     registry.register("album_type", lambda params: AlbumTypeBlock(params))
     registry.register("collaboration", lambda params: CollaborationBlock(params))

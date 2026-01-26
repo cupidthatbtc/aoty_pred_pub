@@ -9,21 +9,18 @@ These tests verify interface compatibility between modules
 that was the source of bugs fixed in Phases 10-12.
 """
 
-import numpy as np
 import pandas as pd
 import pytest
 
 from aoty_pred.data.split import (
     assert_no_artist_overlap,
     validate_temporal_split,
-    within_artist_temporal_split,
 )
 from aoty_pred.features.album_type import AlbumTypeBlock
 from aoty_pred.features.artist import ArtistHistoryBlock
 from aoty_pred.features.base import FeatureContext
 from aoty_pred.features.pipeline import FeaturePipeline
 from aoty_pred.features.temporal import TemporalBlock
-
 from tests.integration.conftest import generate_synthetic_albums
 
 
@@ -177,18 +174,20 @@ class TestDataFeaturesIntegration:
         Manually verify LOO calculation for an artist with known history.
         """
         # Create data with known scores for one artist
-        df = pd.DataFrame({
-            "Artist": ["TestArtist"] * 4,
-            "Album": ["A", "B", "C", "D"],
-            "Release_Date_Parsed": pd.to_datetime([
-                "2010-01-01", "2011-01-01", "2012-01-01", "2013-01-01"
-            ]),
-            "Year": [2010, 2011, 2012, 2013],
-            "User_Score": [60.0, 70.0, 80.0, 90.0],
-            "Critic_Score": [65.0, 75.0, 85.0, 95.0],
-            "date_risk": ["low"] * 4,
-            "Album_Type": ["Album"] * 4,
-        })
+        df = pd.DataFrame(
+            {
+                "Artist": ["TestArtist"] * 4,
+                "Album": ["A", "B", "C", "D"],
+                "Release_Date_Parsed": pd.to_datetime(
+                    ["2010-01-01", "2011-01-01", "2012-01-01", "2013-01-01"]
+                ),
+                "Year": [2010, 2011, 2012, 2013],
+                "User_Score": [60.0, 70.0, 80.0, 90.0],
+                "Critic_Score": [65.0, 75.0, 85.0, 95.0],
+                "date_risk": ["low"] * 4,
+                "Album_Type": ["Album"] * 4,
+            }
+        )
 
         block = ArtistHistoryBlock()
         block.fit(df, feature_context)
@@ -223,16 +222,23 @@ class TestDataFeaturesIntegration:
         - release_gap_days is 0 for debuts
         """
         # Create data with known release dates
-        df = pd.DataFrame({
-            "Artist": ["A", "A", "A", "B", "B"],
-            "Album": ["A1", "A2", "A3", "B1", "B2"],
-            "Release_Date_Parsed": pd.to_datetime([
-                "2010-01-01", "2012-01-01", "2015-01-01",  # Artist A
-                "2011-06-01", "2013-06-01",  # Artist B
-            ]),
-            "Year": [2010, 2012, 2015, 2011, 2013],
-            "date_risk": ["low"] * 5,
-        })
+        df = pd.DataFrame(
+            {
+                "Artist": ["A", "A", "A", "B", "B"],
+                "Album": ["A1", "A2", "A3", "B1", "B2"],
+                "Release_Date_Parsed": pd.to_datetime(
+                    [
+                        "2010-01-01",
+                        "2012-01-01",
+                        "2015-01-01",  # Artist A
+                        "2011-06-01",
+                        "2013-06-01",  # Artist B
+                    ]
+                ),
+                "Year": [2010, 2012, 2015, 2011, 2013],
+                "date_risk": ["low"] * 5,
+            }
+        )
 
         block = TemporalBlock()
         block.fit(df, feature_context)
@@ -306,7 +312,9 @@ class TestDataFeaturesIntegration:
         output = fitted_feature_pipeline.transform(split_datasets["train"], feature_context)
 
         assert "blocks" in output.metadata
-        assert len(output.metadata["blocks"]) == 3  # TemporalBlock, ArtistHistoryBlock, AlbumTypeBlock
+        assert (
+            len(output.metadata["blocks"]) == 3
+        )  # TemporalBlock, ArtistHistoryBlock, AlbumTypeBlock
 
         # Each block should have recorded its metadata
         for block_meta in output.metadata["blocks"]:

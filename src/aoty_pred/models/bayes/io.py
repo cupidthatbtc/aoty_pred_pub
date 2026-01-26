@@ -230,9 +230,7 @@ def save_model(
 
     # Create manifest entry
     mcmc_config = (
-        fit_result.mcmc._kernel_params
-        if hasattr(fit_result.mcmc, "_kernel_params")
-        else {}
+        fit_result.mcmc._kernel_params if hasattr(fit_result.mcmc, "_kernel_params") else {}
     )
     manifest = ModelManifest(
         version="1.0",

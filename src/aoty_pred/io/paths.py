@@ -24,6 +24,4 @@ def project_root() -> Path:
     for parent in path.parents:
         if (parent / marker).exists():
             return parent
-    raise FileNotFoundError(
-        f"Project root not found - no {marker} in parent directories of {path}"
-    )
+    raise FileNotFoundError(f"Project root not found - no {marker} in parent directories of {path}")

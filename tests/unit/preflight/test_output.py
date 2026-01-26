@@ -229,9 +229,7 @@ class TestRenderPreflightDataSource:
 
         assert "fixed defaults" in captured.out
 
-    def test_render_shows_default_dimensions_source(
-        self, capsys, basic_result: PreflightResult
-    ):
+    def test_render_shows_default_dimensions_source(self, capsys, basic_result: PreflightResult):
         """Output shows defaults source when using DataDimensions.from_defaults()."""
         dimensions = DataDimensions.from_defaults()
         render_preflight_result(basic_result, dimensions=dimensions)

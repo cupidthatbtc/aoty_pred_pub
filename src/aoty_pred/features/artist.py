@@ -122,9 +122,7 @@ class ArtistHistoryBlock(BaseFeatureBlock):
             df_sorted[f"{prefix}_prior_mean"] = grp.transform(
                 lambda x: x.shift(1).expanding().mean()
             )
-            df_sorted[f"{prefix}_prior_std"] = grp.transform(
-                lambda x: x.shift(1).expanding().std()
-            )
+            df_sorted[f"{prefix}_prior_std"] = grp.transform(lambda x: x.shift(1).expanding().std())
             df_sorted[f"{prefix}_prior_count"] = grp.transform(
                 lambda x: x.shift(1).expanding().count()
             )
@@ -144,8 +142,12 @@ class ArtistHistoryBlock(BaseFeatureBlock):
         df_sorted["user_prior_count"] = df_sorted["user_prior_count"].fillna(0)
         df_sorted["user_trajectory"] = df_sorted["user_trajectory"].fillna(0)
 
-        df_sorted["critic_prior_mean"] = df_sorted["critic_prior_mean"].fillna(self._global_critic_mean_)
-        df_sorted["critic_prior_std"] = df_sorted["critic_prior_std"].fillna(self._global_critic_std_)
+        df_sorted["critic_prior_mean"] = df_sorted["critic_prior_mean"].fillna(
+            self._global_critic_mean_
+        )
+        df_sorted["critic_prior_std"] = df_sorted["critic_prior_std"].fillna(
+            self._global_critic_std_
+        )
         df_sorted["critic_prior_count"] = df_sorted["critic_prior_count"].fillna(0)
         df_sorted["critic_trajectory"] = df_sorted["critic_trajectory"].fillna(0)
 

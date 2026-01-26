@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 import arviz as az
 import numpy as np
+import pandas as pd
 import xarray as xr
 from jax import random
 from numpyro.infer import MCMC, Predictive, log_likelihood
@@ -323,7 +324,6 @@ def compare_models(
     predictive uncertainty. Stacking weights provide optimal
     combination weights for model averaging.
     """
-    import pandas as pd
 
     comparison = az.compare(model_dict, ic=ic)
     return comparison

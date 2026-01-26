@@ -125,11 +125,7 @@ def detect_platform() -> PlatformInfo:
     # 1. /run/WSL directory exists (WSL2 only)
     # 2. "wsl2" appears in /proc/version (explicit)
     # 3. WSL_INTEROP environment variable is set (WSL2 only)
-    is_wsl2 = (
-        run_wsl_exists
-        or "wsl2" in proc_version
-        or os.environ.get("WSL_INTEROP") is not None
-    )
+    is_wsl2 = run_wsl_exists or "wsl2" in proc_version or os.environ.get("WSL_INTEROP") is not None
 
     return PlatformInfo(
         platform_type=PlatformType.WSL2 if is_wsl2 else PlatformType.WSL1,

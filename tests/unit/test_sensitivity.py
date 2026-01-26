@@ -14,20 +14,18 @@ import pytest
 # Skip slow integration tests unless RUN_SLOW_TESTS is set
 SKIP_SLOW = pytest.mark.skipif(
     not os.environ.get("RUN_SLOW_TESTS"),
-    reason="Slow integration test - set RUN_SLOW_TESTS=1 to run"
+    reason="Slow integration test - set RUN_SLOW_TESTS=1 to run",
 )
 
-from aoty_pred.pipelines.sensitivity import (
-    SensitivityResult,
-    PRIOR_CONFIGS,
-    aggregate_sensitivity_results,
-    create_coefficient_comparison_df,
-    extract_coefficient_summary,
-)
 from aoty_pred.evaluation.cv import LOOResult
 from aoty_pred.evaluation.metrics import CRPSResult
 from aoty_pred.models.bayes.diagnostics import ConvergenceDiagnostics
-
+from aoty_pred.pipelines.sensitivity import (
+    PRIOR_CONFIGS,
+    SensitivityResult,
+    aggregate_sensitivity_results,
+    create_coefficient_comparison_df,
+)
 
 # ============================================================================
 # Fixtures
@@ -44,13 +42,16 @@ def mock_convergence():
         divergences=0,
         passed=True,
         failing_params=[],
-        summary_df=pd.DataFrame({
-            "mean": [0.5, 0.3],
-            "sd": [0.1, 0.05],
-            "r_hat": [1.001, 1.002],
-            "ess_bulk": [2500, 2700],
-            "ess_tail": [2200, 2400],
-        }, index=["param1", "param2"]),
+        summary_df=pd.DataFrame(
+            {
+                "mean": [0.5, 0.3],
+                "sd": [0.1, 0.05],
+                "r_hat": [1.001, 1.002],
+                "ess_bulk": [2500, 2700],
+                "ess_tail": [2200, 2400],
+            },
+            index=["param1", "param2"],
+        ),
         rhat_threshold=1.01,
         ess_threshold=400,
     )
@@ -59,6 +60,7 @@ def mock_convergence():
 @pytest.fixture
 def mock_loo_result():
     """Create a mock LOOResult with synthetic ELPD."""
+
     # Create a minimal mock that has the required attributes
     class MockELPDData:
         elpd_loo = -1234.5
@@ -91,12 +93,15 @@ def mock_crps_result():
 @pytest.fixture
 def mock_coefficients():
     """Create a mock coefficient summary DataFrame."""
-    return pd.DataFrame({
-        "mean": [0.15, 0.08, 12.5],
-        "sd": [0.03, 0.02, 1.2],
-        "hdi_3%": [0.09, 0.04, 10.1],
-        "hdi_97%": [0.21, 0.12, 14.9],
-    }, index=["user_rho", "user_beta[0]", "sigma_obs"])
+    return pd.DataFrame(
+        {
+            "mean": [0.15, 0.08, 12.5],
+            "sd": [0.03, 0.02, 1.2],
+            "hdi_3%": [0.09, 0.04, 10.1],
+            "hdi_97%": [0.21, 0.12, 14.9],
+        },
+        index=["user_rho", "user_beta[0]", "sigma_obs"],
+    )
 
 
 @pytest.fixture
@@ -117,13 +122,17 @@ def mock_sensitivity_results(mock_convergence, mock_loo_result, mock_coefficient
 
     # Diffuse config result - slightly different ELPD
     diffuse_loo = LOOResult(
-        loo=type("MockELPD", (), {
-            "elpd_loo": -1256.3,
-            "se": 48.1,
-            "p_loo": 135.2,
-            "pareto_k": np.array([0.3, 0.4, 0.5]),
-            "warning": None,
-        })(),
+        loo=type(
+            "MockELPD",
+            (),
+            {
+                "elpd_loo": -1256.3,
+                "se": 48.1,
+                "p_loo": 135.2,
+                "pareto_k": np.array([0.3, 0.4, 0.5]),
+                "warning": None,
+            },
+        )(),
         elpd_loo=-1256.3,
         se_elpd=48.1,
         p_loo=135.2,
@@ -149,13 +158,17 @@ def mock_sensitivity_results(mock_convergence, mock_loo_result, mock_coefficient
 
     # Informative config result
     informative_loo = LOOResult(
-        loo=type("MockELPD", (), {
-            "elpd_loo": -1240.1,
-            "se": 44.8,
-            "p_loo": 115.8,
-            "pareto_k": np.array([0.2, 0.3]),
-            "warning": None,
-        })(),
+        loo=type(
+            "MockELPD",
+            (),
+            {
+                "elpd_loo": -1240.1,
+                "se": 44.8,
+                "p_loo": 115.8,
+                "pareto_k": np.array([0.2, 0.3]),
+                "warning": None,
+            },
+        )(),
         elpd_loo=-1240.1,
         se_elpd=44.8,
         p_loo=115.8,
@@ -294,8 +307,16 @@ class TestAggregateSensitivityResults:
         """Test expected columns for ELPD aggregation."""
         df = aggregate_sensitivity_results(mock_sensitivity_results, metric="elpd")
 
-        expected_columns = ["convergence_passed", "divergences", "rhat_max", "ess_bulk_min",
-                           "elpd", "elpd_se", "p_loo", "n_high_pareto_k"]
+        expected_columns = [
+            "convergence_passed",
+            "divergences",
+            "rhat_max",
+            "ess_bulk_min",
+            "elpd",
+            "elpd_se",
+            "p_loo",
+            "n_high_pareto_k",
+        ]
         for col in expected_columns:
             assert col in df.columns, f"Missing column: {col}"
 
@@ -388,7 +409,9 @@ class TestCreateCoefficientComparisonDf:
         # Should return empty DataFrame for missing params
         assert len(df) == 0
 
-    def test_create_coefficient_comparison_df_empty_coefficients(self, mock_convergence, mock_loo_result):
+    def test_create_coefficient_comparison_df_empty_coefficients(
+        self, mock_convergence, mock_loo_result
+    ):
         """Test handling of empty coefficients DataFrame."""
         results = {
             "empty_coef": SensitivityResult(

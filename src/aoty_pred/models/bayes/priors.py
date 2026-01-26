@@ -78,7 +78,7 @@ class PriorConfig:
     n_exponent_alpha: float = 2.0
     n_exponent_beta: float = 4.0
     # Logit-normal prior parameters for n_exponent (new default)
-    n_exponent_loc: float = 0.0    # maps to ~0.5 via sigmoid
+    n_exponent_loc: float = 0.0  # maps to ~0.5 via sigmoid
     n_exponent_scale: float = 1.0  # reasonable spread in logit space
 
 

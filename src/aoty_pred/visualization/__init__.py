@@ -19,9 +19,6 @@ Usage:
 
 from __future__ import annotations
 
-# Import and register themes on package import
-from aoty_pred.visualization.theme import COLORBLIND_COLORS, register_themes
-
 # Import chart creation functions
 from aoty_pred.visualization.charts import (
     create_forest_plot,
@@ -29,14 +26,6 @@ from aoty_pred.visualization.charts import (
     create_predictions_plot,
     create_reliability_plot,
     create_trace_plot,
-)
-
-# Import export functions
-from aoty_pred.visualization.export import (
-    ensure_kaleido_chrome,
-    export_all_figures,
-    export_dashboard_html,
-    export_figure,
 )
 
 # Import dashboard functions
@@ -47,11 +36,22 @@ from aoty_pred.visualization.dashboard import (
     get_artist_list,
 )
 
+# Import export functions
+from aoty_pred.visualization.export import (
+    ensure_kaleido_chrome,
+    export_all_figures,
+    export_dashboard_html,
+    export_figure,
+)
+
 # Import server functions
 from aoty_pred.visualization.server import (
     app,
     run_server,
 )
+
+# Import and register themes on package import
+from aoty_pred.visualization.theme import COLORBLIND_COLORS, register_themes
 
 # Ensure themes are registered
 register_themes()

@@ -119,92 +119,140 @@ def run(
         "--resume",
         help="Resume failed run by run-id (e.g., '2026-01-19_143052')",
     ),
-    max_albums: Annotated[int, typer.Option(
-        min=1,
-        help="Maximum albums per artist for model training. Albums beyond this use the same artist effect.",
-    )] = 50,
+    max_albums: Annotated[
+        int,
+        typer.Option(
+            min=1,
+            help="Max albums per artist for training. Beyond this use same artist effect.",
+        ),
+    ] = 50,
     # MCMC Configuration
-    num_chains: Annotated[int, typer.Option(
-        min=1,
-        help="Number of parallel MCMC chains (default 4)",
-    )] = 4,
-    num_samples: Annotated[int, typer.Option(
-        min=100,
-        help="Post-warmup samples per chain (default 1000)",
-    )] = 1000,
-    num_warmup: Annotated[int, typer.Option(
-        min=50,
-        help="Warmup iterations per chain (default 1000)",
-    )] = 1000,
-    target_accept: Annotated[float, typer.Option(
-        min=0.5,
-        max=0.999,
-        help="Target acceptance probability (default 0.8, increase to 0.9-0.95 if divergences)",
-    )] = 0.8,
-    chain_method: Annotated[str, typer.Option(
-        "--chain-method",
-        help="Chain parallelization: 'sequential' (default, stable), 'vectorized' (faster, more memory), 'parallel' (multi-GPU)",
-    )] = "sequential",
+    num_chains: Annotated[
+        int,
+        typer.Option(
+            min=1,
+            help="Number of parallel MCMC chains (default 4)",
+        ),
+    ] = 4,
+    num_samples: Annotated[
+        int,
+        typer.Option(
+            min=100,
+            help="Post-warmup samples per chain (default 1000)",
+        ),
+    ] = 1000,
+    num_warmup: Annotated[
+        int,
+        typer.Option(
+            min=50,
+            help="Warmup iterations per chain (default 1000)",
+        ),
+    ] = 1000,
+    target_accept: Annotated[
+        float,
+        typer.Option(
+            min=0.5,
+            max=0.999,
+            help="Target acceptance probability (default 0.8, increase to 0.9-0.95 if divergences)",
+        ),
+    ] = 0.8,
+    chain_method: Annotated[
+        str,
+        typer.Option(
+            "--chain-method",
+            help="Chain method: 'sequential', 'vectorized', or 'parallel' (multi-GPU)",
+        ),
+    ] = "sequential",
     # Convergence Thresholds
-    rhat_threshold: Annotated[float, typer.Option(
-        min=1.0,
-        max=1.1,
-        help="Maximum acceptable R-hat (default 1.01)",
-    )] = 1.01,
-    ess_threshold: Annotated[int, typer.Option(
-        min=100,
-        help="Minimum ESS per chain (default 400)",
-    )] = 400,
+    rhat_threshold: Annotated[
+        float,
+        typer.Option(
+            min=1.0,
+            max=1.1,
+            help="Maximum acceptable R-hat (default 1.01)",
+        ),
+    ] = 1.01,
+    ess_threshold: Annotated[
+        int,
+        typer.Option(
+            min=100,
+            help="Minimum ESS per chain (default 400)",
+        ),
+    ] = 400,
     allow_divergences: bool = typer.Option(
         False,
         "--allow-divergences",
         help="Don't fail on divergences (for exploratory runs)",
     ),
     # Data Filtering
-    min_ratings: Annotated[int, typer.Option(
-        min=1,
-        help="Minimum user ratings per album (default 10)",
-    )] = 10,
-    min_albums: Annotated[int, typer.Option(
-        min=1,
-        help="Minimum albums per artist for dynamic effects (default 2)",
-    )] = 2,
+    min_ratings: Annotated[
+        int,
+        typer.Option(
+            min=1,
+            help="Minimum user ratings per album (default 10)",
+        ),
+    ] = 10,
+    min_albums: Annotated[
+        int,
+        typer.Option(
+            min=1,
+            help="Minimum albums per artist for dynamic effects (default 2)",
+        ),
+    ] = 2,
     # Feature Ablation flags
-    enable_genre: Annotated[bool, typer.Option(
-        " /--no-genre",
-        help="Disable genre features",
-    )] = True,
-    enable_artist: Annotated[bool, typer.Option(
-        " /--no-artist",
-        help="Disable artist reputation features",
-    )] = True,
-    enable_temporal: Annotated[bool, typer.Option(
-        " /--no-temporal",
-        help="Disable temporal features",
-    )] = True,
+    enable_genre: Annotated[
+        bool,
+        typer.Option(
+            " /--no-genre",
+            help="Disable genre features",
+        ),
+    ] = True,
+    enable_artist: Annotated[
+        bool,
+        typer.Option(
+            " /--no-artist",
+            help="Disable artist reputation features",
+        ),
+    ] = True,
+    enable_temporal: Annotated[
+        bool,
+        typer.Option(
+            " /--no-temporal",
+            help="Disable temporal features",
+        ),
+    ] = True,
     # Heteroscedastic noise configuration
-    n_exponent: Annotated[float, typer.Option(
-        min=0.0,
-        max=1.0,
-        help="Scaling exponent for review count noise adjustment (0.0=homoscedastic, 0.5=sqrt scaling)",
-    )] = 0.0,
+    n_exponent: Annotated[
+        float,
+        typer.Option(
+            min=0.0,
+            max=1.0,
+            help="Noise exponent (0.0=homoscedastic, 0.5=sqrt scaling)",
+        ),
+    ] = 0.0,
     learn_n_exponent: bool = typer.Option(
         False,
         "--learn-n-exponent",
         help="Learn exponent from data (ignores --n-exponent if set)",
     ),
-    n_exponent_alpha: Annotated[float, typer.Option(
-        min=0.01,
-        help="Beta prior alpha parameter for learned exponent (advanced, default 2.0)",
-    )] = 2.0,
-    n_exponent_beta: Annotated[float, typer.Option(
-        min=0.01,
-        help="Beta prior beta parameter for learned exponent (advanced, default 4.0)",
-    )] = 4.0,
+    n_exponent_alpha: Annotated[
+        float,
+        typer.Option(
+            min=0.01,
+            help="Beta prior alpha parameter for learned exponent (advanced, default 2.0)",
+        ),
+    ] = 2.0,
+    n_exponent_beta: Annotated[
+        float,
+        typer.Option(
+            min=0.01,
+            help="Beta prior beta parameter for learned exponent (advanced, default 4.0)",
+        ),
+    ] = 4.0,
     n_exponent_prior: str = typer.Option(
         "logit-normal",
         "--n-exponent-prior",
-        help="Prior type for learned n_exponent: 'logit-normal' (default, fixes divergences) or 'beta' (legacy)",
+        help="Prior for learned n_exponent: 'logit-normal' (default) or 'beta' (legacy)",
     ),
 ) -> None:
     """Execute full pipeline from raw data to publication artifacts.
@@ -319,8 +367,8 @@ def run(
         model_args["learn_n_exponent"] = learn_n_exponent
 
         # Use shared dimension derivation for consistent validation
-        n_observations, n_artists_dim, n_features, _ = (
-            _derive_dimensions_from_model_args(model_args)
+        n_observations, n_artists_dim, n_features, _ = _derive_dimensions_from_model_args(
+            model_args
         )
 
         # Target samples is total warmup + samples across all chains
@@ -503,15 +551,21 @@ def stage_train(
         "--strict",
         help="Fail on convergence warnings",
     ),
-    rhat_threshold: Annotated[float, typer.Option(
-        min=1.0,
-        max=1.1,
-        help="Maximum acceptable R-hat (default 1.01)",
-    )] = 1.01,
-    ess_threshold: Annotated[int, typer.Option(
-        min=100,
-        help="Minimum ESS per chain (default 400)",
-    )] = 400,
+    rhat_threshold: Annotated[
+        float,
+        typer.Option(
+            min=1.0,
+            max=1.1,
+            help="Maximum acceptable R-hat (default 1.01)",
+        ),
+    ] = 1.01,
+    ess_threshold: Annotated[
+        int,
+        typer.Option(
+            min=100,
+            help="Minimum ESS per chain (default 400)",
+        ),
+    ] = 400,
     allow_divergences: bool = typer.Option(
         False,
         "--allow-divergences",

@@ -17,7 +17,6 @@ Usage:
     >>> comparison = aggregate_sensitivity_results(results, metric="elpd")
 """
 
-import copy
 import logging
 from dataclasses import dataclass, field
 from typing import Callable
@@ -26,10 +25,15 @@ import arviz as az
 import numpy as np
 import pandas as pd
 
-from aoty_pred.evaluation.cv import LOOResult, compute_log_likelihood, add_log_likelihood_to_idata, compute_loo
+from aoty_pred.evaluation.cv import (
+    LOOResult,
+    add_log_likelihood_to_idata,
+    compute_log_likelihood,
+    compute_loo,
+)
 from aoty_pred.evaluation.metrics import CRPSResult
 from aoty_pred.models.bayes.diagnostics import ConvergenceDiagnostics, check_convergence
-from aoty_pred.models.bayes.fit import fit_model, MCMCConfig
+from aoty_pred.models.bayes.fit import MCMCConfig, fit_model
 from aoty_pred.models.bayes.priors import PriorConfig, get_default_priors
 
 __all__ = [
@@ -101,20 +105,20 @@ class SensitivityResult:
 PRIOR_CONFIGS: dict[str, PriorConfig] = {
     "default": get_default_priors(),
     "diffuse": PriorConfig(
-        mu_artist_scale=5.0,      # Much wider (default: 1.0)
-        sigma_artist_scale=2.0,   # Allow more variance (default: 0.5)
-        sigma_rw_scale=0.5,       # More flexible time-varying (default: 0.1)
-        rho_scale=0.5,            # Wider AR(1) prior (default: 0.3)
-        beta_scale=5.0,           # Weaker regularization (default: 1.0)
-        sigma_obs_scale=2.0,      # Wider observation noise (default: 1.0)
+        mu_artist_scale=5.0,  # Much wider (default: 1.0)
+        sigma_artist_scale=2.0,  # Allow more variance (default: 0.5)
+        sigma_rw_scale=0.5,  # More flexible time-varying (default: 0.1)
+        rho_scale=0.5,  # Wider AR(1) prior (default: 0.3)
+        beta_scale=5.0,  # Weaker regularization (default: 1.0)
+        sigma_obs_scale=2.0,  # Wider observation noise (default: 1.0)
     ),
     "informative": PriorConfig(
-        mu_artist_scale=0.5,      # Tighter (default: 1.0)
+        mu_artist_scale=0.5,  # Tighter (default: 1.0)
         sigma_artist_scale=0.25,  # Encourage pooling (default: 0.5)
-        sigma_rw_scale=0.05,      # Smoother careers (default: 0.1)
-        rho_scale=0.2,            # Tighter AR(1) (default: 0.3)
-        beta_scale=0.5,           # Stronger regularization (default: 1.0)
-        sigma_obs_scale=0.5,      # Tighter observation noise (default: 1.0)
+        sigma_rw_scale=0.05,  # Smoother careers (default: 0.1)
+        rho_scale=0.2,  # Tighter AR(1) (default: 0.3)
+        beta_scale=0.5,  # Stronger regularization (default: 1.0)
+        sigma_obs_scale=0.5,  # Tighter observation noise (default: 1.0)
     ),
 }
 
@@ -265,7 +269,9 @@ def run_prior_sensitivity(
         loo_result = None
         if compute_loo_cv:
             try:
-                log_lik = compute_log_likelihood(model, fit_result.mcmc, model_args, obs_name=obs_name)
+                log_lik = compute_log_likelihood(
+                    model, fit_result.mcmc, model_args, obs_name=obs_name
+                )
                 idata_with_ll = add_log_likelihood_to_idata(fit_result.idata, log_lik)
                 loo_result = compute_loo(idata_with_ll)
             except Exception as e:
@@ -358,7 +364,7 @@ def run_threshold_sensitivity(
 
         # Load data for this threshold
         df, model_args = data_loader(threshold)
-        n_obs = len(df) if hasattr(df, '__len__') else model_args.get("y", []).shape[0]
+        n_obs = len(df) if hasattr(df, "__len__") else model_args.get("y", []).shape[0]
         logger.info(f"  Loaded {n_obs} observations for threshold={threshold}")
 
         # Fit model
@@ -374,7 +380,9 @@ def run_threshold_sensitivity(
         loo_result = None
         if compute_loo_cv:
             try:
-                log_lik = compute_log_likelihood(model, fit_result.mcmc, model_args, obs_name=obs_name)
+                log_lik = compute_log_likelihood(
+                    model, fit_result.mcmc, model_args, obs_name=obs_name
+                )
                 idata_with_ll = add_log_likelihood_to_idata(fit_result.idata, log_lik)
                 loo_result = compute_loo(idata_with_ll)
             except Exception as e:
@@ -524,7 +532,9 @@ def run_feature_ablation(
         loo_result = None
         if compute_loo_cv:
             try:
-                log_lik = compute_log_likelihood(model, fit_result.mcmc, ablated_args, obs_name=obs_name)
+                log_lik = compute_log_likelihood(
+                    model, fit_result.mcmc, ablated_args, obs_name=obs_name
+                )
                 idata_with_ll = add_log_likelihood_to_idata(fit_result.idata, log_lik)
                 loo_result = compute_loo(idata_with_ll)
             except Exception as e:
@@ -727,12 +737,14 @@ def create_coefficient_comparison_df(
                     else:
                         upper = coef_row[col]
 
-            rows.append({
-                "variant": variant_name,
-                "param": param,
-                "mean": coef_row["mean"],
-                "lower": lower,
-                "upper": upper,
-            })
+            rows.append(
+                {
+                    "variant": variant_name,
+                    "param": param,
+                    "mean": coef_row["mean"],
+                    "lower": lower,
+                    "upper": upper,
+                }
+            )
 
     return pd.DataFrame(rows)

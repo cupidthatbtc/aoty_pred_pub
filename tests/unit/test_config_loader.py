@@ -1,6 +1,5 @@
-from pathlib import Path
-import os
 import tempfile
+from pathlib import Path
 
 from aoty_pred.config.loader import load_config
 

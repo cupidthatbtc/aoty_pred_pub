@@ -177,5 +177,3 @@ def build_blocks_from_config(config: dict[str, Any]) -> list[BaseFeatureBlock]:
     registry = build_default_registry()
     specs = parse_feature_specs(config)
     return registry.build_all(specs)
-
-

@@ -103,7 +103,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
         artifacts["tables"].append(str(coef_path) + ".csv")
         artifacts["tables"].append(str(coef_path) + ".tex")
         log.info("coefficient_table_saved", path=str(coef_path))
-    except Exception as e:  # Broad catch: best-effort artifact generation
+    except Exception:  # Broad catch: best-effort artifact generation
         log.exception("coefficient_table_failed")
 
     # Diagnostics table
@@ -114,24 +114,26 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
         artifacts["tables"].append(str(diag_path) + ".csv")
         artifacts["tables"].append(str(diag_path) + ".tex")
         log.info("diagnostics_table_saved", path=str(diag_path))
-    except Exception as e:  # Broad catch: best-effort artifact generation
+    except Exception:  # Broad catch: best-effort artifact generation
         log.exception("diagnostics_table_failed")
 
     # Metrics summary table
     try:
-        metrics_df = pd.DataFrame([
-            {"Metric": "RMSE", "Value": metrics["point_metrics"]["rmse"]},
-            {"Metric": "MAE", "Value": metrics["point_metrics"]["mae"]},
-            {"Metric": "R-squared", "Value": metrics["point_metrics"]["r2"]},
-            {"Metric": "Coverage (90%)", "Value": metrics["calibration"]["coverage_90"]},
-            {"Metric": "Coverage (50%)", "Value": metrics["calibration"]["coverage_50"]},
-        ])
+        metrics_df = pd.DataFrame(
+            [
+                {"Metric": "RMSE", "Value": metrics["point_metrics"]["rmse"]},
+                {"Metric": "MAE", "Value": metrics["point_metrics"]["mae"]},
+                {"Metric": "R-squared", "Value": metrics["point_metrics"]["r2"]},
+                {"Metric": "Coverage (90%)", "Value": metrics["calibration"]["coverage_90"]},
+                {"Metric": "Coverage (50%)", "Value": metrics["calibration"]["coverage_50"]},
+            ]
+        )
         metrics_path = tables_dir / "metrics_summary"
         export_table(metrics_df, str(metrics_path), caption="Model performance metrics")
         artifacts["tables"].append(str(metrics_path) + ".csv")
         artifacts["tables"].append(str(metrics_path) + ".tex")
         log.info("metrics_table_saved", path=str(metrics_path))
-    except Exception as e:  # Broad catch: best-effort artifact generation
+    except Exception:  # Broad catch: best-effort artifact generation
         log.exception("metrics_table_failed")
 
     # =========================================================================
@@ -151,7 +153,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
         artifacts["figures"].append(str(pdf_path))
         artifacts["figures"].append(str(png_path))
         log.info("trace_plot_saved", pdf=str(pdf_path), png=str(png_path))
-    except Exception as e:  # Broad catch: best-effort artifact generation
+    except Exception:  # Broad catch: best-effort artifact generation
         log.exception("trace_plot_failed")
 
     # Posterior plots
@@ -165,7 +167,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
         artifacts["figures"].append(str(pdf_path))
         artifacts["figures"].append(str(png_path))
         log.info("posterior_plot_saved", pdf=str(pdf_path), png=str(png_path))
-    except Exception as e:  # Broad catch: best-effort artifact generation
+    except Exception:  # Broad catch: best-effort artifact generation
         log.exception("posterior_plot_failed")
 
     # =========================================================================
@@ -198,7 +200,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
         artifacts["docs"].append(str(root_card_path))
 
         log.info("model_card_saved", path=str(model_card_path))
-    except Exception as e:  # Broad catch: best-effort artifact generation
+    except Exception:  # Broad catch: best-effort artifact generation
         log.exception("model_card_failed")
 
     # =========================================================================

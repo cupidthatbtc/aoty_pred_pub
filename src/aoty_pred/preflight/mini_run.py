@@ -114,9 +114,7 @@ def run_and_measure(
 
     # Optional heteroscedastic parameters
     if "n_reviews" in args_json:
-        model_args["n_reviews"] = jnp.array(
-            args_json["n_reviews"], dtype=jnp.float32
-        )
+        model_args["n_reviews"] = jnp.array(args_json["n_reviews"], dtype=jnp.float32)
     if "n_exponent" in args_json:
         model_args["n_exponent"] = args_json["n_exponent"]
     if "learn_n_exponent" in args_json:

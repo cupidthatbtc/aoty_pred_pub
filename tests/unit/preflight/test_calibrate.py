@@ -187,9 +187,7 @@ class TestCalibrationCache:
 
     def test_load_missing_file_returns_none(self, tmp_path):
         """Non-existent cache file returns None."""
-        with mock.patch(
-            "aoty_pred.preflight.cache.CACHE_DIR", tmp_path / "calibration"
-        ):
+        with mock.patch("aoty_pred.preflight.cache.CACHE_DIR", tmp_path / "calibration"):
             result = load_calibration_cache("nonexistent_hash")
 
         assert result is None

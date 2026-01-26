@@ -16,7 +16,7 @@ import os
 import shutil
 import subprocess
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from time import time
@@ -86,7 +86,7 @@ class PipelineConfig:
         learn_n_exponent: If True, learn exponent from data using prior (default False).
         n_exponent_alpha: Beta prior alpha parameter for learned exponent (default 2.0).
         n_exponent_beta: Beta prior beta parameter for learned exponent (default 4.0).
-        n_exponent_prior: Prior type for learned exponent: 'logit-normal' or 'beta' (default 'logit-normal').
+        n_exponent_prior: Prior for learned exponent: 'logit-normal' or 'beta'.
 
     Example:
         >>> config = PipelineConfig(seed=42, dry_run=True)
@@ -211,7 +211,7 @@ class PipelineOrchestrator:
         if self.config.learn_n_exponent and self.config.n_exponent != 0.0:
             log.warning(
                 "config_conflict",
-                message="Both --n-exponent and --learn-n-exponent provided; using learned mode (--n-exponent ignored)",
+                message="Both --n-exponent and --learn-n-exponent set; using learned mode",
             )
             # Clear the fixed exponent to prevent manifest recording stale value
             self.config.n_exponent = 0.0
@@ -479,10 +479,7 @@ class PipelineOrchestrator:
                 progress.update(task_id, description=f"[cyan]{stage.name}")
 
                 # Check if this stage was already completed (for resume)
-                if (
-                    self.manifest
-                    and stage.name in self.manifest.stages_completed
-                ):
+                if self.manifest and stage.name in self.manifest.stages_completed:
                     log.info(
                         "stage_already_completed",
                         stage=stage.name,
@@ -721,10 +718,10 @@ class PipelineOrchestrator:
                     # Validate paths don't contain shell metacharacters
                     link_str = str(latest_link)
                     target_str = str(self.run_dir)
-                    if any(c in link_str + target_str for c in '&|;<>`$^%\r\n'):
+                    if any(c in link_str + target_str for c in "&|;<>`$^%\r\n"):
                         log.warning("unsafe_path_characters", link=link_str, target=target_str)
                         return
-                    result = subprocess.run(
+                    subprocess.run(
                         ["cmd", "/c", "mklink", "/J", link_str, target_str],
                         capture_output=True,
                         check=True,

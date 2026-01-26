@@ -595,27 +595,27 @@ def create_default_model_card_data() -> ModelCardData:
             "sigma_obs_scale": 1.0,
         },
         # Evaluation metrics (placeholders)
-        convergence_summary="Model not yet fitted. Run MCMC and call update_model_card_with_results().",
-        calibration_summary="Model not yet fitted. Run MCMC and call update_model_card_with_results().",
-        predictive_summary="Model not yet fitted. Run MCMC and call update_model_card_with_results().",
+        convergence_summary="Model not yet fitted. Run MCMC first.",
+        calibration_summary="Model not yet fitted. Run MCMC first.",
+        predictive_summary="Model not yet fitted. Run MCMC first.",
         loo_elpd=None,
         # Limitations
         limitations=[
-            "Trained primarily on English-language album reviews; may not generalize to other markets",
+            "Trained on English-language reviews; may not generalize to other markets",
             "Requires artists to have at least 3 prior releases for reliable predictions",
-            "Predictions less reliable for genre-crossing artists due to sparse data in novel combinations",
+            "Less reliable for genre-crossing artists due to sparse data",
             "Historical biases in music criticism may be reflected in predictions",
-            "Does not account for album-specific factors (production changes, label influence)",
-            "Career trajectory model assumes gradual evolution; sudden style changes may be poorly predicted",
+            "Does not account for album-specific factors (production, label influence)",
+            "Assumes gradual career evolution; sudden style changes poorly predicted",
             "Score predictions are probabilistic and should not be treated as ground truth",
         ],
         # Ethical considerations
         ethical_considerations=[
-            "Model predictions should not be used to gatekeep artists or influence career decisions",
-            "Aggregated scores may not reflect artistic merit or individual listener preferences",
-            "Care should be taken when interpreting genre-based effects to avoid stereotyping",
+            "Predictions should not gatekeep artists or influence career decisions",
+            "Aggregated scores may not reflect artistic merit or listener preferences",
+            "Care should be taken when interpreting genre-based effects",
             "Model may perpetuate historical biases present in music criticism",
-            "Predictions are for research and personal exploration, not commercial evaluation",
+            "Predictions are for research and exploration, not commercial evaluation",
             "Artists and labels should not be ranked solely based on predicted scores",
         ],
         # Intended use
@@ -640,7 +640,7 @@ def create_default_model_card_data() -> ModelCardData:
             "from aoty_pred.models.bayes import load_model\n"
             "\n"
             "# Load fitted model from NetCDF file\n"
-            "idata = load_model(\"models/user_score_model.nc\")"
+            'idata = load_model("models/user_score_model.nc")'
         ),
         predict_example=(
             "from aoty_pred.models.bayes import predict_new_artist\n"
@@ -666,8 +666,8 @@ def create_default_model_card_data() -> ModelCardData:
             "pred_std = np.std(predictions)\n"
             "ci_95 = np.percentile(predictions, [2.5, 97.5])\n"
             "\n"
-            "print(f\"Predicted score: {pred_mean:.1f} +/- {pred_std:.1f}\")\n"
-            "print(f\"95% CI: [{ci_95[0]:.1f}, {ci_95[1]:.1f}]\")"
+            'print(f"Predicted score: {pred_mean:.1f} +/- {pred_std:.1f}")\n'
+            'print(f"95% CI: [{ci_95[0]:.1f}, {ci_95[1]:.1f}]")'
         ),
     )
 
@@ -756,9 +756,13 @@ def update_model_card_with_results(
     if loo_result is not None:
         new_loo_elpd = loo_result.elpd_loo
         if new_predictive != data.predictive_summary:
-            new_predictive += f"\n- ELPD (LOO-CV): {loo_result.elpd_loo:.1f} (SE: {loo_result.se_elpd:.1f})"
+            new_predictive += (
+                f"\n- ELPD (LOO-CV): {loo_result.elpd_loo:.1f} (SE: {loo_result.se_elpd:.1f})"
+            )
         else:
-            new_predictive = f"ELPD (LOO-CV): {loo_result.elpd_loo:.1f} (SE: {loo_result.se_elpd:.1f})"
+            new_predictive = (
+                f"ELPD (LOO-CV): {loo_result.elpd_loo:.1f} (SE: {loo_result.se_elpd:.1f})"
+            )
 
     # Create new instance with updated fields
     return ModelCardData(

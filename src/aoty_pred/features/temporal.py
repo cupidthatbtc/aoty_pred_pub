@@ -10,8 +10,6 @@ Computes temporal features that capture career trajectory context:
 
 from __future__ import annotations
 
-import pandas as pd
-
 from .base import BaseFeatureBlock, FeatureContext, FeatureOutput
 
 
@@ -95,27 +93,21 @@ class TemporalBlock(BaseFeatureBlock):
 
         # Sort by Artist, Release_Date_Parsed, Album for deterministic ordering
         # Album as tiebreaker ensures same-date albums have consistent order
-        df_sorted = df.sort_values(
-            ["Artist", "Release_Date_Parsed", "Album"]
-        ).copy()
+        df_sorted = df.sort_values(["Artist", "Release_Date_Parsed", "Album"]).copy()
 
         # Album sequence (1-indexed): cumcount + 1 within artist
-        df_sorted["album_sequence"] = (
-            df_sorted.groupby("Artist").cumcount() + 1
-        )
+        df_sorted["album_sequence"] = df_sorted.groupby("Artist").cumcount() + 1
 
         # Career length: years since artist's first album
-        df_sorted["first_release"] = df_sorted.groupby("Artist")[
-            "Release_Date_Parsed"
-        ].transform("min")
+        df_sorted["first_release"] = df_sorted.groupby("Artist")["Release_Date_Parsed"].transform(
+            "min"
+        )
         df_sorted["career_years"] = (
             df_sorted["Release_Date_Parsed"] - df_sorted["first_release"]
         ).dt.days / 365.25
 
         # Release gap: days since previous album (0 for debuts)
-        df_sorted["prev_release"] = df_sorted.groupby("Artist")[
-            "Release_Date_Parsed"
-        ].shift(1)
+        df_sorted["prev_release"] = df_sorted.groupby("Artist")["Release_Date_Parsed"].shift(1)
         df_sorted["release_gap_days"] = (
             df_sorted["Release_Date_Parsed"] - df_sorted["prev_release"]
         ).dt.days
@@ -126,9 +118,7 @@ class TemporalBlock(BaseFeatureBlock):
 
         # Date risk as ordinal (low=0, medium=1, high=2)
         risk_map = {"low": 0, "medium": 1, "high": 2}
-        df_sorted["date_risk_ordinal"] = (
-            df_sorted["date_risk"].map(risk_map).fillna(1)
-        )
+        df_sorted["date_risk_ordinal"] = df_sorted["date_risk"].map(risk_map).fillna(1)
 
         # Re-align to original index before returning
         result = df_sorted.loc[df.index]

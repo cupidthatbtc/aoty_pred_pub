@@ -43,14 +43,15 @@ import jax.numpy as jnp
 from aoty_pred.models.bayes.fit import MCMCConfig, fit_model, get_gpu_info
 from aoty_pred.models.bayes.model import make_score_model
 
-
 # =============================================================================
 # Configuration
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class BenchmarkConfig:
     """Configuration for a benchmark run."""
+
     name: str
     num_warmup: int
     num_samples: int
@@ -87,6 +88,7 @@ BENCHMARK_CONFIGS = {
 # =============================================================================
 # Synthetic Data Generation
 # =============================================================================
+
 
 def generate_synthetic_data(
     n_obs: int = 1000,
@@ -146,6 +148,7 @@ def generate_synthetic_data(
 # =============================================================================
 # Benchmarking
 # =============================================================================
+
 
 def run_single_benchmark(
     model_args: dict,
@@ -221,7 +224,9 @@ def run_benchmark(
         Dictionary with aggregated benchmark results
     """
     if config_name not in BENCHMARK_CONFIGS:
-        raise ValueError(f"Unknown config: {config_name}. Available: {list(BENCHMARK_CONFIGS.keys())}")
+        raise ValueError(
+            f"Unknown config: {config_name}. Available: {list(BENCHMARK_CONFIGS.keys())}"
+        )
 
     config = BENCHMARK_CONFIGS[config_name]
 
@@ -349,6 +354,7 @@ def save_results(results: dict[str, Any], output_path: Path) -> None:
 # CLI
 # =============================================================================
 
+
 def main() -> int:
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
@@ -363,7 +369,8 @@ Examples:
     python scripts/benchmark_gpu.py --config standard --output reports/gpu_benchmark_results.json
 
     # Publication quality with 3 runs for averaging
-    python scripts/benchmark_gpu.py --config publication --runs 3 --output reports/gpu_benchmark_pub.json
+    python scripts/benchmark_gpu.py --config publication --runs 3 \
+        --output reports/gpu_benchmark_pub.json
 
     # Custom synthetic data size
     python scripts/benchmark_gpu.py --config quick --n-obs 5000 --n-artists 200

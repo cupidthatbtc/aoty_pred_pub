@@ -39,9 +39,7 @@ class TestComputeSigmaScaled:
         n_reviews = jnp.array([1.0])
         exponent = 0.5
 
-        result = compute_sigma_scaled(
-            sigma_obs, n_reviews, exponent, single_review_multiplier=3.0
-        )
+        result = compute_sigma_scaled(sigma_obs, n_reviews, exponent, single_review_multiplier=3.0)
 
         assert np.isclose(result[0], 3.0, rtol=1e-5)
 
@@ -85,9 +83,7 @@ class TestComputeSigmaScaled:
         n_reviews = jnp.array([1000000.0])  # 1M reviews
         exponent = 0.5
 
-        result = compute_sigma_scaled(
-            sigma_obs, n_reviews, exponent, min_sigma=0.001
-        )
+        result = compute_sigma_scaled(sigma_obs, n_reviews, exponent, min_sigma=0.001)
 
         # 1.0 / 1000000^0.5 = 0.001, at floor
         assert result[0] >= 0.001
@@ -145,9 +141,7 @@ class TestModelFixedExponent:
             "y": random.normal(random.PRNGKey(1), (n_obs,)) * 5 + 70,
             "n_artists": n_artists,
             "max_seq": (n_obs // n_artists),
-            "n_reviews": jnp.array(
-                [10 + i * 5 for i in range(n_obs)], dtype=jnp.float32
-            ),
+            "n_reviews": jnp.array([10 + i * 5 for i in range(n_obs)], dtype=jnp.float32),
         }
 
     def test_model_runs_with_fixed_exponent(self, sample_data):
@@ -212,9 +206,7 @@ class TestModelLearnedExponent:
             "y": random.normal(random.PRNGKey(1), (n_obs,)) * 5 + 70,
             "n_artists": n_artists,
             "max_seq": (n_obs // n_artists),
-            "n_reviews": jnp.array(
-                [10 + i * 5 for i in range(n_obs)], dtype=jnp.float32
-            ),
+            "n_reviews": jnp.array([10 + i * 5 for i in range(n_obs)], dtype=jnp.float32),
         }
 
     def test_model_samples_exponent_with_logit_normal(self, sample_data):
@@ -430,6 +422,6 @@ class TestHomoscedasticEquivalence:
         mean_homo = np.mean(samples_homo["user_sigma_obs"])
 
         # Allow 10% difference due to MCMC variance, but should be close
-        assert np.isclose(mean_hetero, mean_homo, rtol=0.1), (
-            f"sigma_obs means differ: hetero={mean_hetero:.4f}, homo={mean_homo:.4f}"
-        )
+        assert np.isclose(
+            mean_hetero, mean_homo, rtol=0.1
+        ), f"sigma_obs means differ: hetero={mean_hetero:.4f}, homo={mean_homo:.4f}"

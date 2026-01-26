@@ -27,6 +27,7 @@ import graphviz
 
 from aoty_pred.visualization.diagrams import DiagramTheme
 from aoty_pred.visualization.introspection.aggregator import DiagramData
+from aoty_pred.visualization.introspection.base import EdgeSpec, NodeSpec
 from aoty_pred.visualization.introspection.diagram_builder import (
     SECTION_HIERARCHY,
 )
@@ -51,16 +52,16 @@ EXTENDED_THEME_COLORS: dict[str, dict[str, str]] = {
         "color": "#333333",
         "fillcolor": "#FFFFFF",
         # Section cluster fills - 10 sections (pastel for print-safe B&W)
-        "CONFIG_fill": "#F5F5F5",       # Gray - neutral
-        "DATA_RAW_fill": "#E8EEF4",     # Blue-gray - external
-        "DATA_CLEAN_fill": "#FFF9E6",   # Yellow - validation
-        "DATA_SPLIT_fill": "#E6F4F4",   # Cyan - division
-        "FEATURES_fill": "#E8F5E8",     # Green - engineering
-        "PRIORS_fill": "#F4E8F4",       # Lavender - statistical
-        "MODEL_fill": "#E6EEF8",        # Blue - core
+        "CONFIG_fill": "#F5F5F5",  # Gray - neutral
+        "DATA_RAW_fill": "#E8EEF4",  # Blue-gray - external
+        "DATA_CLEAN_fill": "#FFF9E6",  # Yellow - validation
+        "DATA_SPLIT_fill": "#E6F4F4",  # Cyan - division
+        "FEATURES_fill": "#E8F5E8",  # Green - engineering
+        "PRIORS_fill": "#F4E8F4",  # Lavender - statistical
+        "MODEL_fill": "#E6EEF8",  # Blue - core
         "CONVERGENCE_fill": "#FFF0E0",  # Peach - diagnostics
-        "EVALUATION_fill": "#F8E8F0",   # Pink - assessment
-        "OUTPUT_fill": "#E0F0E0",       # Mint - results
+        "EVALUATION_fill": "#F8E8F0",  # Pink - assessment
+        "OUTPUT_fill": "#E0F0E0",  # Mint - results
         # Edge colors for 9 edge types
         "edge_data_flow": "#333333",
         "edge_secondary": "#666666",
@@ -362,7 +363,7 @@ class DiagramRenderer:
     def _add_node(
         self,
         graph: graphviz.Digraph,
-        node: "NodeSpec",  # noqa: F821 - forward reference
+        node: NodeSpec,
     ) -> None:
         """Add a node to the graph with category-based styling.
 
@@ -370,9 +371,6 @@ class DiagramRenderer:
             graph: Graph or subgraph to add node to.
             node: NodeSpec to render.
         """
-        # Import here to avoid circular import at module level
-        from aoty_pred.visualization.introspection.base import NodeSpec
-
         if not isinstance(node, NodeSpec):
             return
 
@@ -400,7 +398,7 @@ class DiagramRenderer:
     def _add_edge(
         self,
         graph: graphviz.Digraph,
-        edge: "EdgeSpec",  # noqa: F821 - forward reference
+        edge: EdgeSpec,
     ) -> None:
         """Add an edge to the graph with category-based styling.
 
@@ -408,9 +406,6 @@ class DiagramRenderer:
             graph: Graph to add edge to.
             edge: EdgeSpec to render.
         """
-        # Import here to avoid circular import at module level
-        from aoty_pred.visualization.introspection.base import EdgeSpec
-
         if not isinstance(edge, EdgeSpec):
             return
 
@@ -503,9 +498,7 @@ class DiagramRenderer:
                         # Lighter fill for sub-clusters
                         sub_fill = self._lighten_color(section_color)
 
-                        with major.subgraph(
-                            name=f"cluster_{full_cluster_name}"
-                        ) as sub:
+                        with major.subgraph(name=f"cluster_{full_cluster_name}") as sub:
                             sub.attr(
                                 label=sub_name.replace("_", " ").title(),
                                 style="rounded,filled",

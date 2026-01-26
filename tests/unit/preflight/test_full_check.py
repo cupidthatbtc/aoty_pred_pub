@@ -206,9 +206,7 @@ class TestRunFullPreflightCheckStatusDetermination:
 
     @mock.patch("aoty_pred.preflight.full_check.query_gpu_memory")
     @mock.patch("aoty_pred.preflight.full_check._run_mini_mcmc_subprocess")
-    def test_run_full_preflight_check_subprocess_failure(
-        self, mock_subprocess, mock_query
-    ):
+    def test_run_full_preflight_check_subprocess_failure(self, mock_subprocess, mock_query):
         """CANNOT_CHECK when subprocess fails."""
         mock_query.return_value = GpuMemoryInfo(
             device_name="NVIDIA RTX 4090",
@@ -231,9 +229,7 @@ class TestRunFullPreflightCheckStatusDetermination:
 
     @mock.patch("aoty_pred.preflight.full_check.query_gpu_memory")
     @mock.patch("aoty_pred.preflight.full_check._run_mini_mcmc_subprocess")
-    def test_run_full_preflight_check_custom_headroom(
-        self, mock_subprocess, mock_query
-    ):
+    def test_run_full_preflight_check_custom_headroom(self, mock_subprocess, mock_query):
         """Custom headroom_target affects PASS/WARNING threshold."""
         mock_query.return_value = GpuMemoryInfo(
             device_name="Test GPU",
@@ -252,9 +248,7 @@ class TestRunFullPreflightCheckStatusDetermination:
         }
 
         # With 30% headroom target, should be WARNING
-        result = run_full_preflight_check(
-            self.SAMPLE_MODEL_ARGS, headroom_target=0.30
-        )
+        result = run_full_preflight_check(self.SAMPLE_MODEL_ARGS, headroom_target=0.30)
 
         assert result.status == PreflightStatus.WARNING
 
@@ -264,9 +258,7 @@ class TestSubprocessEnvironment:
 
     @mock.patch("aoty_pred.preflight.full_check.query_gpu_memory")
     @mock.patch("subprocess.run")
-    def test_subprocess_environment_includes_prealloc_disable(
-        self, mock_run, mock_query
-    ):
+    def test_subprocess_environment_includes_prealloc_disable(self, mock_run, mock_query):
         """XLA_PYTHON_CLIENT_PREALLOCATE=false is set in subprocess env."""
         mock_query.return_value = GpuMemoryInfo(
             device_name="Test GPU",
@@ -286,9 +278,7 @@ class TestSubprocessEnvironment:
         # Import to trigger subprocess
         from aoty_pred.preflight.full_check import _run_mini_mcmc_subprocess
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"test": 1}, f)
             temp_path = Path(f.name)
 
@@ -383,9 +373,7 @@ class TestTempFileCleanup:
 
     @mock.patch("aoty_pred.preflight.full_check.query_gpu_memory")
     @mock.patch("aoty_pred.preflight.full_check._run_mini_mcmc_subprocess")
-    def test_temp_file_cleaned_up_on_subprocess_failure(
-        self, mock_subprocess, mock_query
-    ):
+    def test_temp_file_cleaned_up_on_subprocess_failure(self, mock_subprocess, mock_query):
         """Temp file is cleaned up even when subprocess fails."""
         mock_query.return_value = GpuMemoryInfo(
             device_name="Test GPU",
@@ -559,15 +547,11 @@ class TestRunExtrapolatedPreflightCheck:
     @mock.patch("aoty_pred.preflight.cache.load_calibration_cache")
     @mock.patch("aoty_pred.preflight.cache.save_calibration_cache")
     @mock.patch("aoty_pred.preflight.calibrate.run_calibration")
-    def test_extrapolation_uses_calibration(
-        self, mock_run_cal, _mock_save, mock_load, mock_query
-    ):
+    def test_extrapolation_uses_calibration(self, mock_run_cal, _mock_save, mock_load, mock_query):
         """Calibration is used to extrapolate memory."""
         from aoty_pred.preflight.calibrate import CalibrationResult
 
-        mock_query.return_value = GpuMemoryInfo(
-            "Test GPU", 16 * 1024**3, 4 * 1024**3, 12 * 1024**3
-        )
+        mock_query.return_value = GpuMemoryInfo("Test GPU", 16 * 1024**3, 4 * 1024**3, 12 * 1024**3)
         mock_load.return_value = None  # Cache miss
 
         # Create a calibration result
@@ -597,15 +581,11 @@ class TestRunExtrapolatedPreflightCheck:
     @mock.patch("aoty_pred.preflight.full_check.query_gpu_memory")
     @mock.patch("aoty_pred.preflight.cache.load_calibration_cache")
     @mock.patch("aoty_pred.preflight.calibrate.run_calibration")
-    def test_extrapolation_uses_cache_when_available(
-        self, mock_run_cal, mock_load, mock_query
-    ):
+    def test_extrapolation_uses_cache_when_available(self, mock_run_cal, mock_load, mock_query):
         """Cached calibration is used when available."""
         from aoty_pred.preflight.calibrate import CalibrationResult
 
-        mock_query.return_value = GpuMemoryInfo(
-            "Test GPU", 16 * 1024**3, 4 * 1024**3, 12 * 1024**3
-        )
+        mock_query.return_value = GpuMemoryInfo("Test GPU", 16 * 1024**3, 4 * 1024**3, 12 * 1024**3)
 
         # Cache hit
         cached_calibration = CalibrationResult(
@@ -640,9 +620,7 @@ class TestRunExtrapolatedPreflightCheck:
         """recalibrate=True forces fresh calibration even if cache exists."""
         from aoty_pred.preflight.calibrate import CalibrationResult
 
-        mock_query.return_value = GpuMemoryInfo(
-            "Test GPU", 16 * 1024**3, 4 * 1024**3, 12 * 1024**3
-        )
+        mock_query.return_value = GpuMemoryInfo("Test GPU", 16 * 1024**3, 4 * 1024**3, 12 * 1024**3)
 
         # Even with cache hit, should NOT be used
         cached_calibration = CalibrationResult(
@@ -683,15 +661,11 @@ class TestRunExtrapolatedPreflightCheck:
     @mock.patch("aoty_pred.preflight.cache.load_calibration_cache")
     @mock.patch("aoty_pred.preflight.cache.save_calibration_cache")
     @mock.patch("aoty_pred.preflight.calibrate.run_calibration")
-    def test_extrapolation_saves_to_cache(
-        self, mock_run_cal, mock_save, mock_load, mock_query
-    ):
+    def test_extrapolation_saves_to_cache(self, mock_run_cal, mock_save, mock_load, mock_query):
         """Fresh calibration is saved to cache."""
         from aoty_pred.preflight.calibrate import CalibrationResult
 
-        mock_query.return_value = GpuMemoryInfo(
-            "Test GPU", 16 * 1024**3, 4 * 1024**3, 12 * 1024**3
-        )
+        mock_query.return_value = GpuMemoryInfo("Test GPU", 16 * 1024**3, 4 * 1024**3, 12 * 1024**3)
         mock_load.return_value = None  # Cache miss
 
         calibration = CalibrationResult(
@@ -726,9 +700,7 @@ class TestRunExtrapolatedPreflightCheck:
         from aoty_pred.preflight.calibrate import CalibrationResult
 
         # 8 GB available
-        mock_query.return_value = GpuMemoryInfo(
-            "Test GPU", 10 * 1024**3, 2 * 1024**3, 8 * 1024**3
-        )
+        mock_query.return_value = GpuMemoryInfo("Test GPU", 10 * 1024**3, 2 * 1024**3, 8 * 1024**3)
         mock_load.return_value = None
 
         # Measured peak is only 1 GB, but projection to 2000 samples = 10 GB
@@ -768,9 +740,7 @@ class TestRunExtrapolatedPreflightCheck:
         from aoty_pred.preflight.calibrate import CalibrationResult
 
         # 12 GB available
-        mock_query.return_value = GpuMemoryInfo(
-            "Test GPU", 16 * 1024**3, 4 * 1024**3, 12 * 1024**3
-        )
+        mock_query.return_value = GpuMemoryInfo("Test GPU", 16 * 1024**3, 4 * 1024**3, 12 * 1024**3)
         mock_load.return_value = None
 
         # Projected to 2000 samples = 5 GB (fits with plenty of headroom)
@@ -806,9 +776,7 @@ class TestRunExtrapolatedPreflightCheck:
         """CalibrationError results in CANNOT_CHECK status."""
         from aoty_pred.preflight.calibrate import CalibrationError
 
-        mock_query.return_value = GpuMemoryInfo(
-            "Test GPU", 16 * 1024**3, 4 * 1024**3, 12 * 1024**3
-        )
+        mock_query.return_value = GpuMemoryInfo("Test GPU", 16 * 1024**3, 4 * 1024**3, 12 * 1024**3)
         mock_load.return_value = None  # Cache miss
 
         mock_run_cal.side_effect = CalibrationError("Model doesn't fit at 10 samples")

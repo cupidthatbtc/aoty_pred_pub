@@ -73,9 +73,7 @@ class SplitIntrospector:
         """
         return " ".join(word.capitalize() for word in split_type.split("_"))
 
-    def _create_placeholder_node(
-        self, split_type: str, message: str
-    ) -> NodeSpec:
+    def _create_placeholder_node(self, split_type: str, message: str) -> NodeSpec:
         """Create placeholder node for missing split data.
 
         Args:
@@ -114,9 +112,7 @@ class SplitIntrospector:
         with manifests[0].open() as f:
             return json.load(f)
 
-    def _create_split_node(
-        self, split_type: str, manifest: dict[str, Any]
-    ) -> NodeSpec:
+    def _create_split_node(self, split_type: str, manifest: dict[str, Any]) -> NodeSpec:
         """Create node from split manifest data.
 
         Args:
@@ -198,9 +194,7 @@ class SplitIntrospector:
 
             # Check if directory exists
             if not split_dir.exists():
-                node = self._create_placeholder_node(
-                    split_type, "Split not found"
-                )
+                node = self._create_placeholder_node(split_type, "Split not found")
                 nodes.append(node)
                 cluster_nodes.append(node.id)
                 continue
@@ -208,9 +202,7 @@ class SplitIntrospector:
             # Try to load manifest
             manifest = self._load_manifest(split_dir)
             if manifest is None:
-                node = self._create_placeholder_node(
-                    split_type, "No manifest found"
-                )
+                node = self._create_placeholder_node(split_type, "No manifest found")
                 nodes.append(node)
                 cluster_nodes.append(node.id)
                 continue

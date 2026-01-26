@@ -7,14 +7,14 @@ Tests cover:
 - project_root path functions
 """
 
-import pandas as pd
-import pytest
 from pathlib import Path
 
+import pandas as pd
+import pytest
+
+from aoty_pred.io.paths import project_root
 from aoty_pred.io.readers import read_csv
 from aoty_pred.io.writers import write_csv
-from aoty_pred.io.paths import project_root
-
 
 # =============================================================================
 # Test Class: TestReaders
@@ -118,10 +118,7 @@ class TestWriters:
     def test_write_csv_no_index(self, tmp_path: Path):
         """write_csv should not write index as column."""
         csv_path = tmp_path / "output.csv"
-        df = pd.DataFrame(
-            {"x": [1, 2], "y": [3, 4]},
-            index=["row1", "row2"]
-        )
+        df = pd.DataFrame({"x": [1, 2], "y": [3, 4]}, index=["row1", "row2"])
 
         write_csv(df, str(csv_path))
 
@@ -134,10 +131,12 @@ class TestWriters:
     def test_write_csv_roundtrip(self, tmp_path: Path):
         """write_csv then read_csv should roundtrip correctly."""
         csv_path = tmp_path / "roundtrip.csv"
-        original = pd.DataFrame({
-            "name": ["alice", "bob", "charlie"],
-            "score": [85.5, 92.0, 78.5],
-        })
+        original = pd.DataFrame(
+            {
+                "name": ["alice", "bob", "charlie"],
+                "score": [85.5, 92.0, 78.5],
+            }
+        )
 
         write_csv(original, str(csv_path))
         recovered = read_csv(csv_path)
@@ -185,9 +184,9 @@ class TestPaths:
         has_pyproject = (root / "pyproject.toml").exists()
         has_src = (root / "src").is_dir()
 
-        assert has_pyproject or has_src, (
-            f"project_root ({root}) should contain pyproject.toml or src/"
-        )
+        assert (
+            has_pyproject or has_src
+        ), f"project_root ({root}) should contain pyproject.toml or src/"
 
     def test_project_root_consistent(self):
         """project_root should return same path on repeated calls."""
@@ -207,6 +206,4 @@ class TestPaths:
         root = project_root()
 
         aoty_pred_path = root / "src" / "aoty_pred"
-        assert aoty_pred_path.is_dir(), (
-            f"Expected {aoty_pred_path} to exist"
-        )
+        assert aoty_pred_path.is_dir(), f"Expected {aoty_pred_path} to exist"

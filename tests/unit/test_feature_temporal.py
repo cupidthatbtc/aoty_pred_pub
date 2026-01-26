@@ -29,9 +29,7 @@ def sample_df():
         {
             "Artist": ["Artist A", "Artist A", "Artist A"],
             "Album": ["Album 1", "Album 2", "Album 3"],
-            "Release_Date_Parsed": pd.to_datetime(
-                ["2020-01-01", "2021-06-15", "2022-12-31"]
-            ),
+            "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2021-06-15", "2022-12-31"]),
             "Year": [2020, 2021, 2022],
             "date_risk": ["low", "medium", "high"],
         }
@@ -78,9 +76,7 @@ class TestAlbumSequence:
             {
                 "Artist": ["Artist A", "Artist A", "Artist A"],
                 "Album": ["A", "B", "C"],
-                "Release_Date_Parsed": pd.to_datetime(
-                    ["2020-01-01", "2021-01-01", "2022-01-01"]
-                ),
+                "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2021-01-01", "2022-01-01"]),
                 "Year": [2020, 2021, 2022],
                 "date_risk": ["low", "low", "low"],
             }
@@ -139,9 +135,7 @@ class TestCareerYears:
             {
                 "Artist": ["Artist A", "Artist A"],
                 "Album": ["First", "Second"],
-                "Release_Date_Parsed": pd.to_datetime(
-                    ["2020-01-01", "2022-01-01"]
-                ),
+                "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2022-01-01"]),
                 "Year": [2020, 2022],
                 "date_risk": ["low", "low"],
             }
@@ -183,9 +177,7 @@ class TestReleaseGapDays:
             {
                 "Artist": ["A", "A", "A"],
                 "Album": ["A1", "A2", "A3"],
-                "Release_Date_Parsed": pd.to_datetime(
-                    ["2020-01-01", "2020-01-11", "2020-01-31"]
-                ),
+                "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2020-01-11", "2020-01-31"]),
                 "Year": [2020, 2020, 2020],
                 "date_risk": ["low", "low", "low"],
             }
@@ -207,9 +199,7 @@ class TestDateRiskOrdinal:
             {
                 "Artist": ["A", "A", "A"],
                 "Album": ["1", "2", "3"],
-                "Release_Date_Parsed": pd.to_datetime(
-                    ["2020-01-01", "2020-02-01", "2020-03-01"]
-                ),
+                "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2020-02-01", "2020-03-01"]),
                 "Year": [2020, 2020, 2020],
                 "date_risk": ["low", "medium", "high"],
             }
@@ -265,9 +255,7 @@ class TestIndexPreservation:
             {
                 "Artist": ["A", "A"],
                 "Album": ["1", "2"],
-                "Release_Date_Parsed": pd.to_datetime(
-                    ["2020-01-01", "2021-01-01"]
-                ),
+                "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2021-01-01"]),
                 "Year": [2020, 2021],
                 "date_risk": ["low", "low"],
             },
@@ -290,9 +278,7 @@ class TestDeterministicOrdering:
             {
                 "Artist": ["A", "A"],
                 "Album": ["Zebra", "Alpha"],  # Alphabetically: Alpha < Zebra
-                "Release_Date_Parsed": pd.to_datetime(
-                    ["2020-01-01", "2020-01-01"]
-                ),
+                "Release_Date_Parsed": pd.to_datetime(["2020-01-01", "2020-01-01"]),
                 "Year": [2020, 2020],
                 "date_risk": ["low", "low"],
             }

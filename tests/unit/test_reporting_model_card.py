@@ -333,9 +333,7 @@ class TestUpdateWithResults:
         convergence.divergences = 0
         convergence.failing_params = []
 
-        updated = update_model_card_with_results(
-            sample_model_card_data, convergence=convergence
-        )
+        updated = update_model_card_with_results(sample_model_card_data, convergence=convergence)
 
         assert "PASSED" in updated.convergence_summary
         assert "1.0050" in updated.convergence_summary
@@ -351,9 +349,7 @@ class TestUpdateWithResults:
         convergence.divergences = 10
         convergence.failing_params = ["param1", "param2"]
 
-        updated = update_model_card_with_results(
-            sample_model_card_data, convergence=convergence
-        )
+        updated = update_model_card_with_results(sample_model_card_data, convergence=convergence)
 
         assert "FAILED" in updated.convergence_summary
         assert "param1" in updated.convergence_summary
@@ -383,9 +379,7 @@ class TestUpdateWithResults:
         loo_result.elpd_loo = -5432.1
         loo_result.se_elpd = 123.4
 
-        updated = update_model_card_with_results(
-            sample_model_card_data, loo_result=loo_result
-        )
+        updated = update_model_card_with_results(sample_model_card_data, loo_result=loo_result)
 
         assert updated.loo_elpd == -5432.1
         assert "-5432.1" in updated.predictive_summary
@@ -416,9 +410,7 @@ class TestUpdateWithResults:
         convergence.divergences = 0
         convergence.failing_params = []
 
-        updated = update_model_card_with_results(
-            sample_model_card_data, convergence=convergence
-        )
+        updated = update_model_card_with_results(sample_model_card_data, convergence=convergence)
 
         # Should preserve non-updated fields
         assert updated.model_name == sample_model_card_data.model_name
@@ -437,9 +429,7 @@ class TestUpdateWithResults:
         convergence.divergences = 0
         convergence.failing_params = []
 
-        updated = update_model_card_with_results(
-            sample_model_card_data, convergence=convergence
-        )
+        updated = update_model_card_with_results(sample_model_card_data, convergence=convergence)
 
         assert updated.last_updated == date.today().isoformat()
 

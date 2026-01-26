@@ -7,6 +7,7 @@ for a research project where the package isn't distributed.
 For production projects, prefer using `pip install -e .` and removing
 the path manipulation.
 """
+
 import sys
 from pathlib import Path
 

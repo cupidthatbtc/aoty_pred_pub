@@ -3,7 +3,6 @@
 import random
 
 import numpy as np
-import pytest
 
 from aoty_pred.utils.random import get_rng_key, set_seeds
 

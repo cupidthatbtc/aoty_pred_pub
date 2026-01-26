@@ -174,7 +174,9 @@ class TestModelEvaluationIntegration:
         # Total counts should match number of observations
         assert data.counts.sum() == len(mock_predictions["y_true"])
 
-    def test_evaluation_chain_data_types(self, mock_predictions: dict, mock_idata: az.InferenceData):
+    def test_evaluation_chain_data_types(
+        self, mock_predictions: dict, mock_idata: az.InferenceData
+    ):
         """Test full evaluation chain maintains correct data types.
 
         Runs through the complete evaluation flow to verify

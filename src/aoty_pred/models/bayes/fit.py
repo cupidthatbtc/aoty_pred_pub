@@ -271,9 +271,7 @@ def fit_model(
         samples = {k: v for k, v in samples.items() if k not in exclude_from_idata}
 
     if not samples:
-        raise ValueError(
-            "exclude_from_idata removed all sample sites; cannot build InferenceData."
-        )
+        raise ValueError("exclude_from_idata removed all sample sites; cannot build InferenceData.")
 
     # Build InferenceData manually with samples
     first_var = next(iter(samples.values()))
@@ -310,8 +308,8 @@ def fit_model(
     for field_name, field_data in extra_fields.items():
         # Convert JAX arrays to numpy
         field_data = np.asarray(field_data)
-        # extra_fields from get_extra_fields() are flat arrays (n_samples_total,) or (n_samples_total, ...)
-        # Reshape to (chains, draws, ...) for ArviZ compatibility
+        # extra_fields are flat (n_samples_total,) - reshape to (chains, draws, ...)
+        # for ArviZ compatibility
         if field_data.ndim == 1:
             reshaped = field_data.reshape(n_chains, n_draws)
             dims = ["chain", "draw"]
@@ -343,36 +341,40 @@ def fit_model(
     n_obs = len(model_args["y"])
     n_features = model_args["X"].shape[1]
 
-    observed_data_ds = xr.Dataset({
-        "y": xr.DataArray(
-            np.asarray(model_args["y"]),
-            dims=["obs"],
-            coords={"obs": range(n_obs)},
-        )
-    })
+    observed_data_ds = xr.Dataset(
+        {
+            "y": xr.DataArray(
+                np.asarray(model_args["y"]),
+                dims=["obs"],
+                coords={"obs": range(n_obs)},
+            )
+        }
+    )
 
-    constant_data_ds = xr.Dataset({
-        "X": xr.DataArray(
-            np.asarray(model_args["X"]),
-            dims=["obs", "feature"],
-            coords={"obs": range(n_obs), "feature": range(n_features)},
-        ),
-        "artist_idx": xr.DataArray(
-            np.asarray(model_args["artist_idx"]),
-            dims=["obs"],
-            coords={"obs": range(n_obs)},
-        ),
-        "album_seq": xr.DataArray(
-            np.asarray(model_args["album_seq"]),
-            dims=["obs"],
-            coords={"obs": range(n_obs)},
-        ),
-        "prev_score": xr.DataArray(
-            np.asarray(model_args["prev_score"]),
-            dims=["obs"],
-            coords={"obs": range(n_obs)},
-        ),
-    })
+    constant_data_ds = xr.Dataset(
+        {
+            "X": xr.DataArray(
+                np.asarray(model_args["X"]),
+                dims=["obs", "feature"],
+                coords={"obs": range(n_obs), "feature": range(n_features)},
+            ),
+            "artist_idx": xr.DataArray(
+                np.asarray(model_args["artist_idx"]),
+                dims=["obs"],
+                coords={"obs": range(n_obs)},
+            ),
+            "album_seq": xr.DataArray(
+                np.asarray(model_args["album_seq"]),
+                dims=["obs"],
+                coords={"obs": range(n_obs)},
+            ),
+            "prev_score": xr.DataArray(
+                np.asarray(model_args["prev_score"]),
+                dims=["obs"],
+                coords={"obs": range(n_obs)},
+            ),
+        }
+    )
 
     # Include n_reviews for heteroscedastic models (if present)
     if "n_reviews" in model_args:

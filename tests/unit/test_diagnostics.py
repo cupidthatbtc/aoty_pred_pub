@@ -9,18 +9,17 @@ Tests cover:
 - get_divergence_info with zero and non-zero divergences
 """
 
+import arviz as az
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-import arviz as az
 
 from aoty_pred.models.bayes.diagnostics import (
     ConvergenceDiagnostics,
     check_convergence,
     get_divergence_info,
 )
-
 
 # =============================================================================
 # Test Fixtures

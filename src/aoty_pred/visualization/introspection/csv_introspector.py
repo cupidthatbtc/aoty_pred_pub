@@ -162,7 +162,9 @@ class CSVIntrospector:
                 size_human = _format_size(size_bytes)
 
                 # Build multi-line label
-                label = f"{csv_path.name}\n{row_count:,} rows | {col_count} cols\nSize: {size_human}"
+                label = (
+                    f"{csv_path.name}\n{row_count:,} rows | {col_count} cols\nSize: {size_human}"
+                )
 
                 node = NodeSpec(
                     id=node_id,

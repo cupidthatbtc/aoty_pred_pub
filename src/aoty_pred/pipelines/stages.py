@@ -277,7 +277,7 @@ def _run_data_stage(ctx: StageContext) -> None:
 
 def _run_splits_stage(ctx: StageContext) -> None:
     """Run splits creation stage."""
-    from aoty_pred.pipelines.create_splits import create_splits, SplitConfig
+    from aoty_pred.pipelines.create_splits import SplitConfig, create_splits
 
     # Pass seed and min_ratings from context for reproducibility
     config = SplitConfig(
