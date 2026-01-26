@@ -51,6 +51,22 @@ class TestPipelineConfig:
         assert config.verbose is True
         assert config.resume == "2026-01-19_143052"
 
+    def test_max_tree_depth_validation(self):
+        """PipelineConfig validates max_tree_depth range."""
+        import pytest
+
+        # Valid values at boundaries
+        PipelineConfig(max_tree_depth=5)
+        PipelineConfig(max_tree_depth=15)
+
+        # Invalid: too low
+        with pytest.raises(ValueError, match="max_tree_depth"):
+            PipelineConfig(max_tree_depth=4)
+
+        # Invalid: too high
+        with pytest.raises(ValueError, match="max_tree_depth"):
+            PipelineConfig(max_tree_depth=16)
+
 
 class TestPipelineOrchestratorInit:
     """Tests for PipelineOrchestrator initialization."""

@@ -68,6 +68,12 @@ def _get_default_config() -> PipelineConfig:
     return _DEFAULT_CONFIG
 
 
+def _reset_default_config() -> None:
+    """Reset cached default config (for testing only)."""
+    global _DEFAULT_CONFIG
+    _DEFAULT_CONFIG = None
+
+
 @dataclass
 class PipelineConfig:
     """Configuration for pipeline execution.
@@ -141,11 +147,23 @@ class PipelineConfig:
 
     def __post_init__(self) -> None:
         """Validate configuration values."""
+        self._validate()
+
+    def _validate(self) -> None:
+        """Validate configuration values.
+
+        Called by __post_init__ and can be called after setattr modifications
+        (e.g., after restoring config from manifest).
+        """
         valid_priors = ("logit-normal", "beta")
         if self.n_exponent_prior not in valid_priors:
             raise ValueError(
                 f"Invalid n_exponent_prior: '{self.n_exponent_prior}'. "
                 f"Must be one of {valid_priors}."
+            )
+        if not 5 <= self.max_tree_depth <= 15:
+            raise ValueError(
+                f"Invalid max_tree_depth: {self.max_tree_depth}. " "Must be between 5 and 15."
             )
 
 
@@ -435,6 +453,9 @@ class PipelineOrchestrator:
                         "- verify this matches original run"
                     ),
                 )
+
+        # Re-validate after restoration (catches corrupted/invalid manifest values)
+        self.config._validate()
 
     def _build_command_string(self) -> str:
         """Build command string representation for manifest."""
