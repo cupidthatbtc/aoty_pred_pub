@@ -10,8 +10,12 @@ NOT set any global JAX random state.
 """
 
 import random
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    import jax
 
 
 def set_seeds(seed: int) -> None:
@@ -40,7 +44,7 @@ def set_seeds(seed: int) -> None:
     np.random.seed(seed)
 
 
-def get_rng_key(seed: int):
+def get_rng_key(seed: int) -> "jax.Array":
     """Create a JAX PRNGKey from an integer seed.
 
     Uses the modern jax.random.key() API (not the deprecated PRNGKey).

@@ -176,7 +176,7 @@ class AuditLogger:
             counts[record.reason] = counts.get(record.reason, 0) + 1
         return dict(sorted(counts.items(), key=lambda x: -x[1]))
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """Get summary statistics without saving."""
         return {
             "total_exclusions": len(self.exclusions),

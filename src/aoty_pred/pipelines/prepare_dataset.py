@@ -172,7 +172,7 @@ def prepare_datasets(config: Optional[PrepareConfig] = None) -> PrepareResult:
     )
 
 
-def main():
+def main() -> None:
     """CLI entry point for dataset preparation."""
     result = prepare_datasets()
 
