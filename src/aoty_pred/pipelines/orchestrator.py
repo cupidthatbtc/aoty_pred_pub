@@ -57,10 +57,10 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 # Module-level reference for default config values (used to detect non-default flags)
-_DEFAULT_CONFIG: "PipelineConfig | None" = None
+_DEFAULT_CONFIG: PipelineConfig | None = None
 
 
-def _get_default_config() -> "PipelineConfig":
+def _get_default_config() -> PipelineConfig:
     """Get a cached default PipelineConfig instance for comparison."""
     global _DEFAULT_CONFIG
     if _DEFAULT_CONFIG is None:
