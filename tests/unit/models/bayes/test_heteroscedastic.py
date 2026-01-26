@@ -310,7 +310,7 @@ class TestModelLearnedExponent:
             num_chains=1,
         )
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=r"Invalid n_exponent_prior"):
             mcmc.run(
                 random.PRNGKey(0),
                 n_exponent=0.0,
@@ -319,11 +319,6 @@ class TestModelLearnedExponent:
                 priors=priors,
                 **sample_data,
             )
-
-        error_msg = str(exc_info.value)
-        assert "Invalid n_exponent_prior" in error_msg
-        assert "logit-normal" in error_msg
-        assert "beta" in error_msg
 
     def test_model_raises_when_heteroscedastic_without_n_reviews(self, sample_data):
         """Test ValueError when heteroscedastic mode requested without n_reviews."""

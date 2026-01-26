@@ -257,6 +257,15 @@ def run(
             f"Must be one of: {', '.join(valid_chain_methods)}"
         )
         raise typer.Exit(code=1)
+
+    # Validate n_exponent_prior
+    valid_priors = ("logit-normal", "beta")
+    if n_exponent_prior not in valid_priors:
+        typer.echo(
+            f"Error: Invalid --n-exponent-prior '{n_exponent_prior}'. "
+            f"Must be one of: {', '.join(valid_priors)}"
+        )
+        raise typer.Exit(code=1)
     chain_method = chain_method_normalized  # Use normalized value downstream
 
     # Full preflight mode (--preflight-full) takes precedence over quick preflight
