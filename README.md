@@ -62,6 +62,7 @@ See `docs/CLI.md` for complete command reference.
 
 ## Documentation
 
+- `docs/GETTING_STARTED.md` — Step-by-step startup guide (start here!)
 - `docs/CLI.md` — Complete CLI reference
 - `docs/PIPELINE_PLAN.md` — Detailed build plan
 - `docs/LEAKAGE_CONTROLS.md` — Guardrails and leakage prevention
