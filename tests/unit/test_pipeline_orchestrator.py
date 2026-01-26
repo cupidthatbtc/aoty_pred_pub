@@ -1,5 +1,7 @@
 """Tests for pipeline orchestrator."""
 
+import json
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -614,8 +616,6 @@ class TestResumeConfigRestoration:
             "error": None,
             "duration_seconds": 0.0,
         }
-        import json
-
         (run_dir / "manifest.json").write_text(json.dumps(manifest_data))
 
         # Create config with current defaults (0.90, 12)
@@ -699,14 +699,10 @@ class TestResumeConfigRestoration:
             "error": None,
             "duration_seconds": 0.0,
         }
-        import json
-
         (run_dir / "manifest.json").write_text(json.dumps(manifest_data))
 
         config = PipelineConfig(resume=run_id)
         orchestrator = PipelineOrchestrator(config, output_base=tmp_path)
-
-        import logging
 
         with caplog.at_level(logging.WARNING):
             orchestrator.run()
@@ -789,14 +785,10 @@ class TestResumeConfigRestoration:
             "error": None,
             "duration_seconds": 0.0,
         }
-        import json
-
         (run_dir / "manifest.json").write_text(json.dumps(manifest_data))
 
         config = PipelineConfig(resume=run_id)
         orchestrator = PipelineOrchestrator(config, output_base=tmp_path)
-
-        import logging
 
         with caplog.at_level(logging.WARNING):
             orchestrator.run()

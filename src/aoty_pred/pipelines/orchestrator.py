@@ -56,6 +56,17 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger()
 
+# Module-level reference for default config values (used to detect non-default flags)
+_DEFAULT_CONFIG: "PipelineConfig | None" = None
+
+
+def _get_default_config() -> "PipelineConfig":
+    """Get a cached default PipelineConfig instance for comparison."""
+    global _DEFAULT_CONFIG
+    if _DEFAULT_CONFIG is None:
+        _DEFAULT_CONFIG = PipelineConfig()
+    return _DEFAULT_CONFIG
+
 
 @dataclass
 class PipelineConfig:
@@ -351,13 +362,13 @@ class PipelineOrchestrator:
         save_run_manifest(self.manifest, self.run_dir)
 
     # MCMC config keys that should be restored from manifest on resume
-    RESUME_CONFIG_KEYS = [
+    RESUME_CONFIG_KEYS = (
         "target_accept",
         "max_tree_depth",
         "num_chains",
         "num_samples",
         "num_warmup",
-    ]
+    )
 
     def _setup_resume(self) -> None:
         """Set up for resuming a previous run."""
@@ -411,7 +422,7 @@ class PipelineOrchestrator:
         for key in self.RESUME_CONFIG_KEYS:
             if key in self.manifest.flags:
                 manifest_value = self.manifest.flags[key]
-                object.__setattr__(self.config, key, manifest_value)
+                setattr(self.config, key, manifest_value)
                 log.debug("resume_config_restored", key=key, value=manifest_value)
             else:
                 current_default = getattr(self.config, key)
@@ -428,8 +439,9 @@ class PipelineOrchestrator:
     def _build_command_string(self) -> str:
         """Build command string representation for manifest."""
         parts = ["aoty-pipeline run"]
+        defaults = _get_default_config()
 
-        if self.config.seed != 42:
+        if self.config.seed != defaults.seed:
             parts.append(f"--seed {self.config.seed}")
         if self.config.skip_existing:
             parts.append("--skip-existing")
@@ -441,32 +453,32 @@ class PipelineOrchestrator:
             parts.append("--strict")
         if self.config.verbose:
             parts.append("--verbose")
-        if self.config.max_albums != 50:
+        if self.config.max_albums != defaults.max_albums:
             parts.append(f"--max-albums {self.config.max_albums}")
         # MCMC config
-        if self.config.num_chains != 4:
+        if self.config.num_chains != defaults.num_chains:
             parts.append(f"--num-chains {self.config.num_chains}")
-        if self.config.num_samples != 1000:
+        if self.config.num_samples != defaults.num_samples:
             parts.append(f"--num-samples {self.config.num_samples}")
-        if self.config.num_warmup != 1000:
+        if self.config.num_warmup != defaults.num_warmup:
             parts.append(f"--num-warmup {self.config.num_warmup}")
-        if self.config.target_accept != 0.90:
+        if self.config.target_accept != defaults.target_accept:
             parts.append(f"--target-accept {self.config.target_accept}")
-        if self.config.max_tree_depth != 12:
+        if self.config.max_tree_depth != defaults.max_tree_depth:
             parts.append(f"--max-tree-depth {self.config.max_tree_depth}")
-        if self.config.chain_method != "sequential":
+        if self.config.chain_method != defaults.chain_method:
             parts.append(f"--chain-method {self.config.chain_method}")
         # Convergence thresholds
-        if self.config.rhat_threshold != 1.01:
+        if self.config.rhat_threshold != defaults.rhat_threshold:
             parts.append(f"--rhat-threshold {self.config.rhat_threshold}")
-        if self.config.ess_threshold != 400:
+        if self.config.ess_threshold != defaults.ess_threshold:
             parts.append(f"--ess-threshold {self.config.ess_threshold}")
         if self.config.allow_divergences:
             parts.append("--allow-divergences")
         # Data filtering
-        if self.config.min_ratings != 10:
+        if self.config.min_ratings != defaults.min_ratings:
             parts.append(f"--min-ratings {self.config.min_ratings}")
-        if self.config.min_albums_filter != 2:
+        if self.config.min_albums_filter != defaults.min_albums_filter:
             parts.append(f"--min-albums {self.config.min_albums_filter}")
         # Feature flags
         if not self.config.enable_genre:
@@ -476,17 +488,17 @@ class PipelineOrchestrator:
         if not self.config.enable_temporal:
             parts.append("--no-temporal")
         # Heteroscedastic noise (only if non-default and not learning)
-        if self.config.n_exponent != 0.0 and not self.config.learn_n_exponent:
+        if self.config.n_exponent != defaults.n_exponent and not self.config.learn_n_exponent:
             parts.append(f"--n-exponent {self.config.n_exponent}")
         if self.config.learn_n_exponent:
             parts.append("--learn-n-exponent")
-            if self.config.n_exponent_prior != "logit-normal":
+            if self.config.n_exponent_prior != defaults.n_exponent_prior:
                 parts.append(f"--n-exponent-prior {self.config.n_exponent_prior}")
             # Only emit beta prior params when using beta prior
             if self.config.n_exponent_prior == "beta":
-                if self.config.n_exponent_alpha != 2.0:
+                if self.config.n_exponent_alpha != defaults.n_exponent_alpha:
                     parts.append(f"--n-exponent-alpha {self.config.n_exponent_alpha}")
-                if self.config.n_exponent_beta != 4.0:
+                if self.config.n_exponent_beta != defaults.n_exponent_beta:
                     parts.append(f"--n-exponent-beta {self.config.n_exponent_beta}")
 
         return " ".join(parts)
