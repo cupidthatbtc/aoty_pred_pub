@@ -43,8 +43,7 @@ This creates a `.pixi` environment with all required packages including JAX, Num
 
 **Where to get the data:**
 
-- **Pre-collected dataset:** [aoty-artist-data](https://github.com/cupidthatbtc/aoty-artist-data) - ~130k albums already scraped in CSV format
-- **Scrape your own:** [aoty-scraper-initial-](https://github.com/cupidthatbtc/aoty-scraper-initial-) - Year-based scraper with GUI for collecting fresh data from AlbumOfTheYear.org
+- [aoty-scraper-initial-](https://github.com/cupidthatbtc/aoty-scraper-initial-) - Year-based scraper with GUI for collecting data from AlbumOfTheYear.org
 
 Your CSV file needs these columns:
 
