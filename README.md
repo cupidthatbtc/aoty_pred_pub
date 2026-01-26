@@ -1,5 +1,9 @@
 # AOTY Artist Prediction (Bayesian)
 
+![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![pixi](https://img.shields.io/badge/pixi-package%20manager-brightgreen)](https://pixi.sh)
+
 A publication-quality Bayesian prediction pipeline for artist-level outcomes (next album score). This repository emphasizes leakage controls, data lineage, and reproducibility.
 
 ## Features
@@ -9,16 +13,43 @@ A publication-quality Bayesian prediction pipeline for artist-level outcomes (ne
 - Bayesian models with robust diagnostics and sensitivity analysis
 - Publication-ready artifacts (tables, figures, citations)
 
-## Quickstart
+## Installation
 
-1. Set `AOTY_DATASET_PATH` to the raw CSV path.
-2. Run the preparation pipeline to produce `data/processed` artifacts.
-3. Train Bayesian models and produce predictions.
-4. Generate publication artifacts and checks.
+**Prerequisites:** Python >= 3.11
 
-## Config Overrides
+```bash
+# Install pixi (if not already installed)
+curl -fsSL https://pixi.sh/install.sh | bash
 
-Use multiple `-c` flags to layer configs (later files win).
+# Clone and install
+git clone https://github.com/cupidthatbtc/aoty_pred_pub.git
+cd aoty_pred_pub
+pixi install
+```
+
+## Usage
+
+Set the dataset path and run the pipeline:
+
+```bash
+# Set dataset path
+export AOTY_DATASET_PATH="/path/to/aoty_data.csv"
+
+# Check GPU memory before running
+aoty-pipeline run --preflight-only
+
+# Run full pipeline
+aoty-pipeline run
+
+# Quick exploratory run
+aoty-pipeline run --num-chains 1 --num-samples 500
+
+# Run specific stages
+aoty-pipeline stage train --verbose
+aoty-pipeline stage report
+```
+
+See `docs/CLI.md` for complete command reference.
 
 ## Key Entry Points
 
