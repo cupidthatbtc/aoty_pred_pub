@@ -52,9 +52,9 @@ class MCMCConfig:
         seed: Random seed for reproducibility.
             Default 0 for consistent results.
         max_tree_depth: Maximum tree depth for NUTS.
-            Default 10 is standard; increase if hitting tree depth limits.
+            Default 12 allows deeper exploration for complex geometry.
         target_accept_prob: Target acceptance probability for adaptation.
-            Default 0.8 is standard; increase to 0.9-0.95 if divergences occur.
+            Default 0.90 improves adaptation for challenging posteriors.
     """
 
     num_warmup: int = 1000
@@ -62,8 +62,8 @@ class MCMCConfig:
     num_chains: int = 4
     chain_method: str = "sequential"
     seed: int = 0
-    max_tree_depth: int = 10
-    target_accept_prob: float = 0.8
+    max_tree_depth: int = 12
+    target_accept_prob: float = 0.90
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
