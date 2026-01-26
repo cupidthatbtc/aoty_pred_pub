@@ -54,11 +54,16 @@ class PriorConfig:
         sigma_obs_scale: Scale for HalfNormal prior on observation noise.
             Default 1.0 allows moderate observation-level variance.
         n_exponent_alpha: Alpha (concentration1) parameter for Beta prior on
-            learned n_exponent. Default 2.0.
+            learned n_exponent. Default 2.0. (Legacy - use logit-normal instead)
         n_exponent_beta: Beta (concentration0) parameter for Beta prior on
-            learned n_exponent. Default 4.0.
+            learned n_exponent. Default 4.0. (Legacy - use logit-normal instead)
             Note: Beta(2, 4) has mode at 0.25 and mean at 0.33, centering
             prior mass on cube-root-like scaling for heteroscedastic noise.
+        n_exponent_loc: Location parameter for logit-normal prior on n_exponent.
+            Default 0.0 maps to mode of 0.5 via sigmoid transform. This is the
+            recommended prior type as it avoids funnel geometry issues.
+        n_exponent_scale: Scale parameter for logit-normal prior on n_exponent.
+            Default 1.0 gives reasonable spread in [0,1] after sigmoid transform.
     """
 
     mu_artist_loc: float = 0.0
@@ -72,6 +77,9 @@ class PriorConfig:
     sigma_obs_scale: float = 1.0
     n_exponent_alpha: float = 2.0
     n_exponent_beta: float = 4.0
+    # Logit-normal prior parameters for n_exponent (new default)
+    n_exponent_loc: float = 0.0    # maps to ~0.5 via sigmoid
+    n_exponent_scale: float = 1.0  # reasonable spread in logit space
 
 
 def get_default_priors() -> PriorConfig:
