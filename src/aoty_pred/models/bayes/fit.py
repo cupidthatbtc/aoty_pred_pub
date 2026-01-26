@@ -315,15 +315,21 @@ def fit_model(
         if field_data.ndim == 1:
             reshaped = field_data.reshape(n_chains, n_draws)
             dims = ["chain", "draw"]
+            extra_dims = []
         else:
             reshaped = field_data.reshape(n_chains, n_draws, *field_data.shape[1:])
             # Add dimension names for any extra dimensions
             extra_dims = [f"{field_name}_dim_{i}" for i in range(len(reshaped.shape) - 2)]
             dims = ["chain", "draw"] + extra_dims
+
+        all_coords = {"chain": range(n_chains), "draw": range(n_draws)}
+        for i, dim_name in enumerate(extra_dims):
+            all_coords[dim_name] = range(reshaped.shape[i + 2])
+
         sample_stats_dict[field_name] = xr.DataArray(
             data=reshaped,
             dims=dims,
-            coords={"chain": range(n_chains), "draw": range(n_draws)},
+            coords=all_coords,
         )
 
     sample_stats_ds = xr.Dataset(sample_stats_dict)
