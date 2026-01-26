@@ -34,7 +34,8 @@ class StageContext:
         num_chains: Number of parallel MCMC chains.
         num_samples: Post-warmup samples per chain.
         num_warmup: Warmup iterations per chain.
-        target_accept: Target acceptance probability.
+        target_accept: Target acceptance probability (default 0.90).
+        max_tree_depth: Maximum tree depth for NUTS (default 12).
         chain_method: MCMC chain parallelization method ('sequential', 'vectorized', 'parallel').
         rhat_threshold: Maximum acceptable R-hat.
         ess_threshold: Minimum ESS per chain.
@@ -71,7 +72,8 @@ class StageContext:
     num_chains: int = 4
     num_samples: int = 1000
     num_warmup: int = 1000
-    target_accept: float = 0.8
+    target_accept: float = 0.90
+    max_tree_depth: int = 12
     chain_method: str = "sequential"
     # Convergence thresholds
     rhat_threshold: float = 1.01

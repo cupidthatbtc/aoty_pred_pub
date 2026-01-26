@@ -73,7 +73,8 @@ class PipelineConfig:
         num_chains: Number of parallel MCMC chains (default 4).
         num_samples: Post-warmup samples per chain (default 1000).
         num_warmup: Warmup iterations per chain (default 1000).
-        target_accept: Target acceptance probability (default 0.8).
+        target_accept: Target acceptance probability (default 0.90).
+        max_tree_depth: Maximum tree depth for NUTS (default 12).
         rhat_threshold: Maximum acceptable R-hat (default 1.01).
         ess_threshold: Minimum ESS per chain (default 400).
         allow_divergences: If True, don't fail on divergences (default False).
@@ -106,7 +107,8 @@ class PipelineConfig:
     num_chains: int = 4
     num_samples: int = 1000
     num_warmup: int = 1000
-    target_accept: float = 0.8
+    target_accept: float = 0.90
+    max_tree_depth: int = 12
     chain_method: str = "sequential"
     # Convergence thresholds
     rhat_threshold: float = 1.01
@@ -312,6 +314,7 @@ class PipelineOrchestrator:
                 "num_samples": self.config.num_samples,
                 "num_warmup": self.config.num_warmup,
                 "target_accept": self.config.target_accept,
+                "max_tree_depth": self.config.max_tree_depth,
                 "chain_method": self.config.chain_method,
                 # Convergence thresholds
                 "rhat_threshold": self.config.rhat_threshold,
@@ -407,8 +410,10 @@ class PipelineOrchestrator:
             parts.append(f"--num-samples {self.config.num_samples}")
         if self.config.num_warmup != 1000:
             parts.append(f"--num-warmup {self.config.num_warmup}")
-        if self.config.target_accept != 0.8:
+        if self.config.target_accept != 0.90:
             parts.append(f"--target-accept {self.config.target_accept}")
+        if self.config.max_tree_depth != 12:
+            parts.append(f"--max-tree-depth {self.config.max_tree_depth}")
         if self.config.chain_method != "sequential":
             parts.append(f"--chain-method {self.config.chain_method}")
         # Convergence thresholds
@@ -523,6 +528,7 @@ class PipelineOrchestrator:
             num_samples=self.config.num_samples,
             num_warmup=self.config.num_warmup,
             target_accept=self.config.target_accept,
+            max_tree_depth=self.config.max_tree_depth,
             chain_method=self.config.chain_method,
             # Convergence thresholds
             rhat_threshold=self.config.rhat_threshold,
