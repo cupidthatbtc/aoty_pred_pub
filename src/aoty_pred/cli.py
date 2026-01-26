@@ -48,10 +48,25 @@ def main_callback(
         "-V",
         help="Show version and exit.",
     ),
+    setup_guide: bool = typer.Option(
+        False,
+        "--setup-guide",
+        help="Show path to step-by-step setup guide and exit.",
+    ),
 ) -> None:
     """AOTY Prediction Pipeline - reproducible ML workflow."""
     if version:
         typer.echo(f"aoty-pred version {__version__}")
+        raise typer.Exit()
+    if setup_guide:
+        typer.echo("Step-by-step setup guide: docs/GETTING_STARTED.md")
+        typer.echo("")
+        typer.echo("Covers: prerequisites, installation, data setup, GPU config,")
+        typer.echo("verification, running the pipeline, and troubleshooting.")
+        typer.echo("")
+        typer.echo(
+            "View online: https://github.com/cupidthatbtc/aoty_pred_pub/blob/master/docs/GETTING_STARTED.md"
+        )
         raise typer.Exit()
     # If no command provided, show help
     if ctx.invoked_subcommand is None:
