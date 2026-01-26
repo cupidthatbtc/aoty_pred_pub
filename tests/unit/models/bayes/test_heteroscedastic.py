@@ -273,8 +273,8 @@ class TestModelLearnedExponent:
 
     def test_default_prior_is_logit_normal(self, sample_data):
         """Test that default prior type is logit-normal when not specified."""
-        # This test verifies backward compatibility - existing code without
-        # n_exponent_prior parameter should use logit-normal default
+        # Verify the model function default is logit-normal (the new default that
+        # fixes divergences). Beta prior is the legacy option.
         priors = PriorConfig()
 
         mcmc = MCMC(

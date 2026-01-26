@@ -328,10 +328,16 @@ def make_score_model(score_type: str) -> Callable:
                         [dist.transforms.SigmoidTransform()]
                     )
                 )
-            else:  # beta (legacy)
+            elif n_exponent_prior == "beta":
+                # Beta prior (legacy, may cause divergences)
                 n_exp = numpyro.sample(
                     f"{prefix}n_exponent",
                     dist.Beta(priors.n_exponent_alpha, priors.n_exponent_beta),
+                )
+            else:
+                raise ValueError(
+                    f"Invalid n_exponent_prior: '{n_exponent_prior}'. "
+                    f"Must be 'logit-normal' or 'beta'."
                 )
         else:
             n_exp = n_exponent  # Use fixed value from config

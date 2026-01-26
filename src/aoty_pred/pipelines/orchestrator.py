@@ -126,6 +126,15 @@ class PipelineConfig:
     n_exponent_beta: float = 4.0
     n_exponent_prior: str = "logit-normal"
 
+    def __post_init__(self) -> None:
+        """Validate configuration values."""
+        valid_priors = ("logit-normal", "beta")
+        if self.n_exponent_prior not in valid_priors:
+            raise ValueError(
+                f"Invalid n_exponent_prior: '{self.n_exponent_prior}'. "
+                f"Must be one of {valid_priors}."
+            )
+
 
 class PipelineOrchestrator:
     """Orchestrates pipeline execution with progress tracking and error handling.
@@ -426,12 +435,14 @@ class PipelineOrchestrator:
             parts.append(f"--n-exponent {self.config.n_exponent}")
         if self.config.learn_n_exponent:
             parts.append("--learn-n-exponent")
-        if self.config.n_exponent_alpha != 2.0:
-            parts.append(f"--n-exponent-alpha {self.config.n_exponent_alpha}")
-        if self.config.n_exponent_beta != 4.0:
-            parts.append(f"--n-exponent-beta {self.config.n_exponent_beta}")
-        if self.config.n_exponent_prior != "logit-normal":
-            parts.append(f"--n-exponent-prior {self.config.n_exponent_prior}")
+            if self.config.n_exponent_prior != "logit-normal":
+                parts.append(f"--n-exponent-prior {self.config.n_exponent_prior}")
+            # Only emit beta prior params when using beta prior
+            if self.config.n_exponent_prior == "beta":
+                if self.config.n_exponent_alpha != 2.0:
+                    parts.append(f"--n-exponent-alpha {self.config.n_exponent_alpha}")
+                if self.config.n_exponent_beta != 4.0:
+                    parts.append(f"--n-exponent-beta {self.config.n_exponent_beta}")
 
         return " ".join(parts)
 

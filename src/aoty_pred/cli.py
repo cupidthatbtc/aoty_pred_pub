@@ -191,7 +191,7 @@ def run(
     learn_n_exponent: bool = typer.Option(
         False,
         "--learn-n-exponent",
-        help="Learn exponent from data using Beta prior (ignores --n-exponent if set)",
+        help="Learn exponent from data (ignores --n-exponent if set)",
     ),
     n_exponent_alpha: Annotated[float, typer.Option(
         min=0.01,
