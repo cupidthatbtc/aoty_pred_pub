@@ -168,9 +168,17 @@ def run(
         typer.Option(
             min=0.5,
             max=0.999,
-            help="Target acceptance probability (default 0.8, increase to 0.9-0.95 if divergences)",
+            help="Target acceptance probability (default 0.90)",
         ),
-    ] = 0.8,
+    ] = 0.90,
+    max_tree_depth: Annotated[
+        int,
+        typer.Option(
+            min=5,
+            max=15,
+            help="Maximum tree depth for NUTS (default 12)",
+        ),
+    ] = 12,
     chain_method: Annotated[
         str,
         typer.Option(
@@ -470,6 +478,7 @@ def run(
         num_samples=num_samples,
         num_warmup=num_warmup,
         target_accept=target_accept,
+        max_tree_depth=max_tree_depth,
         chain_method=chain_method,
         # Convergence thresholds
         rhat_threshold=rhat_threshold,
