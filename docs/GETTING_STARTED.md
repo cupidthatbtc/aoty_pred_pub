@@ -41,10 +41,6 @@ This creates a `.pixi` environment with all required packages including JAX, Num
 
 ## Step 4: Prepare Your Dataset
 
-**Where to get the data:**
-
-- [aoty-scraper-initial-](https://github.com/cupidthatbtc/aoty-scraper-initial-) - Year-based scraper with GUI for collecting data from AlbumOfTheYear.org
-
 Your CSV file needs these columns:
 
 **Required columns:**
