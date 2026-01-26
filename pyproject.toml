@@ -58,6 +58,13 @@ select = ["E", "F", "I"]
 # Imports at bottom required to avoid circular imports with submodules
 "src/aoty_pred/preflight/__init__.py" = ["E402"]
 
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = false  # Too strict for gradual adoption
+ignore_missing_imports = true  # Many data science libs lack stubs
+
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
