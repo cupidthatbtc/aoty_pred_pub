@@ -8,6 +8,7 @@ with GPU acceleration via JAX. Key features:
 - ArviZ InferenceData conversion with observed/constant data groups
 """
 
+import gc
 import logging
 import subprocess
 import time
@@ -16,6 +17,8 @@ from dataclasses import asdict, dataclass
 
 import arviz as az
 import jax
+import numpy as np
+import xarray as xr
 from jax import random
 from numpyro.infer import MCMC, NUTS
 
@@ -141,6 +144,7 @@ def fit_model(
     model_args: dict,
     config: MCMCConfig | None = None,
     progress_bar: bool = True,
+    exclude_from_idata: tuple[str, ...] | None = None,
 ) -> FitResult:
     """Fit NumPyro model via MCMC with GPU acceleration.
 
@@ -168,6 +172,11 @@ def fit_model(
         MCMC configuration. If None, uses default MCMCConfig().
     progress_bar : bool, default True
         Whether to display NumPyro's progress bar during sampling.
+    exclude_from_idata : tuple of str, optional
+        Sample site names to exclude from InferenceData. These sites are filtered
+        out after calling mcmc.get_samples() to prevent large auxiliary tensors
+        (e.g., "rw_innovations") from consuming memory during InferenceData
+        construction. If None, all sampled sites are included.
 
     Returns
     -------
@@ -244,30 +253,141 @@ def fit_model(
         )
 
     # Convert to ArviZ InferenceData
-    idata = az.from_numpyro(mcmc)
+    # Get samples using public API
+    # Use group_by_chain=True to get shape (num_chains, num_draws, *var_shape)
+    samples = mcmc.get_samples(group_by_chain=True)
 
-    # Prepare data groups for InferenceData
-    observed_data = {"y": model_args["y"]}
-    constant_data = {
-        "X": model_args["X"],
-        "artist_idx": model_args["artist_idx"],
-        "album_seq": model_args["album_seq"],
-        "prev_score": model_args["prev_score"],
-    }
+    # Release memory from MCMC warmup before processing samples
+    gc.collect()
+
+    # Filter out excluded sample sites (post-filtering to avoid OOM on large tensors)
+    if exclude_from_idata:
+        excluded = [k for k in samples if k in exclude_from_idata]
+        if excluded:
+            # Log excluded sites with estimated memory sizes
+            for site in excluded:
+                size_mb = samples[site].nbytes / (1024 * 1024)
+                logger.info("Excluded '%s' from InferenceData (%.1f MB)", site, size_mb)
+        samples = {k: v for k, v in samples.items() if k not in exclude_from_idata}
+
+    if not samples:
+        raise ValueError(
+            "exclude_from_idata removed all sample sites; cannot build InferenceData."
+        )
+
+    # Build InferenceData manually with samples
+    first_var = next(iter(samples.values()))
+    n_chains, n_draws = first_var.shape[:2]
+
+    # Convert to xarray Dataset
+    posterior_dict = {}
+    for var_name, var_data in samples.items():
+        # Convert JAX arrays to numpy
+        var_data = np.asarray(var_data)
+        # Shape is (chains, draws, *var_shape)
+        var_shape = var_data.shape[2:]
+        if len(var_shape) == 0:
+            # Scalar parameter
+            dims = ["chain", "draw"]
+        elif len(var_shape) == 1:
+            # 1D parameter (e.g., beta, artist effects)
+            dims = ["chain", "draw", f"{var_name}_dim_0"]
+        else:
+            # Multi-dimensional parameter
+            dims = ["chain", "draw"] + [f"{var_name}_dim_{i}" for i in range(len(var_shape))]
+
+        posterior_dict[var_name] = xr.DataArray(
+            data=var_data,
+            dims=dims,
+            coords={"chain": range(n_chains), "draw": range(n_draws)},
+        )
+
+    posterior_ds = xr.Dataset(posterior_dict)
+
+    # Get sample stats (divergences, etc.)
+    extra_fields = mcmc.get_extra_fields()
+    sample_stats_dict = {}
+    for field_name, field_data in extra_fields.items():
+        # Convert JAX arrays to numpy
+        field_data = np.asarray(field_data)
+        # extra_fields from get_extra_fields() are flat arrays (n_samples_total,) or (n_samples_total, ...)
+        # Reshape to (chains, draws, ...) for ArviZ compatibility
+        if field_data.ndim == 1:
+            reshaped = field_data.reshape(n_chains, n_draws)
+            dims = ["chain", "draw"]
+            extra_dims = []
+        else:
+            reshaped = field_data.reshape(n_chains, n_draws, *field_data.shape[1:])
+            # Add dimension names for any extra dimensions
+            extra_dims = [f"{field_name}_dim_{i}" for i in range(len(reshaped.shape) - 2)]
+            dims = ["chain", "draw"] + extra_dims
+
+        all_coords = {"chain": range(n_chains), "draw": range(n_draws)}
+        for i, dim_name in enumerate(extra_dims):
+            all_coords[dim_name] = range(reshaped.shape[i + 2])
+
+        sample_stats_dict[field_name] = xr.DataArray(
+            data=reshaped,
+            dims=dims,
+            coords=all_coords,
+        )
+
+    sample_stats_ds = xr.Dataset(sample_stats_dict)
+
+    # Create InferenceData
+    idata = az.InferenceData(posterior=posterior_ds, sample_stats=sample_stats_ds)
+
+    # Prepare data groups for InferenceData with explicit dimensions
+    # CRITICAL: Raw numpy arrays cause ArviZ to misinterpret shapes as (chains, draws)
+    # which triggers OOM when it tries to allocate per-chain statistics for 41k "chains"
+    n_obs = len(model_args["y"])
+    n_features = model_args["X"].shape[1]
+
+    observed_data_ds = xr.Dataset({
+        "y": xr.DataArray(
+            np.asarray(model_args["y"]),
+            dims=["obs"],
+            coords={"obs": range(n_obs)},
+        )
+    })
+
+    constant_data_ds = xr.Dataset({
+        "X": xr.DataArray(
+            np.asarray(model_args["X"]),
+            dims=["obs", "feature"],
+            coords={"obs": range(n_obs), "feature": range(n_features)},
+        ),
+        "artist_idx": xr.DataArray(
+            np.asarray(model_args["artist_idx"]),
+            dims=["obs"],
+            coords={"obs": range(n_obs)},
+        ),
+        "album_seq": xr.DataArray(
+            np.asarray(model_args["album_seq"]),
+            dims=["obs"],
+            coords={"obs": range(n_obs)},
+        ),
+        "prev_score": xr.DataArray(
+            np.asarray(model_args["prev_score"]),
+            dims=["obs"],
+            coords={"obs": range(n_obs)},
+        ),
+    })
+
     # Include n_reviews for heteroscedastic models (if present)
     if "n_reviews" in model_args:
-        constant_data["n_reviews"] = model_args["n_reviews"]
+        constant_data_ds["n_reviews"] = xr.DataArray(
+            np.asarray(model_args["n_reviews"]),
+            dims=["obs"],
+            coords={"obs": range(n_obs)},
+        )
 
-    # Add groups only if they don't already exist (az.from_numpyro may create observed_data)
+    # Add groups only if they don't already exist
     existing_groups = set(idata.groups())
-    groups_to_add = {}
     if "observed_data" not in existing_groups:
-        groups_to_add["observed_data"] = observed_data
+        idata.add_groups(observed_data=observed_data_ds)
     if "constant_data" not in existing_groups:
-        groups_to_add["constant_data"] = constant_data
-
-    if groups_to_add:
-        idata.add_groups(**groups_to_add)
+        idata.add_groups(constant_data=constant_data_ds)
 
     logger.info(f"InferenceData groups: {list(idata.groups())}")
 

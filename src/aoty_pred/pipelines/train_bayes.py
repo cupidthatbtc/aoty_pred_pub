@@ -359,6 +359,7 @@ def train_models(
         num_chains=ctx.num_chains,
         seed=ctx.seed,
         target_accept_prob=ctx.target_accept,
+        chain_method=ctx.chain_method,
         max_tree_depth=10,  # Keep hardcoded - not commonly adjusted
     )
 
@@ -375,7 +376,8 @@ def train_models(
         model=user_score_model,
         model_args=model_args,
         config=mcmc_config,
-        progress_bar=ctx.verbose,
+        progress_bar=True,  # Always show MCMC progress for real-time feedback
+        exclude_from_idata=("user_rw_innovations",),  # Large tensor, exclude to prevent OOM
     )
 
     log.info(
