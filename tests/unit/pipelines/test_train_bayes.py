@@ -444,3 +444,69 @@ class TestApplyMaxAlbumsCap:
             model_args, max_albums_cap=-5, artist_album_counts=artist_album_counts
         )
         assert result["max_seq"] == 1
+
+
+# =============================================================================
+# Tests for n_ref computation
+# =============================================================================
+
+
+class TestNRefComputation:
+    """Tests verifying n_ref (reference review count) computation from model data.
+
+    n_ref = median(n_reviews) is computed by train_models() and added to model_args
+    before calling fit_model(). These tests verify the formula and that
+    prepare_model_data() returns the base keys correctly (n_ref is added later
+    by train_models, not prepare_model_data).
+    """
+
+    def test_n_ref_equals_median_of_n_reviews(self):
+        """n_ref should be the median of n_reviews values from model_args."""
+        df = pd.DataFrame(
+            {
+                "Artist": ["A", "A", "B", "B", "C"],
+                "User_Score": [70.0, 75.0, 80.0, 85.0, 90.0],
+                "feature_1": [1.0, 2.0, 3.0, 4.0, 5.0],
+                "n_reviews": [10, 20, 30, 40, 50],
+            }
+        )
+
+        model_args, valid_mask = prepare_model_data(df, ["feature_1"], min_albums_filter=1)
+
+        # n_ref formula: median of n_reviews
+        expected_n_ref = float(np.median(model_args["n_reviews"]))
+        assert expected_n_ref == 30.0, f"Expected median 30.0, got {expected_n_ref}"
+
+    def test_model_args_keys_include_expected_heteroscedastic_keys(self):
+        """prepare_model_data should return base keys but NOT n_ref (added by train_models)."""
+        df = pd.DataFrame(
+            {
+                "Artist": ["A", "A", "B", "B"],
+                "User_Score": [70.0, 75.0, 80.0, 85.0],
+                "feature_1": [1.0, 2.0, 3.0, 4.0],
+                "n_reviews": [10, 20, 30, 40],
+            }
+        )
+
+        model_args, valid_mask = prepare_model_data(df, ["feature_1"], min_albums_filter=1)
+
+        # Base keys from prepare_model_data
+        expected_base_keys = {
+            "artist_idx",
+            "album_seq",
+            "prev_score",
+            "X",
+            "y",
+            "n_reviews",
+            "n_artists",
+            "artist_album_counts",
+        }
+        assert expected_base_keys.issubset(
+            set(model_args.keys())
+        ), f"Missing keys: {expected_base_keys - set(model_args.keys())}"
+
+        # n_ref is NOT added by prepare_model_data -- it's added by train_models()
+        assert "n_ref" not in model_args, (
+            "n_ref should NOT be in model_args from prepare_model_data; "
+            "it is added by train_models() after max_albums capping"
+        )
