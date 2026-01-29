@@ -15,6 +15,11 @@ Prior Roles:
   - Captures momentum: positive rho -> hot streaks, negative -> regression to mean
 - beta: Fixed effect coefficients for covariates (genre PCA, release year, etc.)
 - sigma_obs: Observation-level noise (unexplained variance per album)
+- sigma_ref: Observation noise at the reference review count (median n_reviews).
+  When sigma-ref mode is active (n_ref provided and heteroscedastic mode on),
+  the model samples sigma_ref instead of sigma_obs and derives:
+      sigma_obs = sigma_ref * n_ref^n_exponent
+  This breaks the multiplicative funnel between sigma_obs and n_exponent.
 - n_exponent: Scaling exponent for heteroscedastic observation noise
   - sigma_scaled = sigma_obs / n_reviews^exponent
   - Higher exponent -> more noise reduction for albums with many reviews
@@ -53,6 +58,10 @@ class PriorConfig:
             Default 1.0 is weakly informative for standardized features.
         sigma_obs_scale: Scale for HalfNormal prior on observation noise.
             Default 1.0 allows moderate observation-level variance.
+        sigma_ref_scale: Scale for HalfNormal prior on sigma_ref (noise at
+            reference review count). Used when n_ref is provided
+            (sigma-ref reparameterization mode). Default 1.0 is weakly
+            informative for standardized scores.
         n_exponent_alpha: Alpha (concentration1) parameter for Beta prior on
             learned n_exponent. Default 2.0. (Legacy - use logit-normal instead)
         n_exponent_beta: Beta (concentration0) parameter for Beta prior on
@@ -75,6 +84,7 @@ class PriorConfig:
     beta_loc: float = 0.0
     beta_scale: float = 1.0
     sigma_obs_scale: float = 1.0
+    sigma_ref_scale: float = 1.0
     n_exponent_alpha: float = 2.0
     n_exponent_beta: float = 4.0
     # Logit-normal prior parameters for n_exponent (new default)
