@@ -384,6 +384,15 @@ def fit_model(
             coords={"obs": range(n_obs)},
         )
 
+    # Include n_ref and n_ref_method for sigma-ref reparameterization reproducibility
+    if "n_ref" in model_args and model_args["n_ref"] is not None:
+        constant_data_ds["n_ref"] = xr.DataArray(
+            np.float64(model_args["n_ref"]),
+        )
+        constant_data_ds["n_ref_method"] = xr.DataArray(
+            np.array("median", dtype="U"),
+        )
+
     # Add groups only if they don't already exist
     existing_groups = set(idata.groups())
     if "observed_data" not in existing_groups:

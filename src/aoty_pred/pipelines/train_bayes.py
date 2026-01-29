@@ -324,6 +324,10 @@ def train_models(
         mean=float(np.mean(n_reviews)),
     )
 
+    # Compute reference review count for sigma-ref reparameterization
+    n_ref = float(np.median(n_reviews))
+    log.info("sigma_ref_mode", n_ref=n_ref, n_ref_method="median")
+
     log.info(
         "model_data_prepared",
         n_artists=model_args["n_artists"],
@@ -337,6 +341,9 @@ def train_models(
     model_args["n_exponent"] = ctx.n_exponent
     model_args["learn_n_exponent"] = ctx.learn_n_exponent
     model_args["n_exponent_prior"] = ctx.n_exponent_prior
+
+    # Add n_ref for sigma-ref reparameterization (model accepts n_ref=None for homoscedastic)
+    model_args["n_ref"] = n_ref if (ctx.learn_n_exponent or ctx.n_exponent != 0.0) else None
 
     # Log heteroscedastic mode
     if ctx.learn_n_exponent:
