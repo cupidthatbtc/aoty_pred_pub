@@ -67,11 +67,12 @@ def get_trace_plot_vars(
     prefix: str = "user_",
     include_hyperpriors: bool = True,
 ) -> list[str]:
-    """Get variable names for trace plots, including n_exponent if learned.
+    """Get variable names for trace plots, with dynamic sigma_ref and n_exponent detection.
 
     Dynamically builds the list of variables based on what exists in the posterior,
     handling both homoscedastic models (no n_exponent) and heteroscedastic models
-    with learned exponent (has n_exponent).
+    with learned exponent (has n_exponent). When sigma_ref reparameterization is
+    active, sigma_ref is inserted before sigma_obs for logical ordering.
 
     Parameters
     ----------
@@ -106,6 +107,12 @@ def get_trace_plot_vars(
             f"{prefix}sigma_rw",
         ]
         base_vars = hyperprior_vars + base_vars
+
+    # Add sigma_ref if present (sigma-ref reparameterization mode)
+    # Insert before sigma_obs for logical ordering (sampled before derived)
+    if f"{prefix}sigma_ref" in idata.posterior:
+        obs_idx = base_vars.index(f"{prefix}sigma_obs")
+        base_vars.insert(obs_idx, f"{prefix}sigma_ref")
 
     # Add n_exponent only if it exists in posterior (learned mode)
     if f"{prefix}n_exponent" in idata.posterior:
