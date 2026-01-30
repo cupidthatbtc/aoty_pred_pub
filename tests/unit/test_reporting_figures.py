@@ -25,6 +25,7 @@ import xarray as xr
 from aoty_pred.evaluation.calibration import ReliabilityData
 from aoty_pred.reporting.figures import (
     COLORBLIND_COLORS,
+    get_trace_plot_vars,
     save_forest_plot,
     save_posterior_plot,
     save_predictions_plot,
@@ -371,3 +372,68 @@ class TestFigureMemoryCleanup:
         )
         n_figures_after = len(plt.get_fignums())
         assert n_figures_after == n_figures_before
+
+
+# =============================================================================
+# TestGetTracePlotVars - Dynamic sigma_ref detection
+# =============================================================================
+
+
+class TestGetTracePlotVarsSigmaRef:
+    """Tests for dynamic sigma_ref detection in get_trace_plot_vars()."""
+
+    def test_includes_sigma_ref_when_present(self):
+        """sigma_ref should appear in var list when present in posterior."""
+        posterior = {
+            "user_mu_artist": np.random.randn(1, 10),
+            "user_sigma_artist": np.abs(np.random.randn(1, 10)) + 0.1,
+            "user_sigma_rw": np.abs(np.random.randn(1, 10)) + 0.1,
+            "user_sigma_obs": np.abs(np.random.randn(1, 10)) + 0.1,
+            "user_rho": np.random.randn(1, 10),
+            "user_sigma_ref": np.abs(np.random.randn(1, 10)) + 0.1,
+        }
+        idata = az.from_dict(posterior=posterior)
+
+        var_names = get_trace_plot_vars(idata)
+
+        assert "user_sigma_ref" in var_names
+        # sigma_ref should appear BEFORE sigma_obs
+        ref_idx = var_names.index("user_sigma_ref")
+        obs_idx = var_names.index("user_sigma_obs")
+        assert (
+            ref_idx < obs_idx
+        ), f"sigma_ref (idx={ref_idx}) should precede sigma_obs (idx={obs_idx})"
+
+    def test_no_sigma_ref_when_absent(self):
+        """sigma_ref should NOT appear when absent from posterior (homoscedastic)."""
+        posterior = {
+            "user_mu_artist": np.random.randn(1, 10),
+            "user_sigma_artist": np.abs(np.random.randn(1, 10)) + 0.1,
+            "user_sigma_rw": np.abs(np.random.randn(1, 10)) + 0.1,
+            "user_sigma_obs": np.abs(np.random.randn(1, 10)) + 0.1,
+            "user_rho": np.random.randn(1, 10),
+        }
+        idata = az.from_dict(posterior=posterior)
+
+        var_names = get_trace_plot_vars(idata)
+
+        assert "user_sigma_ref" not in var_names
+        assert "user_sigma_obs" in var_names
+
+    def test_sigma_ref_and_n_exponent(self):
+        """Both sigma_ref and n_exponent should appear when both present."""
+        posterior = {
+            "user_mu_artist": np.random.randn(1, 10),
+            "user_sigma_artist": np.abs(np.random.randn(1, 10)) + 0.1,
+            "user_sigma_rw": np.abs(np.random.randn(1, 10)) + 0.1,
+            "user_sigma_obs": np.abs(np.random.randn(1, 10)) + 0.1,
+            "user_rho": np.random.randn(1, 10),
+            "user_sigma_ref": np.abs(np.random.randn(1, 10)) + 0.1,
+            "user_n_exponent": np.random.randn(1, 10) * 0.1,
+        }
+        idata = az.from_dict(posterior=posterior)
+
+        var_names = get_trace_plot_vars(idata)
+
+        assert "user_sigma_ref" in var_names
+        assert "user_n_exponent" in var_names
