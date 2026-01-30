@@ -280,12 +280,14 @@ def make_score_model(score_type: str) -> Callable:
         # - Shape: (n_artists, max_seq-1) for innovations, then cumsum to get trajectories
         # - This reduces parameter count from max_seq*n_artists separate sites to ONE site
         if max_seq > 1:
-            # Sample random walk innovations as a single tensor
-            # Shape: (n_artists, max_seq - 1) representing innovations for each artist over time
-            rw_innovations = numpyro.sample(
-                f"{prefix}rw_innovations",
-                dist.Normal(0, sigma_rw).expand([n_artists, max_seq - 1]).to_event(2),
+            # Non-centered parameterization for random walk innovations:
+            # Sample unit normal, then scale by sigma_rw to decouple geometry
+            # (avoids Neal's funnel between sigma_rw and rw_innovations)
+            rw_raw = numpyro.sample(
+                f"{prefix}rw_raw",
+                dist.Normal(0, 1).expand([n_artists, max_seq - 1]).to_event(2),
             )
+            rw_innovations = sigma_rw * rw_raw
             # Cumulative sum to get random walk trajectory from innovations
             # Shape: (n_artists, max_seq - 1)
             rw_trajectory = jnp.cumsum(rw_innovations, axis=1)
@@ -463,7 +465,7 @@ Sample sites (all prefixed with "{prefix}"):
     - {prefix}sigma_rw: Random walk innovation scale
     - {prefix}rho: AR(1) coefficient
     - {prefix}init_artist_effect: Initial artist effects (partial pooling)
-    - {prefix}rw_innovations: Random walk innovations tensor (n_artists x max_seq-1)
+    - {prefix}rw_raw: Unit-normal random walk innovations (n_artists x max_seq-1)
     - {prefix}beta: Fixed effect coefficients
     - {prefix}sigma_ref: Noise at reference review count (only when n_ref is
         provided and heteroscedastic mode active)

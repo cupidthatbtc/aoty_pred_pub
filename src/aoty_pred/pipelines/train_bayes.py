@@ -328,6 +328,29 @@ def train_models(
     n_ref = float(np.median(n_reviews))
     log.info("sigma_ref_mode", n_ref=n_ref, n_ref_method="median")
 
+    # Standardize feature matrix X (z-score per column) so that
+    # beta ~ N(0, 1) prior is appropriate regardless of feature scale.
+    # n_reviews is NOT standardized -- it lives outside X and is used
+    # for heteroscedastic noise scaling on its natural scale.
+    X_raw = model_args["X"]
+    X_mean = X_raw.mean(axis=0)
+    X_std = X_raw.std(axis=0)
+    # Guard against constant features (std=0): leave them unscaled
+    X_std_safe = np.where(X_std == 0.0, 1.0, X_std)
+    model_args["X"] = ((X_raw - X_mean) / X_std_safe).astype(np.float32)
+    log.info(
+        "features_standardized",
+        n_features=len(X_mean),
+        n_constant=int((X_std == 0.0).sum()),
+        std_range=[float(X_std.min()), float(X_std.max())],
+    )
+    # Store scaler params for prediction-time use
+    feature_scaler = {
+        "mean": X_mean.tolist(),
+        "std": X_std_safe.tolist(),
+        "feature_cols": feature_cols,
+    }
+
     log.info(
         "model_data_prepared",
         n_artists=model_args["n_artists"],
@@ -391,7 +414,7 @@ def train_models(
         model_args=model_args,
         config=mcmc_config,
         progress_bar=True,  # Always show MCMC progress for real-time feedback
-        exclude_from_idata=("user_rw_innovations",),  # Large tensor, exclude to prevent OOM
+        exclude_from_idata=("user_rw_raw",),  # Large tensor, exclude to prevent OOM
     )
 
     log.info(
@@ -472,6 +495,7 @@ def train_models(
         "n_observations": len(model_args["y"]),
         "n_artists": model_args["n_artists"],
         "n_features": model_args["X"].shape[1],
+        "feature_scaler": feature_scaler,
         "n_reviews_stats": {
             "min": int(np.min(model_args["n_reviews"])),
             "max": int(np.max(model_args["n_reviews"])),
