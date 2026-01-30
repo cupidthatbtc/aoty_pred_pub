@@ -10,14 +10,19 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import structlog
+from jax import random
+from numpyro.infer import Predictive
 
 from aoty_pred.evaluation.calibration import compute_coverage
-from aoty_pred.evaluation.metrics import compute_point_metrics
+from aoty_pred.evaluation.metrics import compute_crps, compute_point_metrics
 from aoty_pred.models.bayes.diagnostics import check_convergence, get_divergence_info
 from aoty_pred.models.bayes.io import load_manifest, load_model
+from aoty_pred.models.bayes.model import user_score_model
 from aoty_pred.models.bayes.priors import PriorConfig
 from aoty_pred.pipelines.train_bayes import _apply_max_albums_cap
 
@@ -216,30 +221,69 @@ def evaluate_models(ctx: "StageContext") -> dict:
     features_dir = Path("data/features")
     splits_dir = Path("data/splits/within_artist_temporal")
 
-    # test_features loaded for potential future use in feature-aware evaluation
-    _ = pd.read_parquet(features_dir / "test_features.parquet")
+    test_features = pd.read_parquet(features_dir / "test_features.parquet")
     test_df = pd.read_parquet(splits_dir / "test.parquet")
 
     log.info("test_data_loaded", n_test=len(test_df))
 
-    # Get observed values
-    y_true = test_df["User_Score"].values
+    # Load training summary for model metadata
+    summary_path = model_dir / "training_summary.json"
+    with open(summary_path, "r", encoding="utf-8") as f:
+        summary = json.load(f)
 
-    # Compute posterior predictive (simplified - using posterior mean as point estimate)
-    # In a full implementation, we'd generate posterior predictive samples
+    # Prepare test model_args using training summary metadata
+    test_model_args, y_true = _prepare_test_model_args(test_df, test_features, summary)
+
+    log.info("test_model_args_prepared", n_test_kept=len(y_true))
+
+    # Extract posterior samples from idata into flat dict for Predictive
     posterior = idata.posterior
+    posterior_samples: dict[str, jnp.ndarray] = {}
+    for var_name in posterior.data_vars:
+        vals = posterior[var_name].values  # shape: (chains, draws, ...)
+        n_chains, n_draws = vals.shape[:2]
+        rest_shape = vals.shape[2:]
+        flat = vals.reshape(n_chains * n_draws, *rest_shape)
+        posterior_samples[var_name] = jnp.array(flat)
 
-    # Extract mean prediction parameters for evaluation
-    # This is a simplified version - real implementation would use predict_out_of_sample
-    if "y_pred" in posterior:
-        y_pred_samples = posterior["y_pred"].values
-        y_pred_mean = np.mean(y_pred_samples, axis=(0, 1))  # Average over chains and draws
-    else:
-        # Fallback: use training data predictions from model
-        log.warning("no_posterior_predictive", message="Using placeholder metrics")
-        y_pred_mean = np.full_like(y_true, y_true.mean())
+    n_total_samples = next(iter(posterior_samples.values())).shape[0]
+    log.info("posterior_samples_extracted", n_total_samples=n_total_samples)
 
-    # Point prediction metrics
+    # Force CPU for all prediction work
+    cpu_device = jax.devices("cpu")[0]
+    with jax.default_device(cpu_device):
+        # Run Predictive in chunks to control memory
+        batch_size = 500
+        y_pred_chunks: list[np.ndarray] = []
+
+        for start in range(0, n_total_samples, batch_size):
+            end = min(start + batch_size, n_total_samples)
+            batch_samples = {k: v[start:end] for k, v in posterior_samples.items()}
+
+            predictive = Predictive(
+                user_score_model,
+                posterior_samples=batch_samples,
+                batch_ndims=1,
+            )
+            rng_key = random.key(start)
+            preds = predictive(rng_key, **test_model_args)
+
+            # Find the y key (prefixed as "user_y")
+            y_key = next(k for k in preds if k.endswith("_y"))
+            y_pred_chunks.append(np.asarray(preds[y_key]))
+
+        y_pred_samples = np.concatenate(y_pred_chunks, axis=0)
+
+    log.info(
+        "posterior_predictive_generated",
+        shape=y_pred_samples.shape,
+        n_samples=y_pred_samples.shape[0],
+        n_obs=y_pred_samples.shape[1],
+    )
+
+    # Compute metrics
+    y_pred_mean = np.mean(y_pred_samples, axis=0)
+
     log.info("computing_point_metrics")
     point_metrics = compute_point_metrics(y_true, y_pred_mean)
 
@@ -260,44 +304,28 @@ def evaluate_models(ctx: "StageContext") -> dict:
 
     # Calibration metrics
     log.info("computing_calibration")
+    coverage_90 = compute_coverage(y_true, y_pred_samples, prob=0.90)
+    coverage_50 = compute_coverage(y_true, y_pred_samples, prob=0.50)
 
-    if "y_pred" in posterior:
-        # Reshape samples from (chains, draws, n_obs) to (n_samples, n_obs)
-        n_chains, n_draws, n_obs = y_pred_samples.shape
-        y_samples_2d = y_pred_samples.reshape(n_chains * n_draws, n_obs)
-
-        coverage_90 = compute_coverage(y_true, y_samples_2d, prob=0.90)
-        coverage_50 = compute_coverage(y_true, y_samples_2d, prob=0.50)
-    else:
-        # Fallback: cannot compute calibration without samples
-        log.warning(
-            "no_posterior_samples", message="Cannot compute calibration without y_pred samples"
-        )
-        coverage_90 = None
-        coverage_50 = None
-
-    if coverage_90 is not None and coverage_50 is not None:
-        calibration_result = {
-            "coverage_90": float(coverage_90.empirical),
-            "coverage_50": float(coverage_50.empirical),
-            "expected_90": 0.90,
-            "expected_50": 0.50,
-            "interval_width_90": float(coverage_90.interval_width),
-            "interval_width_50": float(coverage_50.interval_width),
-        }
-    else:
-        calibration_result = {
-            "coverage_90": None,
-            "coverage_50": None,
-            "expected_90": 0.90,
-            "expected_50": 0.50,
-        }
+    calibration_result = {
+        "coverage_90": float(coverage_90.empirical),
+        "coverage_50": float(coverage_50.empirical),
+        "expected_90": 0.90,
+        "expected_50": 0.50,
+        "interval_width_90": float(coverage_90.interval_width),
+        "interval_width_50": float(coverage_50.interval_width),
+    }
 
     log.info(
         "calibration_metrics",
         coverage_90=calibration_result["coverage_90"],
         coverage_50=calibration_result["coverage_50"],
     )
+
+    # CRPS
+    log.info("computing_crps")
+    crps_result = compute_crps(y_true, y_pred_samples)
+    log.info("crps_computed", mean_crps=crps_result.mean_crps)
 
     # Save results
     output_dir = Path("outputs/evaluation")
@@ -315,6 +343,10 @@ def evaluate_models(ctx: "StageContext") -> dict:
         "n_test": len(y_true),
         "point_metrics": metrics_result,
         "calibration": calibration_result,
+        "crps": {
+            "mean_crps": float(crps_result.mean_crps),
+            "n_obs": crps_result.n_obs,
+        },
     }
 
     metrics_path = output_dir / "metrics.json"
