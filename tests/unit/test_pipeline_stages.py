@@ -238,7 +238,7 @@ class TestPipelineStages:
         """All expected stages are defined."""
         stages = build_pipeline_stages()
         stage_names = {s.name for s in stages}
-        expected = {"data", "splits", "features", "train", "evaluate", "report"}
+        expected = {"data", "splits", "features", "train", "evaluate", "predict", "report"}
         assert stage_names == expected
 
     def test_stages_have_descriptions(self):
@@ -259,10 +259,15 @@ class TestPipelineStages:
         data_stage = get_stage("data")
         assert data_stage.depends_on == []
 
-    def test_report_stage_depends_on_evaluate(self):
-        """Report stage depends on evaluate."""
+    def test_report_stage_depends_on_predict(self):
+        """Report stage depends on predict."""
         report_stage = get_stage("report")
-        assert "evaluate" in report_stage.depends_on
+        assert "predict" in report_stage.depends_on
+
+    def test_predict_stage_depends_on_evaluate(self):
+        """Predict stage depends on evaluate."""
+        predict_stage = get_stage("predict")
+        assert "evaluate" in predict_stage.depends_on
 
     def test_splits_input_path_reflects_min_ratings(self):
         """Splits stage input_paths use the correct min_ratings parquet file."""
@@ -299,8 +304,10 @@ class TestGetExecutionOrder:
         assert names.index("features") < names.index("train")
         # train before evaluate
         assert names.index("train") < names.index("evaluate")
-        # evaluate before report
-        assert names.index("evaluate") < names.index("report")
+        # evaluate before predict
+        assert names.index("evaluate") < names.index("predict")
+        # predict before report
+        assert names.index("predict") < names.index("report")
 
     def test_filters_to_specified_stages(self):
         """Returns only specified stages when filter provided."""

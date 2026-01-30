@@ -111,7 +111,7 @@ class TestStageCommands:
 
     @pytest.mark.parametrize(
         "stage_name",
-        ["data", "splits", "features", "train", "evaluate", "report"],
+        ["data", "splits", "features", "train", "evaluate", "predict", "report"],
     )
     def test_stage_command_exists(self, stage_name):
         """Each stage command exists and shows help."""
