@@ -5,8 +5,8 @@
 - **Model type:** Bayesian Hierarchical Regression with Time-Varying Effects
 - **Version:** 0.1.0
 - **Authors:** AOTY Prediction Project
-- **Created:** 2026-01-29
-- **Last updated:** 2026-01-29
+- **Created:** 2026-01-30
+- **Last updated:** 2026-01-30
 
 ## Intended Use
 

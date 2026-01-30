@@ -52,7 +52,7 @@ class MCMCConfig:
         seed: Random seed for reproducibility.
             Default 0 for consistent results.
         max_tree_depth: Maximum tree depth for NUTS.
-            Default 12 allows deeper exploration for complex geometry.
+            Default 10 (numpyro default).
         target_accept_prob: Target acceptance probability for adaptation.
             Default 0.90 improves adaptation for challenging posteriors.
     """
@@ -62,7 +62,7 @@ class MCMCConfig:
     num_chains: int = 4
     chain_method: str = "sequential"
     seed: int = 0
-    max_tree_depth: int = 12
+    max_tree_depth: int = 10
     target_accept_prob: float = 0.90
 
     def to_dict(self) -> dict:
@@ -175,7 +175,7 @@ def fit_model(
     exclude_from_idata : tuple of str, optional
         Sample site names to exclude from InferenceData. These sites are filtered
         out after calling mcmc.get_samples() to prevent large auxiliary tensors
-        (e.g., "rw_innovations") from consuming memory during InferenceData
+        (e.g., "rw_raw") from consuming memory during InferenceData
         construction. If None, all sampled sites are included.
 
     Returns

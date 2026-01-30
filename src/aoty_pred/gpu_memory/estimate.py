@@ -103,7 +103,7 @@ def estimate_memory_gb(
 
     # Model parameters (approximate for hierarchical time-varying model)
     # - init_artist_effect: n_artists
-    # - rw_innovations: n_artists * (max_seq - 1)
+    # - rw_raw: n_artists * (max_seq - 1)
     # - beta: n_features
     # - hyperpriors: ~10 scalars (sigma_obs, sigma_artist, etc.)
     n_params = n_artists + n_artists * max(0, max_seq - 1) + n_features + 10

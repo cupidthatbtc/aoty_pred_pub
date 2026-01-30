@@ -40,7 +40,7 @@ SITE_CATEGORIES: dict[str, str] = {
     "sigma_obs": "hyperprior",
     "n_exponent": "hyperprior",
     "init_artist_effect": "random_effect",
-    "rw_innovations": "random_effect",
+    "rw_raw": "random_effect",
     "beta": "fixed_effect",
     "y": "likelihood",
 }
@@ -113,7 +113,7 @@ class ModelIntrospector:
     def _create_dummy_args(self) -> dict:
         """Create minimal dummy data for model tracing.
 
-        Uses max_seq=2 to ensure rw_innovations sample site is captured
+        Uses max_seq=2 to ensure rw_raw sample site is captured
         (only appears when max_seq > 1 for random walk trajectory).
 
         Returns:
@@ -128,7 +128,7 @@ class ModelIntrospector:
             "X": jnp.zeros((n_obs, n_features)),
             "y": jnp.zeros(n_obs),
             "n_artists": n_artists,
-            "max_seq": 2,  # Enables rw_innovations sample site
+            "max_seq": 2,  # Enables rw_raw sample site
         }
 
     def _get_clean_name(self, site_name: str) -> str:

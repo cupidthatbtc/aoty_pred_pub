@@ -592,7 +592,7 @@ class TestResumeConfigRestoration:
                 "num_samples": 1000,
                 "num_warmup": 1000,
                 "target_accept": 0.75,  # Old value (different from current default 0.90)
-                "max_tree_depth": 10,  # Old value (different from current default 12)
+                "max_tree_depth": 8,  # Old value (different from current default 10)
                 "chain_method": "sequential",
                 "rhat_threshold": 1.01,
                 "ess_threshold": 400,
@@ -634,17 +634,17 @@ class TestResumeConfigRestoration:
         }
         (run_dir / "manifest.json").write_text(json.dumps(manifest_data))
 
-        # Create config with current defaults (0.90, 12)
+        # Create config with current defaults (0.90, 10)
         config = PipelineConfig(resume=run_id)
         assert config.target_accept == 0.90  # Current default
-        assert config.max_tree_depth == 12  # Current default
+        assert config.max_tree_depth == 10  # Current default
 
         orchestrator = PipelineOrchestrator(config, output_base=tmp_path)
         orchestrator.run()
 
         # After resume, config should have manifest values
         assert orchestrator.config.target_accept == 0.75
-        assert orchestrator.config.max_tree_depth == 10
+        assert orchestrator.config.max_tree_depth == 8
 
     @patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked")
     @patch("aoty_pred.pipelines.orchestrator.verify_environment")
@@ -731,7 +731,7 @@ class TestResumeConfigRestoration:
 
         # Config should still have current defaults
         assert orchestrator.config.target_accept == 0.90
-        assert orchestrator.config.max_tree_depth == 12
+        assert orchestrator.config.max_tree_depth == 10
 
     @patch("aoty_pred.pipelines.orchestrator.ensure_environment_locked")
     @patch("aoty_pred.pipelines.orchestrator.verify_environment")
@@ -815,5 +815,5 @@ class TestResumeConfigRestoration:
         # Warning logged for missing max_tree_depth
         assert "max_tree_depth" in caplog.text
 
-        # max_tree_depth remains at default 12
-        assert orchestrator.config.max_tree_depth == 12
+        # max_tree_depth remains at default 10
+        assert orchestrator.config.max_tree_depth == 10
