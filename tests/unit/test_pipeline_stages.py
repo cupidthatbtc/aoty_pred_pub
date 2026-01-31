@@ -282,6 +282,23 @@ class TestPipelineStages:
         assert splits_10.input_paths == [Path("data/processed/user_score_minratings_10.parquet")]
         assert splits_30.input_paths == [Path("data/processed/user_score_minratings_30.parquet")]
 
+    def test_predict_stage_has_run_fn(self):
+        """Predict stage has a callable run_fn."""
+        predict_stage = get_stage("predict")
+        assert predict_stage.run_fn is not None
+        assert callable(predict_stage.run_fn)
+
+    def test_predict_stage_input_output_paths(self):
+        """Predict stage has correct input and output paths."""
+        predict_stage = get_stage("predict")
+        input_names = [p.name for p in predict_stage.input_paths]
+        assert "manifest.json" in input_names
+        assert "training_summary.json" in input_names
+        output_names = [p.name for p in predict_stage.output_paths]
+        assert "next_album_known_artists.csv" in output_names
+        assert "next_album_new_artist.csv" in output_names
+        assert "prediction_summary.json" in output_names
+
 
 class TestGetExecutionOrder:
     """Tests for get_execution_order function."""
