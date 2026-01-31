@@ -233,9 +233,11 @@ def load_dashboard_data(run_dir: Path | None = None) -> DashboardData:
     except Exception as e:
         logger.debug("Could not load artist data: %s", e)
 
-    # Load eval metrics from outputs/evaluation/metrics.json
+    # Load from outputs/ directory (new format from evaluate/predict stages)
+    project_root = _find_project_root()
+
+    # Eval metrics from outputs/evaluation/metrics.json
     try:
-        project_root = _find_project_root()
         metrics_path = project_root / "outputs" / "evaluation" / "metrics.json"
         if metrics_path.exists():
             import json
@@ -246,9 +248,8 @@ def load_dashboard_data(run_dir: Path | None = None) -> DashboardData:
     except Exception as e:
         logger.debug("Could not load eval metrics: %s", e)
 
-    # Load known artist predictions from outputs/predictions/
+    # Known artist predictions from outputs/predictions/
     try:
-        project_root = _find_project_root()
         known_path = project_root / "outputs" / "predictions" / "next_album_known_artists.csv"
         if known_path.exists():
             data.known_predictions = pd.read_csv(known_path)
@@ -256,9 +257,8 @@ def load_dashboard_data(run_dir: Path | None = None) -> DashboardData:
     except Exception as e:
         logger.debug("Could not load known artist predictions: %s", e)
 
-    # Load new artist predictions from outputs/predictions/
+    # New artist predictions from outputs/predictions/
     try:
-        project_root = _find_project_root()
         new_path = project_root / "outputs" / "predictions" / "next_album_new_artist.csv"
         if new_path.exists():
             data.new_predictions = pd.read_csv(new_path)
