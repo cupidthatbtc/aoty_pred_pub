@@ -558,8 +558,6 @@ class TestPredictNextAlbums:
         mock_ctx = MagicMock()
         mock_ctx.seed = 42
 
-        output_dir = tmp_path / "outputs" / "predictions"
-
         with (
             patch(
                 "aoty_pred.pipelines.predict_next.load_manifest",

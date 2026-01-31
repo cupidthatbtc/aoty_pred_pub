@@ -373,9 +373,6 @@ class TestEvaluateModels:
         # Build mock context
         mock_ctx = MagicMock()
 
-        # Use a real tmp_path for output
-        output_dir = tmp_path / "outputs" / "evaluation"
-
         # Use individual patches instead of patch.multiple
         with (
             patch(

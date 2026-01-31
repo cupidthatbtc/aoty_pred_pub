@@ -320,7 +320,7 @@ def predict_next_albums(ctx: "StageContext") -> dict:
 
     # Load training summary
     summary_path = model_dir / "training_summary.json"
-    with open(summary_path, "r", encoding="utf-8") as f:
+    with open(summary_path, encoding="utf-8") as f:
         summary = json.load(f)
 
     # Extract posterior samples

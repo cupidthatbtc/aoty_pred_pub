@@ -253,7 +253,7 @@ def evaluate_models(ctx: "StageContext") -> dict:
 
     # Load training summary for model metadata
     summary_path = model_dir / "training_summary.json"
-    with open(summary_path, "r", encoding="utf-8") as f:
+    with open(summary_path, encoding="utf-8") as f:
         summary = json.load(f)
 
     # Prepare test model_args using training summary metadata
