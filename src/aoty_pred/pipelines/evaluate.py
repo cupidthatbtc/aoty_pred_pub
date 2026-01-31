@@ -285,15 +285,19 @@ def evaluate_models(ctx: StageContext) -> dict:
         batch_size = 500
         y_pred_chunks: list[np.ndarray] = []
 
+        # Create Predictive once, replace posterior_samples per batch
+        # to preserve function identity and avoid JAX recompilation
+        first_batch = {k: v[:batch_size] for k, v in posterior_samples.items()}
+        predictive = Predictive(
+            user_score_model,
+            posterior_samples=first_batch,
+            batch_ndims=1,
+        )
         for start in range(0, n_total_samples, batch_size):
             end = min(start + batch_size, n_total_samples)
             batch_samples = {k: v[start:end] for k, v in posterior_samples.items()}
+            predictive.posterior_samples = batch_samples
 
-            predictive = Predictive(
-                user_score_model,
-                posterior_samples=batch_samples,
-                batch_ndims=1,
-            )
             rng_key = random.key(start)
             preds = predictive(rng_key, **test_model_args)
 

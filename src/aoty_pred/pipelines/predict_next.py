@@ -168,17 +168,20 @@ def _predict_known_artists(
                     "priors": PriorConfig(**summary["priors"]),
                 }
 
-                # Run Predictive in chunks
+                # Run Predictive in chunks -- create once, replace posterior_samples
+                # per batch to preserve function identity and avoid JAX recompilation
                 y_chunks: list[np.ndarray] = []
+                first_batch_ps = {k: v[:batch_size] for k, v in posterior_samples.items()}
+                predictive = Predictive(
+                    user_score_model,
+                    posterior_samples=first_batch_ps,
+                    batch_ndims=1,
+                )
                 for start in range(0, n_total_samples, batch_size):
                     end = min(start + batch_size, n_total_samples)
                     batch_ps = {k: v[start:end] for k, v in posterior_samples.items()}
+                    predictive.posterior_samples = batch_ps
 
-                    predictive = Predictive(
-                        user_score_model,
-                        posterior_samples=batch_ps,
-                        batch_ndims=1,
-                    )
                     rng_key = random.key(seed + start + batch_start * 1000)
                     preds = predictive(rng_key, **model_args)
                     y_key = next(k for k in preds if k.endswith("_y"))
