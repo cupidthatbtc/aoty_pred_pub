@@ -52,6 +52,7 @@ def _predict_known_artists(
     summary: dict,
     last_album_info: pd.DataFrame,
     artist_mean_features: pd.DataFrame,
+    seed: int = 42,
 ) -> pd.DataFrame:
     """Generate next-album predictions for all known artists under 3 scenarios.
 
@@ -178,7 +179,7 @@ def _predict_known_artists(
                         posterior_samples=batch_ps,
                         batch_ndims=1,
                     )
-                    rng_key = random.key(start + batch_start * 1000)
+                    rng_key = random.key(seed + start + batch_start * 1000)
                     preds = predictive(rng_key, **model_args)
                     y_key = next(k for k in preds if k.endswith("_y"))
                     y_chunks.append(np.asarray(preds[y_key]))
@@ -218,6 +219,7 @@ def _predict_known_artists(
 def _predict_new_artists(
     posterior_samples: dict[str, jnp.ndarray],
     summary: dict,
+    seed: int = 42,
 ) -> pd.DataFrame:
     """Generate predictions for hypothetical new artists under 2 scenarios.
 
@@ -261,7 +263,7 @@ def _predict_new_artists(
                 "X_new": X_new,
                 "prev_score": 0.0,
                 "prefix": "user_",
-                "seed": 42,
+                "seed": seed,
             }
 
             if has_hetero:
@@ -301,6 +303,7 @@ def predict_next_albums(ctx: "StageContext") -> dict:
         Dictionary with prediction summary and output paths.
     """
     log.info("predict_next_start")
+    seed = ctx.seed
 
     # Load model
     model_dir = Path("models")
@@ -333,6 +336,15 @@ def predict_next_albums(ctx: "StageContext") -> dict:
     overlap_cols = list(set(train_df.columns) & set(train_features.columns))
     if overlap_cols:
         train_df = train_df.drop(columns=overlap_cols)
+
+    # Validate alignment before join
+    if not train_df.index.equals(train_features.index):
+        raise ValueError(
+            "Index mismatch between train_df and train_features. "
+            f"train_df index: {train_df.index[:5].tolist()}..., "
+            f"train_features index: {train_features.index[:5].tolist()}..."
+        )
+
     train_df = train_df.join(train_features, how="left")
 
     feature_cols = summary["feature_cols"]
@@ -372,13 +384,17 @@ def predict_next_albums(ctx: "StageContext") -> dict:
     # Generate known artist predictions
     log.info("predicting_known_artists", n_artists=len(summary["artist_to_idx"]))
     known_df = _predict_known_artists(
-        posterior_samples, summary, last_album_info, artist_mean_features
+        posterior_samples,
+        summary,
+        last_album_info,
+        artist_mean_features,
+        seed=seed,
     )
     log.info("known_predictions_complete", n_rows=len(known_df))
 
     # Generate new artist predictions
     log.info("predicting_new_artists")
-    new_df = _predict_new_artists(posterior_samples, summary)
+    new_df = _predict_new_artists(posterior_samples, summary, seed=seed)
     log.info("new_predictions_complete", n_rows=len(new_df))
 
     # Save outputs

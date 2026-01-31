@@ -441,6 +441,25 @@ class TestPredictNewArtists:
         for call in mock_predict.call_args_list:
             assert "n_reviews_new" in call.kwargs
 
+    def test_seed_passed_through(self, mock_posterior_samples, mock_summary):
+        """Specific seed value is forwarded to predict_new_artist."""
+        mock_jax = _make_jax_mock()
+        rng = np.random.RandomState(77)
+        predict_return = {"y": rng.randn(10).astype(np.float32)}
+
+        with (
+            patch("aoty_pred.pipelines.predict_next.jax", mock_jax),
+            patch(
+                "aoty_pred.pipelines.predict_next.predict_new_artist",
+                return_value=predict_return,
+            ) as mock_predict,
+        ):
+            _predict_new_artists(mock_posterior_samples, mock_summary, seed=99)
+
+        # Both scenario calls should receive seed=99
+        for call in mock_predict.call_args_list:
+            assert call.kwargs["seed"] == 99
+
 
 # ---------------------------------------------------------------------------
 # Tests for predict_next_albums (integration-level)
@@ -537,6 +556,7 @@ class TestPredictNextAlbums:
 
         # Mock context
         mock_ctx = MagicMock()
+        mock_ctx.seed = 42
 
         output_dir = tmp_path / "outputs" / "predictions"
 
@@ -597,3 +617,57 @@ class TestPredictNextAlbums:
         assert "new_predictions_path" in result
         assert "summary_path" in result
         assert "pred_summary" in result
+
+    def test_index_alignment_raises_on_mismatch(self, mock_summary, mock_posterior_samples):
+        """ValueError raised when train_df and train_features have mismatched indices."""
+        mock_manifest = MagicMock()
+        mock_manifest.current = {"user_score": "model.nc"}
+
+        mock_idata = MagicMock()
+
+        # train_df and train_features with different indices
+        train_df = pd.DataFrame(
+            {
+                "Artist": ["ArtistA", "ArtistB"],
+                "User_Score": [75.0, 80.0],
+                "User_Ratings": [100, 200],
+            },
+            index=[0, 1],
+        )
+        train_features = pd.DataFrame(
+            {
+                "feat_1": [1.5, 2.0],
+                "feat_2": [3.0, 4.0],
+                "n_reviews": [100, 200],
+            },
+            index=[10, 11],  # Mismatched indices
+        )
+
+        mock_ctx = MagicMock()
+        mock_ctx.seed = 42
+
+        with (
+            patch(
+                "aoty_pred.pipelines.predict_next.load_manifest",
+                return_value=mock_manifest,
+            ),
+            patch(
+                "aoty_pred.pipelines.predict_next.load_model",
+                return_value=mock_idata,
+            ),
+            patch("builtins.open", MagicMock()),
+            patch("json.load", return_value=mock_summary),
+            patch(
+                "aoty_pred.pipelines.predict_next._extract_posterior_samples",
+                return_value=mock_posterior_samples,
+            ),
+            patch(
+                "aoty_pred.pipelines.predict_next.pd.read_parquet",
+                side_effect=[train_df, train_features],
+            ),
+            patch("aoty_pred.pipelines.predict_next.Path") as MockPath,
+        ):
+            MockPath.side_effect = lambda p: MagicMock()
+
+            with pytest.raises(ValueError, match="Index mismatch"):
+                predict_next_albums(mock_ctx)
