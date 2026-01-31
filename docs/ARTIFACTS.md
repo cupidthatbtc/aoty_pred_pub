@@ -14,6 +14,15 @@ Runs
 - runs/<run_id>/trace.nc
 - runs/<run_id>/diagnostics.json
 
+Evaluation
+- outputs/evaluation/metrics.json (R2, RMSE, MAE, CRPS, calibration coverage)
+- outputs/evaluation/diagnostics.json (convergence diagnostics: R-hat, ESS, divergences)
+
+Predictions
+- outputs/predictions/next_album_known_artists.csv (per-artist predictions under 3 scenarios)
+- outputs/predictions/next_album_new_artist.csv (hypothetical new artist predictions under 2 scenarios)
+- outputs/predictions/prediction_summary.json (prediction run metadata)
+
 Reports
 - reports/tables/*.csv
 - reports/figures/*.png

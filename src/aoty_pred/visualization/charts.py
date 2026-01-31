@@ -27,6 +27,7 @@ from aoty_pred.visualization.theme import COLORBLIND_COLORS
 
 __all__ = [
     "create_forest_plot",
+    "create_next_album_chart",
     "create_posterior_plot",
     "create_predictions_plot",
     "create_reliability_plot",
@@ -513,6 +514,67 @@ def create_reliability_plot(
         template=template,
         xaxis=dict(range=[-0.05, 1.05]),
         yaxis=dict(range=[-0.05, 1.05]),
+    )
+
+    return fig
+
+
+def create_next_album_chart(
+    known_predictions: pd.DataFrame,
+    template: str = "aoty_light",
+) -> go.Figure:
+    """Create box plot summary of next-album predictions across scenarios.
+
+    Shows distribution of predicted median scores grouped by scenario,
+    with individual artist predictions as underlying data.
+
+    Parameters
+    ----------
+    known_predictions : pd.DataFrame
+        Known artist predictions with columns: scenario, pred_q50 (at minimum).
+    template : str, default "aoty_light"
+        Plotly template name.
+
+    Returns
+    -------
+    go.Figure
+        Interactive Plotly figure with box plots by scenario.
+
+    Examples
+    --------
+    >>> df = pd.DataFrame({"scenario": ["same", "same"], "pred_q50": [70, 75]})
+    >>> fig = create_next_album_chart(df)
+    """
+    scenario_labels = {
+        "same": "Same Features",
+        "population_mean": "Population Mean",
+        "artist_mean": "Artist Mean",
+    }
+
+    fig = go.Figure()
+    scenarios = known_predictions["scenario"].unique()
+
+    for i, scenario in enumerate(scenarios):
+        color = COLORBLIND_COLORS[i % len(COLORBLIND_COLORS)]
+        mask = known_predictions["scenario"] == scenario
+        subset = known_predictions[mask]
+        label = scenario_labels.get(scenario, scenario)
+
+        fig.add_trace(
+            go.Box(
+                y=subset["pred_q50"],
+                name=label,
+                marker=dict(color=color),
+                boxmean=True,
+                hovertemplate=(f"<b>{label}</b><br>" "Predicted: %{y:.1f}" "<extra></extra>"),
+            )
+        )
+
+    fig.update_layout(
+        title="Next-Album Prediction Distribution by Scenario",
+        yaxis_title="Predicted Score (Median)",
+        template=template,
+        showlegend=False,
     )
 
     return fig

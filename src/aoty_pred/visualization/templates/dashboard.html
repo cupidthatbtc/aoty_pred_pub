@@ -16,6 +16,59 @@
                 Model Overview
             </h2>
 
+            {% if eval_metrics %}
+            <div class="chart-container" id="metrics-summary">
+                <div class="chart-header">
+                    <span class="chart-title">Model Performance</span>
+                </div>
+                <div class="metrics-grid">
+                    {% if eval_metrics['point_metrics'] %}
+                    {% if eval_metrics['point_metrics']['r2'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.3f"|format(eval_metrics['point_metrics']['r2']) }}</div>
+                        <div class="metric-label">R-squared</div>
+                    </div>
+                    {% endif %}
+                    {% if eval_metrics['point_metrics']['rmse'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.2f"|format(eval_metrics['point_metrics']['rmse']) }}</div>
+                        <div class="metric-label">RMSE</div>
+                    </div>
+                    {% endif %}
+                    {% if eval_metrics['point_metrics']['mae'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.2f"|format(eval_metrics['point_metrics']['mae']) }}</div>
+                        <div class="metric-label">MAE</div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    {% if eval_metrics['calibration'] %}
+                    {% if eval_metrics['calibration']['coverage_90'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.1f%%"|format(eval_metrics['calibration']['coverage_90'] * 100) }}</div>
+                        <div class="metric-label">90% Coverage</div>
+                    </div>
+                    {% endif %}
+                    {% if eval_metrics['calibration']['coverage_50'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.1f%%"|format(eval_metrics['calibration']['coverage_50'] * 100) }}</div>
+                        <div class="metric-label">50% Coverage</div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    {% if eval_metrics.get('crps') and eval_metrics['crps']['mean_crps'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.3f"|format(eval_metrics['crps']['mean_crps']) }}</div>
+                        <div class="metric-label">CRPS</div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="metrics-meta" style="margin-top: 12px; font-size: 0.8rem; color: var(--text-muted);">
+                    n = {{ eval_metrics['n_test'] }} test observations
+                </div>
+            </div>
+            {% endif %}
+
             {% if 'predictions' in figures %}
             <div class="chart-container" id="predictions-chart">
                 <div class="chart-header">
@@ -121,6 +174,43 @@
                 Model Calibration
             </h2>
 
+            {% if eval_metrics and eval_metrics['calibration'] %}
+            <div class="chart-container" id="calibration-metrics">
+                <div class="chart-header">
+                    <span class="chart-title">Calibration Metrics</span>
+                </div>
+                <div class="metrics-grid">
+                    {% if eval_metrics['calibration']['coverage_90'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.1f%%"|format(eval_metrics['calibration']['coverage_90'] * 100) }}</div>
+                        <div class="metric-label">90% Coverage</div>
+                    </div>
+                    {% endif %}
+                    {% if eval_metrics['calibration']['coverage_50'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.1f%%"|format(eval_metrics['calibration']['coverage_50'] * 100) }}</div>
+                        <div class="metric-label">50% Coverage</div>
+                    </div>
+                    {% endif %}
+                    {% if eval_metrics['calibration'].get('interval_width_90') is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.1f"|format(eval_metrics['calibration']['interval_width_90']) }}</div>
+                        <div class="metric-label">90% Interval Width</div>
+                    </div>
+                    {% endif %}
+                    {% if eval_metrics['calibration'].get('interval_width_50') is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.1f"|format(eval_metrics['calibration']['interval_width_50']) }}</div>
+                        <div class="metric-label">50% Interval Width</div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="metrics-meta" style="margin-top: 12px; font-size: 0.8rem; color: var(--text-muted);">
+                    n = {{ eval_metrics['n_test'] }} test observations
+                </div>
+            </div>
+            {% endif %}
+
             {% if 'reliability' in figures %}
             <div class="chart-container" id="reliability-chart">
                 <div class="chart-header">
@@ -132,6 +222,50 @@
             {% else %}
             <div class="not-found">
                 No calibration data available.
+            </div>
+            {% endif %}
+
+            {% elif active_view == 'next_albums' %}
+            {# Next-album predictions view #}
+            <h2 style="padding: 20px 0 10px; color: var(--text-muted); font-weight: normal;">
+                Next-Album Predictions
+            </h2>
+
+            {% if next_album_tables %}
+            {% if 'next_albums' in figures %}
+            <div class="chart-container" id="next-albums-chart">
+                <div class="chart-header">
+                    <span class="chart-title">Prediction Distribution by Scenario</span>
+                </div>
+                {{ figures['next_albums'] | safe }}
+            </div>
+            {% endif %}
+
+            <div class="chart-container" id="known-predictions">
+                <div class="chart-header">
+                    <span class="chart-title">Known Artist Predictions</span>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label for="scenario-filter" style="font-size: 0.875rem; color: var(--text-muted); margin-right: 8px;">Scenario:</label>
+                    <select id="scenario-filter" class="btn" style="font-family: inherit;">
+                        <option value="all">All Scenarios</option>
+                        <option value="same" selected>Same Features</option>
+                        <option value="population_mean">Population Mean</option>
+                        <option value="artist_mean">Artist Mean</option>
+                    </select>
+                </div>
+                {{ next_album_tables['known_table'] | safe }}
+            </div>
+
+            <div class="chart-container" id="new-predictions">
+                <div class="chart-header">
+                    <span class="chart-title">New Artist Predictions</span>
+                </div>
+                {{ next_album_tables['new_table'] | safe }}
+            </div>
+            {% else %}
+            <div class="not-found">
+                No prediction data available.
             </div>
             {% endif %}
 
@@ -168,6 +302,29 @@
 
 {% block scripts %}
 <script>
+    // Scenario filter for next-album predictions
+    (function() {
+        var filter = document.getElementById('scenario-filter');
+        if (filter) {
+            function applyFilter() {
+                var selected = filter.value;
+                var table = document.getElementById('known-predictions-table');
+                if (!table) return;
+                var rows = table.querySelectorAll('tbody tr');
+                rows.forEach(function(row) {
+                    if (selected === 'all' || row.dataset.scenario === selected) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            }
+            filter.addEventListener('change', applyFilter);
+            // Apply default filter on load
+            applyFilter();
+        }
+    })();
+
     // Table sorting functionality
     document.querySelectorAll('.coefficient-table th').forEach(function(header) {
         header.addEventListener('click', function() {

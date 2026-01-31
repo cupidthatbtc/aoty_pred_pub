@@ -21,4 +21,6 @@ Package layout
 - reporting: tables, figures, model cards
 - pipelines: end-to-end workflows
 - pipelines/build_features.py: feature matrix cache builder
+- pipelines/evaluate.py: model evaluation with posterior predictive metrics
+- pipelines/predict_next.py: next-album prediction under 5 scenarios
 - utils: logging, hashing, random seeds

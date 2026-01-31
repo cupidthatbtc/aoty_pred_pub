@@ -38,6 +38,7 @@ from aoty_pred.visualization.dashboard import (
     create_artist_view,
     create_coefficients_table,
     create_dashboard_figures,
+    create_next_album_tables,
     get_artist_list,
 )
 from aoty_pred.visualization.export import ensure_kaleido_chrome
@@ -49,6 +50,15 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+def _find_project_root() -> Path:
+    """Find project root by looking for pyproject.toml or .git upward from cwd."""
+    for parent in [Path.cwd()] + list(Path.cwd().parents):
+        if (parent / "pyproject.toml").exists() or (parent / ".git").exists():
+            return parent
+    return Path.cwd()
+
 
 # Module directory for templates
 MODULE_DIR = Path(__file__).parent
@@ -132,12 +142,7 @@ def load_dashboard_data(run_dir: Path | None = None) -> DashboardData:
 
         # Fallback: check models/ directory relative to project root
         if not model_files:
-            # Find project root by looking for pyproject.toml or .git
-            project_root = Path.cwd()
-            for parent in [Path.cwd()] + list(Path.cwd().parents):
-                if (parent / "pyproject.toml").exists() or (parent / ".git").exists():
-                    project_root = parent
-                    break
+            project_root = _find_project_root()
             models_dir = project_root / "models"
             if models_dir.exists():
                 model_files = sorted(
@@ -228,6 +233,39 @@ def load_dashboard_data(run_dir: Path | None = None) -> DashboardData:
     except Exception as e:
         logger.debug("Could not load artist data: %s", e)
 
+    # Load from outputs/ directory (new format from evaluate/predict stages)
+    project_root = _find_project_root()
+
+    # Eval metrics from outputs/evaluation/metrics.json
+    try:
+        metrics_path = project_root / "outputs" / "evaluation" / "metrics.json"
+        if metrics_path.exists():
+            import json
+
+            with open(metrics_path) as f:
+                data.eval_metrics = json.load(f)
+            logger.info("Loaded eval metrics from %s", metrics_path)
+    except Exception as e:
+        logger.debug("Could not load eval metrics: %s", e)
+
+    # Known artist predictions from outputs/predictions/
+    try:
+        known_path = project_root / "outputs" / "predictions" / "next_album_known_artists.csv"
+        if known_path.exists():
+            data.known_predictions = pd.read_csv(known_path)
+            logger.info("Loaded known artist predictions from %s", known_path)
+    except Exception as e:
+        logger.debug("Could not load known artist predictions: %s", e)
+
+    # New artist predictions from outputs/predictions/
+    try:
+        new_path = project_root / "outputs" / "predictions" / "next_album_new_artist.csv"
+        if new_path.exists():
+            data.new_predictions = pd.read_csv(new_path)
+            logger.info("Loaded new artist predictions from %s", new_path)
+    except Exception as e:
+        logger.debug("Could not load new artist predictions: %s", e)
+
     _dashboard_data = data
     return data
 
@@ -275,6 +313,17 @@ async def dashboard(
     if _dashboard_data.coefficients is not None:
         coefficients_table = create_coefficients_table(_dashboard_data.coefficients)
 
+    # Generate next-album prediction tables if available
+    next_album_tables = None
+    if (
+        _dashboard_data.known_predictions is not None
+        and _dashboard_data.new_predictions is not None
+    ):
+        next_album_tables = create_next_album_tables(
+            _dashboard_data.known_predictions,
+            _dashboard_data.new_predictions,
+        )
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -284,6 +333,8 @@ async def dashboard(
             "figures": figures,
             "artists": artists,
             "coefficients_table": coefficients_table,
+            "eval_metrics": _dashboard_data.eval_metrics,
+            "next_album_tables": next_album_tables,
         },
     )
 
@@ -310,6 +361,12 @@ async def coefficients_view(request: Request) -> HTMLResponse:
 async def calibration_view(request: Request) -> HTMLResponse:
     """Redirect to dashboard with calibration view."""
     return await dashboard(request, view="reliability")
+
+
+@app.get("/next-albums", response_class=HTMLResponse)
+async def next_albums_view(request: Request) -> HTMLResponse:
+    """Redirect to dashboard with next-albums view."""
+    return await dashboard(request, view="next_albums")
 
 
 @app.get("/artist", response_class=HTMLResponse)

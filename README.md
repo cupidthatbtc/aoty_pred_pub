@@ -48,6 +48,8 @@ aoty-pipeline run --num-chains 1 --num-samples 500
 
 # Run specific stages
 aoty-pipeline stage train --verbose
+aoty-pipeline stage evaluate
+aoty-pipeline stage predict
 aoty-pipeline stage report
 ```
 
@@ -57,6 +59,7 @@ See `docs/CLI.md` for complete command reference.
 
 - `src/aoty_pred/pipelines/prepare_dataset.py`
 - `src/aoty_pred/pipelines/train_bayes.py`
+- `src/aoty_pred/pipelines/evaluate.py`
 - `src/aoty_pred/pipelines/predict_next.py`
 - `src/aoty_pred/pipelines/publication.py`
 

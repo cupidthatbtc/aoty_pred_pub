@@ -86,15 +86,27 @@ Default weakly informative priors:
 
 ### Convergence Diagnostics
 
-Model not yet fitted. Run MCMC first.
+Run `aoty-pipeline stage evaluate` to compute diagnostics. Results are saved to `outputs/evaluation/diagnostics.json` with:
+- R-hat (max across all parameters, threshold: 1.01)
+- ESS bulk (minimum across all parameters)
+- Number of divergent transitions
 
 ### Calibration
 
-Model not yet fitted. Run MCMC first.
+Calibration metrics are saved to `outputs/evaluation/metrics.json`:
+- 90% coverage: fraction of test observations within 90% posterior predictive interval
+- 50% coverage: fraction of test observations within 50% posterior predictive interval
+- Mean interval widths for both levels
 
 ### Predictive Performance
 
-Model not yet fitted. Run MCMC first.
+Point metrics from posterior predictive evaluation on held-out test data:
+- R-squared (R2)
+- RMSE, MAE
+- CRPS (Continuous Ranked Probability Score)
+- Mean bias
+
+Results: `outputs/evaluation/metrics.json`
 
 ## Limitations
 
@@ -158,3 +170,15 @@ ci_95 = np.percentile(predictions, [2.5, 97.5])
 print(f"Predicted score: {pred_mean:.1f} +/- {pred_std:.1f}")
 print(f"95% CI: [{ci_95[0]:.1f}, {ci_95[1]:.1f}]")
 ```
+
+## Visualization
+
+The interactive dashboard provides model evaluation summaries and prediction exploration:
+
+```bash
+aoty-pipeline visualize
+```
+
+Dashboard views include:
+- **Evaluation Summary**: Metric cards for R2, RMSE, MAE, CRPS, and calibration coverage
+- **Next Albums**: Sortable table and box plot chart of next-album predictions across all scenarios

@@ -121,7 +121,7 @@
 Stages execute in topological order via Kahn's algorithm (`stages.py:_topological_sort`):
 
 ```
-data ──► splits ──► features ──► train ──► evaluate ──► report
+data ──► splits ──► features ──► train ──► evaluate ──► predict ──► report
 ```
 
 Each stage is defined as a `PipelineStage` dataclass with:

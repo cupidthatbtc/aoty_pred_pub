@@ -22,6 +22,7 @@ import pandas as pd
 
 from aoty_pred.visualization.charts import (
     create_forest_plot,
+    create_next_album_chart,
     create_predictions_plot,
     create_reliability_plot,
     create_trace_plot,
@@ -37,6 +38,7 @@ __all__ = [
     "create_artist_view",
     "create_coefficients_table",
     "create_dashboard_figures",
+    "create_next_album_tables",
     "get_artist_list",
 ]
 
@@ -72,6 +74,12 @@ class DashboardData:
     artist_data : pd.DataFrame | None
         Per-artist predictions for artist search view.
         Should have 'artist' column and prediction columns.
+    eval_metrics : dict | None
+        Evaluation metrics from metrics.json (point_metrics, calibration, crps).
+    known_predictions : pd.DataFrame | None
+        Next-album predictions for known artists (next_album_known_artists.csv).
+    new_predictions : pd.DataFrame | None
+        Next-album predictions for new/unknown artists (next_album_new_artist.csv).
     """
 
     idata: Any | None = None  # az.InferenceData
@@ -79,6 +87,9 @@ class DashboardData:
     coefficients: pd.DataFrame | None = None
     reliability: dict[str, np.ndarray] | None = None
     artist_data: pd.DataFrame | None = field(default=None)
+    eval_metrics: dict | None = None
+    known_predictions: pd.DataFrame | None = None
+    new_predictions: pd.DataFrame | None = None
 
 
 def create_dashboard_figures(
@@ -201,6 +212,15 @@ def create_dashboard_figures(
                 include_plotlyjs=first_figure,
             )
             first_figure = False
+
+    # Next-album prediction chart
+    if data.known_predictions is not None and "pred_q50" in data.known_predictions.columns:
+        fig = create_next_album_chart(data.known_predictions, template=theme)
+        figures["next_albums"] = fig.to_html(
+            full_html=False,
+            include_plotlyjs=first_figure,
+        )
+        first_figure = False
 
     return figures
 
@@ -419,3 +439,148 @@ def create_coefficients_table(coefficients: pd.DataFrame) -> str:
     )
 
     return "\n".join(html_parts)
+
+
+def create_next_album_tables(
+    known_predictions: pd.DataFrame,
+    new_predictions: pd.DataFrame,
+) -> dict[str, str]:
+    """Generate HTML tables for next-album predictions.
+
+    Parameters
+    ----------
+    known_predictions : pd.DataFrame
+        Known artist predictions with columns: artist, scenario, pred_mean,
+        pred_std, pred_q05, pred_q25, pred_q50, pred_q75, pred_q95,
+        last_score, n_training_albums.
+    new_predictions : pd.DataFrame
+        New artist predictions with columns: scenario, pred_mean, pred_std,
+        pred_q05, pred_q25, pred_q50, pred_q75, pred_q95.
+
+    Returns
+    -------
+    dict[str, str]
+        Dictionary with keys 'known_table' and 'new_table' containing HTML strings.
+    """
+    # --- Known artist table ---
+    known_parts = [
+        '<table class="coefficient-table" id="known-predictions-table">',
+        "<thead>",
+        "<tr>",
+        '    <th data-sort="string">Artist</th>',
+        '    <th data-sort="string">Scenario</th>',
+        '    <th data-sort="number">Predicted</th>',
+        '    <th data-sort="string">90% CI</th>',
+        '    <th data-sort="number">Last Score</th>',
+        '    <th data-sort="number">Change</th>',
+        '    <th data-sort="number">N Albums</th>',
+        "</tr>",
+        "</thead>",
+        "<tbody>",
+    ]
+
+    # Map scenario codes to display names
+    scenario_labels = {
+        "same": "Same Features",
+        "population_mean": "Population Mean",
+        "artist_mean": "Artist Mean",
+    }
+
+    for _, row in known_predictions.iterrows():
+        scenario = str(row.get("scenario", ""))
+        scenario_display = scenario_labels.get(scenario, scenario)
+        artist = html.escape(str(row.get("artist", "")))
+        pred_q50 = row.get("pred_q50", float("nan"))
+        pred_q05 = row.get("pred_q05", float("nan"))
+        pred_q95 = row.get("pred_q95", float("nan"))
+        last_score = row.get("last_score", float("nan"))
+        n_albums = row.get("n_training_albums", "")
+
+        change = (
+            pred_q50 - last_score if pd.notna(pred_q50) and pd.notna(last_score) else float("nan")
+        )
+        change_str = f"{change:+.1f}" if pd.notna(change) else ""
+        change_val = f"{change:.4f}" if pd.notna(change) else "0"
+
+        known_parts.append(f'<tr data-scenario="{html.escape(scenario)}">')
+        known_parts.append(f"    <td>{artist}</td>")
+        known_parts.append(f"    <td>{html.escape(scenario_display)}</td>")
+        known_parts.append(
+            f'    <td data-value="{pred_q50:.4f}">{pred_q50:.1f}</td>'
+            if pd.notna(pred_q50)
+            else '    <td data-value="0">--</td>'
+        )
+        ci_str = (
+            f"{pred_q05:.1f} -- {pred_q95:.1f}"
+            if pd.notna(pred_q05) and pd.notna(pred_q95)
+            else "--"
+        )
+        known_parts.append(f"    <td>{ci_str}</td>")
+        known_parts.append(
+            f'    <td data-value="{last_score:.4f}">{last_score:.1f}</td>'
+            if pd.notna(last_score)
+            else '    <td data-value="0">--</td>'
+        )
+        known_parts.append(f'    <td data-value="{change_val}">{change_str}</td>')
+        known_parts.append(
+            f'    <td data-value="{n_albums}">{n_albums}</td>'
+            if pd.notna(n_albums)
+            else '    <td data-value="0">--</td>'
+        )
+        known_parts.append("</tr>")
+
+    known_parts.extend(["</tbody>", "</table>"])
+
+    # --- New artist table ---
+    new_parts = [
+        '<table class="coefficient-table" id="new-predictions-table">',
+        "<thead>",
+        "<tr>",
+        '    <th data-sort="string">Scenario</th>',
+        '    <th data-sort="number">Predicted</th>',
+        '    <th data-sort="number">Std Dev</th>',
+        '    <th data-sort="string">90% CI</th>',
+        "</tr>",
+        "</thead>",
+        "<tbody>",
+    ]
+
+    new_scenario_labels = {
+        "population": "Population",
+        "debut_defaults": "Debut Defaults",
+    }
+
+    for _, row in new_predictions.iterrows():
+        scenario = str(row.get("scenario", ""))
+        scenario_display = new_scenario_labels.get(scenario, scenario)
+        pred_q50 = row.get("pred_q50", float("nan"))
+        pred_std = row.get("pred_std", float("nan"))
+        pred_q05 = row.get("pred_q05", float("nan"))
+        pred_q95 = row.get("pred_q95", float("nan"))
+
+        new_parts.append("<tr>")
+        new_parts.append(f"    <td>{html.escape(scenario_display)}</td>")
+        new_parts.append(
+            f'    <td data-value="{pred_q50:.4f}">{pred_q50:.1f}</td>'
+            if pd.notna(pred_q50)
+            else '    <td data-value="0">--</td>'
+        )
+        new_parts.append(
+            f'    <td data-value="{pred_std:.4f}">{pred_std:.2f}</td>'
+            if pd.notna(pred_std)
+            else '    <td data-value="0">--</td>'
+        )
+        ci_str = (
+            f"{pred_q05:.1f} -- {pred_q95:.1f}"
+            if pd.notna(pred_q05) and pd.notna(pred_q95)
+            else "--"
+        )
+        new_parts.append(f"    <td>{ci_str}</td>")
+        new_parts.append("</tr>")
+
+    new_parts.extend(["</tbody>", "</table>"])
+
+    return {
+        "known_table": "\n".join(known_parts),
+        "new_table": "\n".join(new_parts),
+    }
