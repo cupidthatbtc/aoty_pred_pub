@@ -72,6 +72,12 @@ class DashboardData:
     artist_data : pd.DataFrame | None
         Per-artist predictions for artist search view.
         Should have 'artist' column and prediction columns.
+    eval_metrics : dict | None
+        Evaluation metrics from metrics.json (point_metrics, calibration, crps).
+    known_predictions : pd.DataFrame | None
+        Next-album predictions for known artists (next_album_known_artists.csv).
+    new_predictions : pd.DataFrame | None
+        Next-album predictions for new/unknown artists (next_album_new_artist.csv).
     """
 
     idata: Any | None = None  # az.InferenceData
@@ -79,6 +85,9 @@ class DashboardData:
     coefficients: pd.DataFrame | None = None
     reliability: dict[str, np.ndarray] | None = None
     artist_data: pd.DataFrame | None = field(default=None)
+    eval_metrics: dict | None = None
+    known_predictions: pd.DataFrame | None = None
+    new_predictions: pd.DataFrame | None = None
 
 
 def create_dashboard_figures(
