@@ -36,6 +36,7 @@ def _prepare_test_model_args(
     test_df: pd.DataFrame,
     test_features: pd.DataFrame,
     summary: dict,
+    train_df: pd.DataFrame | None = None,
 ) -> tuple[dict, np.ndarray]:
     """Build model_args for test data using training summary metadata.
 
@@ -47,6 +48,8 @@ def _prepare_test_model_args(
         test_df: Test split DataFrame with Artist, User_Score columns.
         test_features: Engineered features for test data (aligned index).
         summary: Training summary dict loaded from training_summary.json.
+        train_df: Optional training DataFrame for seeding album sequences
+            and previous scores from training history.
 
     Returns:
         Tuple of (test_model_args dict, y_true array for kept rows).
@@ -61,6 +64,12 @@ def _prepare_test_model_args(
         raise ValueError(
             f"DataFrame length mismatch: test_df={len(test_df)}, "
             f"test_features={len(test_features)}"
+        )
+    if not test_df.index.equals(test_features.index):
+        raise ValueError(
+            "Index mismatch between test_df and test_features. "
+            f"test_df index: {test_df.index[:5].tolist()}..., "
+            f"test_features index: {test_features.index[:5].tolist()}..."
         )
 
     # Join features
@@ -79,8 +88,20 @@ def _prepare_test_model_args(
 
     artist_idx = test_df["_artist_idx"].values.astype(np.int32)
 
-    # Album sequence (1-indexed within artist)
-    album_seq = (test_df.groupby("Artist").cumcount() + 1).values
+    # Compute per-artist training history offsets
+    if train_df is not None:
+        train_artist_last_seq = (
+            train_df.groupby("Artist").cumcount().groupby(train_df["Artist"]).last() + 1
+        )  # 1-indexed
+        train_artist_last_score = train_df.groupby("Artist")["User_Score"].last()
+    else:
+        train_artist_last_seq = pd.Series(dtype=int)
+        train_artist_last_score = pd.Series(dtype=float)
+
+    # Album sequence: offset by training count per artist
+    raw_seq = test_df.groupby("Artist").cumcount() + 1
+    train_offset = test_df["Artist"].map(train_artist_last_seq).fillna(0).astype(int)
+    album_seq = (raw_seq + train_offset).values
 
     # Apply min_albums_filter clamping based on test-set counts
     min_albums_filter = summary.get("min_albums_filter", 2)
@@ -107,10 +128,13 @@ def _prepare_test_model_args(
     # Clamp album_seq to not exceed training max_seq
     album_seq = np.minimum(album_seq, max_seq_train).astype(np.int32)
 
-    # Previous score (shifted within artist, fill with global mean)
+    # Previous score: seed first test album with last training score
     global_mean = summary["global_mean_score"]
     test_df["_prev_score"] = test_df.groupby("Artist")["User_Score"].shift(1)
-    test_df["_prev_score"] = test_df["_prev_score"].fillna(global_mean)
+    # For first test album per artist, use last training score if available
+    first_mask = test_df["_prev_score"].isna()
+    train_last = test_df["Artist"].map(train_artist_last_score)
+    test_df.loc[first_mask, "_prev_score"] = train_last[first_mask].fillna(global_mean)
     prev_score = test_df["_prev_score"].values.astype(np.float32)
 
     # Feature matrix: fill NaN, standardize using training scaler
@@ -223,6 +247,7 @@ def evaluate_models(ctx: "StageContext") -> dict:
 
     test_features = pd.read_parquet(features_dir / "test_features.parquet")
     test_df = pd.read_parquet(splits_dir / "test.parquet")
+    train_df = pd.read_parquet(splits_dir / "train.parquet")
 
     log.info("test_data_loaded", n_test=len(test_df))
 
@@ -232,7 +257,9 @@ def evaluate_models(ctx: "StageContext") -> dict:
         summary = json.load(f)
 
     # Prepare test model_args using training summary metadata
-    test_model_args, y_true = _prepare_test_model_args(test_df, test_features, summary)
+    test_model_args, y_true = _prepare_test_model_args(
+        test_df, test_features, summary, train_df=train_df
+    )
 
     log.info("test_model_args_prepared", n_test_kept=len(y_true))
 

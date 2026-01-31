@@ -105,13 +105,78 @@ def test_n_artists_from_summary(mock_test_data, mock_summary):
 
 
 def test_prev_score_fill_with_global_mean(mock_test_data, mock_summary):
-    """First album per artist gets global mean as prev_score."""
+    """First album per artist gets global mean as prev_score (no train_df)."""
     test_df, test_features = mock_test_data
     model_args, _ = _prepare_test_model_args(test_df, test_features, mock_summary)
     # Artist_A first album should have prev_score = global_mean_score = 70.0
     assert abs(model_args["prev_score"][0] - 70.0) < 1e-5
     # Artist_B only album should also have global_mean_score
     assert abs(model_args["prev_score"][2] - 70.0) < 1e-5
+
+
+def test_prev_score_seeded_from_training_history(mock_test_data, mock_summary):
+    """First test album uses last training score when train_df provided."""
+    test_df, test_features = mock_test_data
+    # Training data: Artist_A had score 85.0, Artist_B had score 60.0
+    train_df = pd.DataFrame(
+        {
+            "Artist": ["Artist_A", "Artist_A", "Artist_B"],
+            "User_Score": [72.0, 85.0, 60.0],
+        }
+    )
+    model_args, _ = _prepare_test_model_args(
+        test_df, test_features, mock_summary, train_df=train_df
+    )
+    # Artist_A first test album should use last training score 85.0
+    assert abs(model_args["prev_score"][0] - 85.0) < 1e-5
+    # Artist_A second test album should use first test score (shifted within test)
+    assert abs(model_args["prev_score"][1] - 75.0) < 1e-5
+    # Artist_B first test album should use last training score 60.0
+    assert abs(model_args["prev_score"][2] - 60.0) < 1e-5
+
+
+def test_album_seq_offset_with_train_data(mock_test_data, mock_summary):
+    """album_seq is offset by training album counts when train_df provided."""
+    test_df, test_features = mock_test_data
+    # Training data: Artist_A had 2 albums, Artist_B had 1 album
+    train_df = pd.DataFrame(
+        {
+            "Artist": ["Artist_A", "Artist_A", "Artist_B"],
+            "User_Score": [72.0, 85.0, 60.0],
+        }
+    )
+    model_args, _ = _prepare_test_model_args(
+        test_df, test_features, mock_summary, train_df=train_df
+    )
+    # Artist_A: 2 training albums, so test seq = [1+2, 2+2] = [3, 4]
+    assert model_args["album_seq"][0] == 3
+    assert model_args["album_seq"][1] == 4
+    # Artist_B: 1 training album, test seq = [1+1] = [2]
+    # BUT Artist_B has only 1 test album, and min_albums_filter=2,
+    # so below_threshold clamping sets it to 1
+    assert model_args["album_seq"][2] == 1
+
+
+def test_index_alignment_raises_on_mismatch(mock_summary):
+    """ValueError raised when test_df and test_features have mismatched indices."""
+    test_df = pd.DataFrame(
+        {
+            "Artist": ["Artist_A", "Artist_B"],
+            "User_Score": [75.0, 80.0],
+            "User_Ratings": [100, 200],
+        },
+        index=[0, 1],
+    )
+    test_features = pd.DataFrame(
+        {
+            "feat_1": [1.5, 2.0],
+            "feat_2": [3.0, 4.0],
+            "n_reviews": [100, 200],
+        },
+        index=[10, 11],  # Mismatched indices
+    )
+    with pytest.raises(ValueError, match="Index mismatch"):
+        _prepare_test_model_args(test_df, test_features, mock_summary)
 
 
 def test_max_seq_from_summary(mock_test_data, mock_summary):
