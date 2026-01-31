@@ -4,30 +4,38 @@ Environment setup (example)
 - Create venv
 - Install dependencies
 
-Commands (planned)
-- Prepare dataset
+Commands
+- Load and clean data
   ```bash
-  python -m aoty_pred.cli prepare -c configs/base.yaml
+  aoty-pipeline stage data
+  ```
+- Create train/test splits
+  ```bash
+  aoty-pipeline stage splits
   ```
 - Build feature matrix
   ```bash
-  python -m aoty_pred.cli build-features -c configs/base.yaml
+  aoty-pipeline stage features
   ```
-- Train Bayesian models
+- Train Bayesian model
   ```bash
-  python -m aoty_pred.cli train -c configs/base.yaml -c configs/publication.yaml
+  aoty-pipeline stage train
   ```
-- Predict next album scores
+- Evaluate model on test data
   ```bash
-  python -m aoty_pred.cli predict -c configs/base.yaml -c configs/publication.yaml
+  aoty-pipeline stage evaluate
   ```
-- Sensitivity analysis
+- Generate next-album predictions
   ```bash
-  python -m aoty_pred.cli sensitivity -c configs/base.yaml
+  aoty-pipeline stage predict
   ```
 - Build publication artifacts
   ```bash
-  python -m aoty_pred.cli publication -c configs/base.yaml -c configs/publication.yaml
+  aoty-pipeline stage report
+  ```
+- Or run everything end-to-end
+  ```bash
+  aoty-pipeline run
   ```
 
 Note
@@ -37,5 +45,7 @@ Expected outputs
 - data/processed/*
 - data/features/*
 - runs/<run_id>/*
+- outputs/evaluation/*
+- outputs/predictions/*
 - reports/tables/*
 - reports/figures/*

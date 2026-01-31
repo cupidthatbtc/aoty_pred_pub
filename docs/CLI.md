@@ -41,7 +41,7 @@ aoty-pipeline --help
 
 ### `run` — Execute Full Pipeline
 
-Runs all pipeline stages in dependency order: data → splits → features → train → evaluate → report.
+Runs all pipeline stages in dependency order: data → splits → features → train → evaluate → predict → report.
 
 ```bash
 aoty-pipeline run [OPTIONS]
@@ -179,6 +179,7 @@ aoty-pipeline stage <STAGE> [OPTIONS]
 | `features` | Build feature matrices from split data |
 | `train` | Fit Bayesian models using NumPyro MCMC |
 | `evaluate` | Compute diagnostics, calibration metrics, LOO-CV |
+| `predict` | Generate next-album predictions for known and new artists |
 | `report` | Generate publication artifacts (figures, tables, model cards) |
 
 #### Common Stage Options
@@ -199,6 +200,15 @@ All stages support:
 | `--rhat-threshold` | `1.01` | Maximum acceptable R-hat |
 | `--ess-threshold` | `400` | Minimum ESS per chain |
 | `--allow-divergences` | `false` | Don't fail on divergences |
+
+#### Predict Stage
+
+The predict stage generates next-album score predictions using the trained model:
+
+- **Known artists** (3 scenarios): same-as-last features, population mean features, artist mean features
+- **New artists** (2 scenarios): population distribution, debut defaults
+
+Output files are written to `outputs/predictions/`.
 
 #### Examples
 
@@ -426,6 +436,7 @@ aoty-pipeline run --num-chains 1 --num-samples 500 --allow-divergences
 # Run specific stages
 aoty-pipeline stage train --verbose
 aoty-pipeline stage evaluate
+aoty-pipeline stage predict
 aoty-pipeline stage report
 ```
 
