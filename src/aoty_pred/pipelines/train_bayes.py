@@ -324,6 +324,34 @@ def train_models(
         mean=float(np.mean(n_reviews)),
     )
 
+    # Compute reference review count for sigma-ref reparameterization
+    n_ref = float(np.median(n_reviews))
+    log.info("sigma_ref_mode", n_ref=n_ref, n_ref_method="median")
+
+    # Standardize feature matrix X (z-score per column) so that
+    # beta ~ N(0, 1) prior is appropriate regardless of feature scale.
+    # n_reviews is NOT standardized -- it lives outside X and is used
+    # for heteroscedastic noise scaling on its natural scale.
+    X_raw = model_args["X"]
+    X_mean = X_raw.mean(axis=0)
+    X_std = X_raw.std(axis=0)
+    # Guard against constant features (std=0): leave them unscaled
+    X_std_safe = np.where(X_std == 0.0, 1.0, X_std)
+    model_args["X"] = ((X_raw - X_mean) / X_std_safe).astype(np.float32)
+    std_range_val = [float(X_std.min()), float(X_std.max())] if len(X_std) > 0 else []
+    log.info(
+        "features_standardized",
+        n_features=len(X_mean),
+        n_constant=int((X_std == 0.0).sum()),
+        std_range=std_range_val,
+    )
+    # Store scaler params for prediction-time use
+    feature_scaler = {
+        "mean": X_mean.tolist(),
+        "std": X_std_safe.tolist(),
+        "feature_cols": feature_cols,
+    }
+
     log.info(
         "model_data_prepared",
         n_artists=model_args["n_artists"],
@@ -337,6 +365,10 @@ def train_models(
     model_args["n_exponent"] = ctx.n_exponent
     model_args["learn_n_exponent"] = ctx.learn_n_exponent
     model_args["n_exponent_prior"] = ctx.n_exponent_prior
+
+    # Add n_ref for sigma-ref reparameterization (model accepts n_ref=None for homoscedastic)
+    model_args["n_ref"] = n_ref if (ctx.learn_n_exponent or ctx.n_exponent != 0.0) else None
+    model_args["n_ref_method"] = "median"
 
     # Log heteroscedastic mode
     if ctx.learn_n_exponent:
@@ -384,7 +416,7 @@ def train_models(
         model_args=model_args,
         config=mcmc_config,
         progress_bar=True,  # Always show MCMC progress for real-time feedback
-        exclude_from_idata=("user_rw_innovations",),  # Large tensor, exclude to prevent OOM
+        exclude_from_idata=("user_rw_raw",),  # Large tensor, exclude to prevent OOM
     )
 
     log.info(
@@ -465,6 +497,7 @@ def train_models(
         "n_observations": len(model_args["y"]),
         "n_artists": model_args["n_artists"],
         "n_features": model_args["X"].shape[1],
+        "feature_scaler": feature_scaler,
         "n_reviews_stats": {
             "min": int(np.min(model_args["n_reviews"])),
             "max": int(np.max(model_args["n_reviews"])),
@@ -472,6 +505,9 @@ def train_models(
             "mean": float(np.mean(model_args["n_reviews"])),
         },
         "divergences": fit_result.divergences,
+        "divergence_rate": float(
+            fit_result.divergences / (mcmc_config.num_samples * mcmc_config.num_chains)
+        ),
         "runtime_seconds": fit_result.runtime_seconds,
         "diagnostics": {
             "passed": diagnostics.passed,
@@ -482,6 +518,15 @@ def train_models(
         },
     }
 
+    # Log high divergence rate recommendation
+    divergence_rate = fit_result.divergences / (mcmc_config.num_samples * mcmc_config.num_chains)
+    if divergence_rate > 0.10:
+        log.warning(
+            "high_divergence_rate",
+            divergence_rate=round(divergence_rate, 4),
+            recommendation="Consider running grid search fallback with fixed n_exponent values",
+        )
+
     # Add heteroscedastic noise details to summary
     if ctx.learn_n_exponent:
         # Extract n_exponent posterior
@@ -489,7 +534,7 @@ def train_models(
         n_exp_mean = float(np.mean(n_exp_samples))
         n_exp_std = float(np.std(n_exp_samples))
 
-        # Compute 94% HDI
+        # Compute 94% HDI for n_exponent
         hdi = az.hdi(fit_result.idata, var_names=["user_n_exponent"], hdi_prob=0.94)
         hdi_low = float(hdi["user_n_exponent"].values[0])
         hdi_high = float(hdi["user_n_exponent"].values[1])
@@ -499,11 +544,12 @@ def train_models(
             fit_result.idata, var_names=["user_n_exponent"], kind="diagnostics"
         )
 
+        # Check if sigma_ref mode is active (n_ref was passed to model)
+        use_sigma_ref = model_args.get("n_ref") is not None
+
         # Compute effective sigma range using posterior mean exponent
         n_reviews = model_args["n_reviews"]
         sigma_obs_mean = float(fit_result.idata.posterior["user_sigma_obs"].mean())
-        # Min sigma at max n_reviews, max sigma at min n_reviews
-        # Wrap numpy scalars in JAX arrays for compute_sigma_scaled compatibility
         sigma_at_max_n = float(
             compute_sigma_scaled(
                 sigma_obs_mean, jnp.array(np.max(n_reviews)), jnp.array(n_exp_mean)
@@ -524,7 +570,8 @@ def train_models(
             else "closer to square-root scaling (0.5)"
         )
 
-        summary["heteroscedastic_mode"] = {
+        # Build heteroscedastic_mode dict (common fields)
+        hetero_dict = {
             "mode": "learned",
             "n_exponent_mean": n_exp_mean,
             "n_exponent_std": n_exp_std,
@@ -542,9 +589,40 @@ def train_models(
                 "base_sigma_obs": sigma_obs_mean,
             },
         }
+
+        if use_sigma_ref:
+            # Sigma-ref mode: add sigma_ref stats and sigma_obs derived stats
+            sigma_ref_samples = fit_result.idata.posterior["user_sigma_ref"].values.flatten()
+            sigma_ref_hdi = az.hdi(
+                fit_result.idata,
+                var_names=["user_sigma_ref"],
+                hdi_prob=0.94,
+            )
+            sigma_ref_hdi_low = float(sigma_ref_hdi["user_sigma_ref"].values[0])
+            sigma_ref_hdi_high = float(sigma_ref_hdi["user_sigma_ref"].values[1])
+
+            sigma_obs_samples = fit_result.idata.posterior["user_sigma_obs"].values.flatten()
+
+            hetero_dict["parameterization"] = "sigma_ref"
+            hetero_dict["n_ref"] = n_ref
+            hetero_dict["n_ref_method"] = "median"
+            hetero_dict["sigma_ref"] = {
+                "mean": float(np.mean(sigma_ref_samples)),
+                "std": float(np.std(sigma_ref_samples)),
+                "hdi_94": [sigma_ref_hdi_low, sigma_ref_hdi_high],
+            }
+            hetero_dict["sigma_obs_derived"] = {
+                "mean": float(np.mean(sigma_obs_samples)),
+                "std": float(np.std(sigma_obs_samples)),
+            }
+        else:
+            hetero_dict["parameterization"] = "sigma_obs"
+
+        summary["heteroscedastic_mode"] = hetero_dict
         log.info(
             "heteroscedastic_summary",
             mode="learned",
+            parameterization="sigma_ref" if use_sigma_ref else "sigma_obs",
             n_exponent_mean=round(n_exp_mean, 4),
             n_exponent_hdi_94=[round(hdi_low, 4), round(hdi_high, 4)],
             interpretation=interpretation,

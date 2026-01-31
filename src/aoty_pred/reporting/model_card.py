@@ -560,7 +560,7 @@ def create_default_model_card_data() -> ModelCardData:
         ),
         # Model details
         architecture_summary=(
-            "Bayesian hierarchical regression with three key components:\n\n"
+            "Bayesian hierarchical regression with four key components:\n\n"
             "1. **Hierarchical artist effects**: Partial pooling across artists "
             "for robust estimation of artist quality. Non-centered parameterization "
             "via LocScaleReparam avoids funnel geometry.\n\n"
@@ -569,10 +569,18 @@ def create_default_model_card_data() -> ModelCardData:
             "3. **AR(1) structure**: Album-to-album dependencies captured via "
             "autoregressive term, modeling momentum effects where consecutive "
             "albums tend to have correlated scores.\n\n"
+            "4. **Heteroscedastic observation noise** (sigma_ref parameterization): "
+            "Albums with more reviews have lower observation noise. The model samples "
+            "sigma_ref (noise at the median review count n_ref) and derives per-observation "
+            "noise as: sigma_obs = sigma_ref * n_ref^n_exponent, then "
+            "sigma_i = sigma_obs / n_reviews_i^n_exponent. This reparameterization breaks "
+            "the multiplicative funnel between sigma_obs and n_exponent that causes "
+            "divergent transitions in MCMC sampling.\n\n"
             "Mathematical form:\n"
-            "- y_ij ~ Normal(mu_ij, sigma_obs)\n"
+            "- y_ij ~ Normal(mu_ij, sigma_i)\n"
             "- mu_ij = artist_effect_jt + X_ij @ beta + rho * prev_score_ij\n"
-            "- artist_effect_jt evolves via random walk from initial effect"
+            "- artist_effect_jt evolves via random walk from initial effect\n"
+            "- sigma_i = sigma_obs / n_reviews_i^n_exponent (heteroscedastic mode)"
         ),
         priors_description=(
             "Default weakly informative priors:\n\n"
@@ -581,7 +589,14 @@ def create_default_model_card_data() -> ModelCardData:
             "- **sigma_rw** ~ HalfNormal(0.1): Random walk innovation (smooth trajectories)\n"
             "- **rho** ~ TruncatedNormal(0, 0.3, -0.99, 0.99): AR(1) coefficient (stationary)\n"
             "- **beta** ~ Normal(0, 1): Fixed effect coefficients\n"
-            "- **sigma_obs** ~ HalfNormal(1): Observation noise"
+            "- **sigma_obs** ~ HalfNormal(1): Observation noise\n"
+            "- **sigma_ref** ~ HalfNormal(1): Observation noise at the reference review count "
+            "(n_ref = median of training n_reviews). When heteroscedastic mode is active, "
+            "sigma_ref replaces sigma_obs as the sampled parameter. sigma_obs is derived as "
+            "sigma_ref * n_ref^n_exponent.\n"
+            "- **n_exponent** ~ LogitNormal(0, 1) mapped to (0, 1): Power-law exponent "
+            "controlling how observation noise decreases with review count. "
+            "Only sampled in --learn-n-exponent mode."
         ),
         hyperparameters={
             "mu_artist_loc": 0.0,
@@ -593,6 +608,8 @@ def create_default_model_card_data() -> ModelCardData:
             "beta_loc": 0.0,
             "beta_scale": 1.0,
             "sigma_obs_scale": 1.0,
+            "sigma_ref_scale": 1.0,
+            "n_exponent_default": 0.0,
         },
         # Evaluation metrics (placeholders)
         convergence_summary="Model not yet fitted. Run MCMC first.",

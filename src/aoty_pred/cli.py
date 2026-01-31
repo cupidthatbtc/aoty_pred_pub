@@ -176,9 +176,9 @@ def run(
         typer.Option(
             min=5,
             max=15,
-            help="Maximum tree depth for NUTS (default 12)",
+            help="Maximum tree depth for NUTS (default 10)",
         ),
-    ] = 12,
+    ] = 10,
     chain_method: Annotated[
         str,
         typer.Option(

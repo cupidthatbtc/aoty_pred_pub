@@ -168,6 +168,7 @@ def make_score_model(score_type: str) -> Callable:
         max_seq: int | None = None,
         priors: PriorConfig | None = None,
         n_reviews: jnp.ndarray | None = None,
+        n_ref: float | None = None,
         n_exponent: float = 0.0,
         learn_n_exponent: bool = False,
         n_exponent_prior: str = "logit-normal",
@@ -197,6 +198,12 @@ def make_score_model(score_type: str) -> Callable:
             n_reviews: Optional array of shape (n_obs,) with per-observation
                 review counts. Used for heteroscedastic noise scaling. If None,
                 homoscedastic noise is used (scalar sigma_obs for all observations).
+            n_ref: Reference review count for sigma-ref reparameterization.
+                If provided (non-None) and heteroscedastic mode is active, the
+                model samples sigma_ref instead of sigma_obs and derives
+                sigma_obs = sigma_ref * n_ref^n_exponent as a deterministic
+                site. Computed as median(n_reviews) from training data. Must
+                be > 1 when provided.
             n_exponent: Fixed exponent for heteroscedastic noise scaling.
                 Default 0.0 gives homoscedastic (constant) noise. Higher values
                 give more noise reduction for albums with many reviews.
@@ -273,12 +280,14 @@ def make_score_model(score_type: str) -> Callable:
         # - Shape: (n_artists, max_seq-1) for innovations, then cumsum to get trajectories
         # - This reduces parameter count from max_seq*n_artists separate sites to ONE site
         if max_seq > 1:
-            # Sample random walk innovations as a single tensor
-            # Shape: (n_artists, max_seq - 1) representing innovations for each artist over time
-            rw_innovations = numpyro.sample(
-                f"{prefix}rw_innovations",
-                dist.Normal(0, sigma_rw).expand([n_artists, max_seq - 1]).to_event(2),
+            # Non-centered parameterization for random walk innovations:
+            # Sample unit normal, then scale by sigma_rw to decouple geometry
+            # (avoids Neal's funnel between sigma_rw and rw_innovations)
+            rw_raw = numpyro.sample(
+                f"{prefix}rw_raw",
+                dist.Normal(0, 1).expand([n_artists, max_seq - 1]).to_event(2),
             )
+            rw_innovations = sigma_rw * rw_raw
             # Cumulative sum to get random walk trajectory from innovations
             # Shape: (n_artists, max_seq - 1)
             rw_trajectory = jnp.cumsum(rw_innovations, axis=1)
@@ -314,11 +323,21 @@ def make_score_model(score_type: str) -> Callable:
         # === Mean prediction ===
         mu = obs_artist_effect + X @ beta + ar_term
 
-        # === Observation-level noise ===
-        sigma_obs = numpyro.sample(
-            f"{prefix}sigma_obs",
-            dist.HalfNormal(priors.sigma_obs_scale),
-        )
+        # === Heteroscedastic mode validation ===
+        # Note: When learn_n_exponent=True, n_exp is a traced JAX value and cannot
+        # be used in Python conditionals. We use the Python-level learn_n_exponent
+        # flag to determine if we should apply heteroscedastic scaling.
+        # When learning, we always apply scaling (that's why we're learning it).
+        # When fixed, we can check if n_exp != 0 to skip unnecessary computation.
+        heteroscedastic_requested = learn_n_exponent or n_exponent != 0
+        if heteroscedastic_requested and n_reviews is None:
+            raise ValueError(
+                f"Heteroscedastic noise scaling requires n_reviews data. "
+                f"Got learn_n_exponent={learn_n_exponent}, n_exponent={n_exponent}, "
+                f"but n_reviews is None. Either provide n_reviews or set both "
+                f"learn_n_exponent=False and n_exponent=0 for homoscedastic mode."
+            )
+        use_heteroscedastic = heteroscedastic_requested  # n_reviews guaranteed non-None here
 
         # === Exponent for heteroscedastic noise (fixed or learned) ===
         if learn_n_exponent:
@@ -346,23 +365,39 @@ def make_score_model(score_type: str) -> Callable:
         else:
             n_exp = n_exponent  # Use fixed value from config
 
-        # === Per-observation noise scaling ===
-        # Note: When learn_n_exponent=True, n_exp is a traced JAX value and cannot
-        # be used in Python conditionals. We use the Python-level learn_n_exponent
-        # flag to determine if we should apply heteroscedastic scaling.
-        # When learning, we always apply scaling (that's why we're learning it).
-        # When fixed, we can check if n_exp != 0 to skip unnecessary computation.
+        # === Observation-level noise ===
+        # Determine parameterization mode:
+        # - sigma_ref mode: n_ref is provided AND heteroscedastic is requested
+        # - Original mode: n_ref=None (homoscedastic backward compat) or no
+        #   heteroscedastic scaling
+        use_sigma_ref = (n_ref is not None) and heteroscedastic_requested
 
-        # Validate: if heteroscedastic mode is requested, n_reviews must be provided
-        heteroscedastic_requested = learn_n_exponent or n_exponent != 0
-        if heteroscedastic_requested and n_reviews is None:
-            raise ValueError(
-                f"Heteroscedastic noise scaling requires n_reviews data. "
-                f"Got learn_n_exponent={learn_n_exponent}, n_exponent={n_exponent}, "
-                f"but n_reviews is None. Either provide n_reviews or set both "
-                f"learn_n_exponent=False and n_exponent=0 for homoscedastic mode."
+        if use_sigma_ref:
+            if n_ref <= 0:
+                raise ValueError(
+                    f"n_ref must be positive for sigma-ref parameterization, got {n_ref}"
+                )
+            # SIGMA-REF PARAMETERIZATION: sample noise at reference review count
+            # This breaks the multiplicative funnel between sigma_obs and n_exponent
+            sigma_ref = numpyro.sample(
+                f"{prefix}sigma_ref",
+                dist.HalfNormal(priors.sigma_ref_scale),
             )
-        use_heteroscedastic = heteroscedastic_requested  # n_reviews guaranteed non-None here
+            # Derive sigma_obs deterministically (no Jacobian correction needed --
+            # numpyro.deterministic only records a value, no log-density contribution)
+            sigma_obs = numpyro.deterministic(
+                f"{prefix}sigma_obs",
+                sigma_ref * jnp.power(n_ref, n_exp),
+            )
+        else:
+            # ORIGINAL PARAMETERIZATION: sample sigma_obs directly
+            # Used when n_ref=None (homoscedastic/backward compat)
+            sigma_obs = numpyro.sample(
+                f"{prefix}sigma_obs",
+                dist.HalfNormal(priors.sigma_obs_scale),
+            )
+
+        # === Per-observation noise scaling ===
         if use_heteroscedastic:
             sigma_scaled = compute_sigma_scaled(sigma_obs, n_reviews, n_exp)
         else:
@@ -409,6 +444,11 @@ Args:
     n_reviews: Optional array of shape (n_obs,) with per-observation
         review counts. Used for heteroscedastic noise scaling. If None,
         homoscedastic noise is used (scalar sigma_obs for all observations).
+    n_ref: Reference review count for sigma-ref reparameterization.
+        If provided (non-None) and heteroscedastic mode is active, the model
+        samples sigma_ref instead of sigma_obs and derives
+        sigma_obs = sigma_ref * n_ref^n_exponent as a deterministic site.
+        Computed as median(n_reviews) from training data. Must be > 1.
     n_exponent: Fixed exponent for heteroscedastic noise scaling.
         Default 0.0 gives homoscedastic (constant) noise.
     learn_n_exponent: If True, sample the exponent from a prior distribution
@@ -429,9 +469,13 @@ Sample sites (all prefixed with "{prefix}"):
     - {prefix}sigma_rw: Random walk innovation scale
     - {prefix}rho: AR(1) coefficient
     - {prefix}init_artist_effect: Initial artist effects (partial pooling)
-    - {prefix}rw_innovations: Random walk innovations tensor (n_artists x max_seq-1)
+    - {prefix}rw_raw: Unit-normal random walk innovations (n_artists x max_seq-1)
     - {prefix}beta: Fixed effect coefficients
-    - {prefix}sigma_obs: Observation noise (base scale for heteroscedastic)
+    - {prefix}sigma_ref: Noise at reference review count (only when n_ref is
+        provided and heteroscedastic mode active)
+    - {prefix}sigma_obs: Observation noise base scale. Sampled directly in
+        original mode; deterministic (derived from sigma_ref) when n_ref is
+        provided and heteroscedastic mode is active.
     - {prefix}n_exponent: Heteroscedastic scaling exponent (only when learn_n_exponent=True)
     - {prefix}y: Observed/predicted scores
 

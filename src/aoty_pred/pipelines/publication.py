@@ -16,6 +16,7 @@ import structlog
 
 from aoty_pred.models.bayes.io import load_manifest, load_model
 from aoty_pred.reporting.figures import (
+    get_trace_plot_vars,
     save_posterior_plot,
     save_trace_plot,
 )
@@ -31,9 +32,49 @@ from aoty_pred.reporting.tables import (
 )
 
 if TYPE_CHECKING:
+    import arviz as az
+
     from aoty_pred.pipelines.stages import StageContext
 
 log = structlog.get_logger()
+
+
+def _get_coefficient_var_names(
+    idata: az.InferenceData,
+    prefix: str = "user_",
+) -> list[str]:
+    """Build var_names for coefficient table based on InferenceData contents.
+
+    Returns a dynamic list including sigma_ref and n_exponent when present
+    in the posterior, ensuring publication tables adapt to the model
+    configuration without hardcoded lists.
+
+    Parameters
+    ----------
+    idata : az.InferenceData
+        Inference data containing posterior samples.
+    prefix : str, default "user_"
+        Parameter name prefix ("user_" or "critic_").
+
+    Returns
+    -------
+    list[str]
+        Variable names for coefficient table.
+    """
+    var_names = [
+        f"{prefix}beta",
+        f"{prefix}mu_artist",
+        f"{prefix}sigma_artist",
+    ]
+    # Include sigma_ref if present (sampled parameter with full diagnostics)
+    if f"{prefix}sigma_ref" in idata.posterior:
+        var_names.append(f"{prefix}sigma_ref")
+    # Always include sigma_obs (sampled or deterministic)
+    var_names.append(f"{prefix}sigma_obs")
+    # Include n_exponent if learned
+    if f"{prefix}n_exponent" in idata.posterior:
+        var_names.append(f"{prefix}n_exponent")
+    return var_names
 
 
 def generate_publication_artifacts(ctx: StageContext) -> dict:
@@ -96,7 +137,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
     try:
         coef_df = create_coefficient_table(
             idata,
-            var_names=["user_beta", "user_mu_artist", "user_sigma_artist", "user_sigma_obs"],
+            var_names=_get_coefficient_var_names(idata),
         )
         coef_path = tables_dir / "coefficients"
         export_table(coef_df, str(coef_path), caption="Model coefficient estimates")
@@ -146,7 +187,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
     try:
         pdf_path, png_path = save_trace_plot(
             idata,
-            var_names=["user_mu_artist", "user_sigma_artist", "user_sigma_obs"],
+            var_names=get_trace_plot_vars(idata),
             output_dir=figures_dir,
             filename_base="trace_plot",
         )
@@ -160,7 +201,7 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
     try:
         pdf_path, png_path = save_posterior_plot(
             idata,
-            var_names=["user_mu_artist", "user_sigma_artist", "user_sigma_obs"],
+            var_names=get_trace_plot_vars(idata),
             output_dir=figures_dir,
             filename_base="posterior_plot",
         )

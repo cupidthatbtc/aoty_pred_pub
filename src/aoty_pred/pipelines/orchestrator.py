@@ -91,7 +91,7 @@ class PipelineConfig:
         num_samples: Post-warmup samples per chain (default 1000).
         num_warmup: Warmup iterations per chain (default 1000).
         target_accept: Target acceptance probability (default 0.90).
-        max_tree_depth: Maximum tree depth for NUTS (default 12).
+        max_tree_depth: Maximum tree depth for NUTS (default 10).
         rhat_threshold: Maximum acceptable R-hat (default 1.01).
         ess_threshold: Minimum ESS per chain (default 400).
         allow_divergences: If True, don't fail on divergences (default False).
@@ -125,7 +125,7 @@ class PipelineConfig:
     num_samples: int = 1000
     num_warmup: int = 1000
     target_accept: float = 0.90
-    max_tree_depth: int = 12
+    max_tree_depth: int = 10
     chain_method: str = "sequential"
     # Convergence thresholds
     rhat_threshold: float = 1.01
