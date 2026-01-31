@@ -42,7 +42,7 @@ features:
 ```
 
 Feature cache
-- Build: `python -m aoty_pred.cli build-features --config configs/base.yaml`
+- Build: `aoty-pipeline stage features`
 - Outputs: `data/features/feature_matrix.parquet` and `data/features/features_manifest.json`
 
 Robustness checks
