@@ -113,9 +113,18 @@ def _prepare_test_model_args(
     max_albums = summary.get("max_albums", 50)
     max_seq_train = summary["max_seq"]
 
-    # Compute artist_album_counts for test data
-    artist_album_counts = pd.Series(artist_idx).value_counts().sort_index()
-    artist_album_counts = artist_album_counts.reindex(range(summary["n_artists"]), fill_value=0)
+    # Compute total (train+test) album counts per artist for max_albums cap.
+    # album_seq already includes training offsets, so counts must match.
+    test_counts = pd.Series(artist_idx).value_counts().sort_index()
+    test_counts = test_counts.reindex(range(summary["n_artists"]), fill_value=0)
+    if train_df is not None:
+        artist_to_idx = summary["artist_to_idx"]
+        train_idx = train_df["Artist"].map(artist_to_idx).dropna().astype(int)
+        train_counts = train_idx.value_counts().sort_index()
+        train_counts = train_counts.reindex(range(summary["n_artists"]), fill_value=0)
+        artist_album_counts = train_counts + test_counts
+    else:
+        artist_album_counts = test_counts
 
     # Temporarily build a dict for _apply_max_albums_cap
     temp_args = {
