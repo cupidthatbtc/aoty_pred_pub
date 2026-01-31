@@ -1,9 +1,14 @@
 # Evaluation Protocol
 
-Metrics
-- R2 on held-out test sets (primary and secondary splits)
-- RMSE and MAE
-- Calibration curves and coverage of credible intervals (80% and 95%)
+Metrics (implemented in evaluate.py)
+- **R-squared (R2)**: Coefficient of determination on held-out test set
+- **RMSE**: Root mean squared error of posterior predictive mean vs observed
+- **MAE**: Mean absolute error of posterior predictive mean vs observed
+- **Mean Bias**: Average signed prediction error (pred - obs)
+- **CRPS**: Continuous Ranked Probability Score (proper scoring rule for full predictive distribution)
+- **Calibration Coverage (90%)**: Fraction of test observations falling within 90% posterior predictive interval (target: 0.90)
+- **Calibration Coverage (50%)**: Fraction of test observations falling within 50% posterior predictive interval (target: 0.50)
+- **Interval Width**: Mean width of 90% and 50% credible intervals
 
 Cross-validation
 - Primary evaluation: within-artist temporal holdout (last album per artist)

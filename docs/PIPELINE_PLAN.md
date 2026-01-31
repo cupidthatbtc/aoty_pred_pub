@@ -61,9 +61,18 @@ Phase 7 - Diagnostics and Model Comparison
 - Flag NaN or divergent samples and record failure modes.
 
 Phase 8 - Prediction Output
-- For each artist, predict next album score with credible intervals.
-- Output predictions with uncertainty and metadata.
-- Store in data/processed and reports/.
+- Registered "predict" pipeline stage (runs after evaluate, before report).
+- Known-artist predictions under 3 scenarios:
+  - Scenario A ("same"): Use the artist's last album feature values.
+  - Scenario B ("population_mean"): Use population mean features (zeros after z-scoring).
+  - Scenario C ("artist_mean"): Use the artist's mean feature values across all training albums.
+- New-artist predictions under 2 scenarios:
+  - Scenario D ("population"): Population mean features with median n_reviews.
+  - Scenario E ("debut_defaults"): Population mean features with minimum n_reviews.
+- Outputs to outputs/predictions/:
+  - next_album_known_artists.csv
+  - next_album_new_artist.csv
+  - prediction_summary.json
 
 Phase 9 - Sensitivity Analyses
 - Vary min ratings threshold.
@@ -83,6 +92,9 @@ Phase 11 - Reproducibility
 Outputs (expected)
 - data/processed/regression_ready.csv
 - runs/<run_id>/trace.nc
+- outputs/evaluation/metrics.json
+- outputs/predictions/next_album_known_artists.csv
+- outputs/predictions/next_album_new_artist.csv
 - reports/tables/*.csv
 - reports/figures/*.png
 - docs/MODEL_CARD.md
