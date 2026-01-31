@@ -142,11 +142,14 @@ After a successful run, outputs are saved to:
 | `reports/` | Publication artifacts (figures, tables, model cards) |
 | `data/processed/` | Cleaned datasets and feature matrices |
 | `data/splits/` | Train/validation/test split manifests |
+| `outputs/evaluation/` | Evaluation metrics and convergence diagnostics |
+| `outputs/predictions/` | Next-album prediction CSVs and summary |
 
 To regenerate reports or run individual stages:
 ```bash
-aoty-pipeline stage report
 aoty-pipeline stage evaluate
+aoty-pipeline stage predict
+aoty-pipeline stage report
 ```
 
 See [CLI.md](CLI.md) for the complete command reference.
