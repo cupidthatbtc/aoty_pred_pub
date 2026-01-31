@@ -25,7 +25,7 @@ from aoty_pred.models.bayes.priors import PriorConfig
 # ---------------------------------------------------------------------------
 
 
-def _make_sample_data():
+def _make_sample_data() -> dict:
     """Create sample data dict for model tests (matches test_sigma_ref.py pattern)."""
     key = random.PRNGKey(42)
     n_obs = 50
@@ -43,7 +43,7 @@ def _make_sample_data():
     }
 
 
-def _make_model_args_for_fit(n_ref=50.0, learn_n_exponent=True):
+def _make_model_args_for_fit(*, n_ref: float | None = 50.0, learn_n_exponent: bool = True) -> dict:
     """Create full model_args dict suitable for fit_model().
 
     Adds observed y, priors, and heteroscedastic config to base sample data.

@@ -471,7 +471,7 @@ class TestNRefComputation:
             }
         )
 
-        model_args, valid_mask = prepare_model_data(df, ["feature_1"], min_albums_filter=1)
+        model_args, _valid_mask = prepare_model_data(df, ["feature_1"], min_albums_filter=1)
 
         # n_ref formula: median of n_reviews
         expected_n_ref = float(np.median(model_args["n_reviews"]))
@@ -488,7 +488,7 @@ class TestNRefComputation:
             }
         )
 
-        model_args, valid_mask = prepare_model_data(df, ["feature_1"], min_albums_filter=1)
+        model_args, _valid_mask = prepare_model_data(df, ["feature_1"], min_albums_filter=1)
 
         # Base keys from prepare_model_data
         expected_base_keys = {

@@ -22,7 +22,7 @@ from aoty_pred.models.bayes.priors import PriorConfig
 # ---------------------------------------------------------------------------
 
 
-def _make_sample_data():
+def _make_sample_data() -> dict:
     """Create sample data dict for model tests."""
     key = random.PRNGKey(42)
     n_obs = 50
