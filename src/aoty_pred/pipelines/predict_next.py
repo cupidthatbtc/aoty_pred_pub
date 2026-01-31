@@ -290,7 +290,7 @@ def _predict_new_artists(
     return pd.DataFrame(results)
 
 
-def predict_next_albums(ctx: "StageContext") -> dict:
+def predict_next_albums(ctx: StageContext) -> dict:
     """Generate next-album predictions for known and new artists.
 
     Known artists get 3 scenarios (same features, population mean, artist mean).

@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import jax
-import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import structlog
@@ -24,6 +23,7 @@ from aoty_pred.models.bayes.diagnostics import check_convergence, get_divergence
 from aoty_pred.models.bayes.io import load_manifest, load_model
 from aoty_pred.models.bayes.model import user_score_model
 from aoty_pred.models.bayes.priors import PriorConfig
+from aoty_pred.pipelines.predict_next import _extract_posterior_samples
 from aoty_pred.pipelines.train_bayes import _apply_max_albums_cap
 
 if TYPE_CHECKING:
@@ -193,7 +193,7 @@ def _prepare_test_model_args(
     return test_model_args, y_true
 
 
-def evaluate_models(ctx: "StageContext") -> dict:
+def evaluate_models(ctx: StageContext) -> dict:
     """Evaluate fitted models on test data.
 
     Computes convergence diagnostics, point prediction metrics,
@@ -264,14 +264,7 @@ def evaluate_models(ctx: "StageContext") -> dict:
     log.info("test_model_args_prepared", n_test_kept=len(y_true))
 
     # Extract posterior samples from idata into flat dict for Predictive
-    posterior = idata.posterior
-    posterior_samples: dict[str, jnp.ndarray] = {}
-    for var_name in posterior.data_vars:
-        vals = posterior[var_name].values  # shape: (chains, draws, ...)
-        n_chains, n_draws = vals.shape[:2]
-        rest_shape = vals.shape[2:]
-        flat = vals.reshape(n_chains * n_draws, *rest_shape)
-        posterior_samples[var_name] = jnp.array(flat)
+    posterior_samples = _extract_posterior_samples(idata)
 
     n_total_samples = next(iter(posterior_samples.values())).shape[0]
     log.info("posterior_samples_extracted", n_total_samples=n_total_samples)
