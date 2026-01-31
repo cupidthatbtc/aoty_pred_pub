@@ -225,6 +225,50 @@
             </div>
             {% endif %}
 
+            {% elif active_view == 'next_albums' %}
+            {# Next-album predictions view #}
+            <h2 style="padding: 20px 0 10px; color: var(--text-muted); font-weight: normal;">
+                Next-Album Predictions
+            </h2>
+
+            {% if next_album_tables %}
+            {% if 'next_albums' in figures %}
+            <div class="chart-container" id="next-albums-chart">
+                <div class="chart-header">
+                    <span class="chart-title">Prediction Distribution by Scenario</span>
+                </div>
+                {{ figures['next_albums'] | safe }}
+            </div>
+            {% endif %}
+
+            <div class="chart-container" id="known-predictions">
+                <div class="chart-header">
+                    <span class="chart-title">Known Artist Predictions</span>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label for="scenario-filter" style="font-size: 0.875rem; color: var(--text-muted); margin-right: 8px;">Scenario:</label>
+                    <select id="scenario-filter" class="btn" style="font-family: inherit;">
+                        <option value="all">All Scenarios</option>
+                        <option value="same" selected>Same Features</option>
+                        <option value="population_mean">Population Mean</option>
+                        <option value="artist_mean">Artist Mean</option>
+                    </select>
+                </div>
+                {{ next_album_tables['known_table'] | safe }}
+            </div>
+
+            <div class="chart-container" id="new-predictions">
+                <div class="chart-header">
+                    <span class="chart-title">New Artist Predictions</span>
+                </div>
+                {{ next_album_tables['new_table'] | safe }}
+            </div>
+            {% else %}
+            <div class="not-found">
+                No prediction data available.
+            </div>
+            {% endif %}
+
             {% elif active_view == 'artist' %}
             {# Artist-specific view #}
             <h2 style="padding: 20px 0 10px; color: var(--text-muted); font-weight: normal;">
@@ -258,6 +302,29 @@
 
 {% block scripts %}
 <script>
+    // Scenario filter for next-album predictions
+    (function() {
+        var filter = document.getElementById('scenario-filter');
+        if (filter) {
+            function applyFilter() {
+                var selected = filter.value;
+                var table = document.getElementById('known-predictions-table');
+                if (!table) return;
+                var rows = table.querySelectorAll('tbody tr');
+                rows.forEach(function(row) {
+                    if (selected === 'all' || row.dataset.scenario === selected) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            }
+            filter.addEventListener('change', applyFilter);
+            // Apply default filter on load
+            applyFilter();
+        }
+    })();
+
     // Table sorting functionality
     document.querySelectorAll('.coefficient-table th').forEach(function(header) {
         header.addEventListener('click', function() {

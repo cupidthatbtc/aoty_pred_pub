@@ -38,6 +38,7 @@ from aoty_pred.visualization.dashboard import (
     create_artist_view,
     create_coefficients_table,
     create_dashboard_figures,
+    create_next_album_tables,
     get_artist_list,
 )
 from aoty_pred.visualization.export import ensure_kaleido_chrome
@@ -312,6 +313,17 @@ async def dashboard(
     if _dashboard_data.coefficients is not None:
         coefficients_table = create_coefficients_table(_dashboard_data.coefficients)
 
+    # Generate next-album prediction tables if available
+    next_album_tables = None
+    if (
+        _dashboard_data.known_predictions is not None
+        and _dashboard_data.new_predictions is not None
+    ):
+        next_album_tables = create_next_album_tables(
+            _dashboard_data.known_predictions,
+            _dashboard_data.new_predictions,
+        )
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -322,6 +334,7 @@ async def dashboard(
             "artists": artists,
             "coefficients_table": coefficients_table,
             "eval_metrics": _dashboard_data.eval_metrics,
+            "next_album_tables": next_album_tables,
         },
     )
 
