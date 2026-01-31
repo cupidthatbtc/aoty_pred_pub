@@ -281,6 +281,35 @@
             }
         }
 
+        /* Metrics summary grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
+            padding: 10px 0;
+        }
+
+        .metric-card {
+            text-align: center;
+            padding: 16px 12px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-color);
+            font-family: 'Courier New', monospace;
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
         /* Not found message */
         .not-found {
             padding: 40px;

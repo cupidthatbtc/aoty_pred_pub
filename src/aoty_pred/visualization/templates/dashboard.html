@@ -16,6 +16,59 @@
                 Model Overview
             </h2>
 
+            {% if eval_metrics %}
+            <div class="chart-container" id="metrics-summary">
+                <div class="chart-header">
+                    <span class="chart-title">Model Performance</span>
+                </div>
+                <div class="metrics-grid">
+                    {% if eval_metrics['point_metrics'] %}
+                    {% if eval_metrics['point_metrics']['r2'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.3f"|format(eval_metrics['point_metrics']['r2']) }}</div>
+                        <div class="metric-label">R-squared</div>
+                    </div>
+                    {% endif %}
+                    {% if eval_metrics['point_metrics']['rmse'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.2f"|format(eval_metrics['point_metrics']['rmse']) }}</div>
+                        <div class="metric-label">RMSE</div>
+                    </div>
+                    {% endif %}
+                    {% if eval_metrics['point_metrics']['mae'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.2f"|format(eval_metrics['point_metrics']['mae']) }}</div>
+                        <div class="metric-label">MAE</div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    {% if eval_metrics['calibration'] %}
+                    {% if eval_metrics['calibration']['coverage_90'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.1f%%"|format(eval_metrics['calibration']['coverage_90'] * 100) }}</div>
+                        <div class="metric-label">90% Coverage</div>
+                    </div>
+                    {% endif %}
+                    {% if eval_metrics['calibration']['coverage_50'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.1f%%"|format(eval_metrics['calibration']['coverage_50'] * 100) }}</div>
+                        <div class="metric-label">50% Coverage</div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    {% if eval_metrics.get('crps') and eval_metrics['crps']['mean_crps'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.3f"|format(eval_metrics['crps']['mean_crps']) }}</div>
+                        <div class="metric-label">CRPS</div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="metrics-meta" style="margin-top: 12px; font-size: 0.8rem; color: var(--text-muted);">
+                    n = {{ eval_metrics['n_test'] }} test observations
+                </div>
+            </div>
+            {% endif %}
+
             {% if 'predictions' in figures %}
             <div class="chart-container" id="predictions-chart">
                 <div class="chart-header">
@@ -120,6 +173,43 @@
             <h2 style="padding: 20px 0 10px; color: var(--text-muted); font-weight: normal;">
                 Model Calibration
             </h2>
+
+            {% if eval_metrics and eval_metrics['calibration'] %}
+            <div class="chart-container" id="calibration-metrics">
+                <div class="chart-header">
+                    <span class="chart-title">Calibration Metrics</span>
+                </div>
+                <div class="metrics-grid">
+                    {% if eval_metrics['calibration']['coverage_90'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.1f%%"|format(eval_metrics['calibration']['coverage_90'] * 100) }}</div>
+                        <div class="metric-label">90% Coverage</div>
+                    </div>
+                    {% endif %}
+                    {% if eval_metrics['calibration']['coverage_50'] is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.1f%%"|format(eval_metrics['calibration']['coverage_50'] * 100) }}</div>
+                        <div class="metric-label">50% Coverage</div>
+                    </div>
+                    {% endif %}
+                    {% if eval_metrics['calibration'].get('interval_width_90') is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.1f"|format(eval_metrics['calibration']['interval_width_90']) }}</div>
+                        <div class="metric-label">90% Interval Width</div>
+                    </div>
+                    {% endif %}
+                    {% if eval_metrics['calibration'].get('interval_width_50') is not none %}
+                    <div class="metric-card">
+                        <div class="metric-value">{{ "%.1f"|format(eval_metrics['calibration']['interval_width_50']) }}</div>
+                        <div class="metric-label">50% Interval Width</div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="metrics-meta" style="margin-top: 12px; font-size: 0.8rem; color: var(--text-muted);">
+                    n = {{ eval_metrics['n_test'] }} test observations
+                </div>
+            </div>
+            {% endif %}
 
             {% if 'reliability' in figures %}
             <div class="chart-container" id="reliability-chart">
