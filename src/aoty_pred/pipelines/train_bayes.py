@@ -197,7 +197,6 @@ def prepare_model_data(
         "n_reviews": n_reviews,
         "n_artists": len(artists),
         "artist_album_counts": artist_album_counts,
-        "artist_to_idx": artist_to_idx,
     }
     return model_args, valid_mask
 
@@ -311,11 +310,8 @@ def train_models(
         n_features=len(feature_cols),
     )
 
-    # Pop metadata fields before passing to NumPyro model
-    artist_album_counts = model_args.pop("artist_album_counts")
-    artist_to_idx = model_args.pop("artist_to_idx")
-
     # Apply max_albums cap from CLI/config (uses most recent albums per artist)
+    artist_album_counts = model_args.pop("artist_album_counts")
     model_args = _apply_max_albums_cap(model_args, ctx.max_albums, artist_album_counts)
 
     # Log n_reviews statistics for diagnostics
@@ -502,15 +498,6 @@ def train_models(
         "n_artists": model_args["n_artists"],
         "n_features": model_args["X"].shape[1],
         "feature_scaler": feature_scaler,
-        "artist_to_idx": artist_to_idx,
-        "max_seq": model_args["max_seq"],
-        "max_albums": ctx.max_albums,
-        "global_mean_score": float(model_args["y"].mean()),
-        "feature_cols": feature_cols,
-        "n_exponent": ctx.n_exponent,
-        "learn_n_exponent": ctx.learn_n_exponent,
-        "n_exponent_prior": ctx.n_exponent_prior,
-        "n_ref": model_args.get("n_ref"),
         "n_reviews_stats": {
             "min": int(np.min(model_args["n_reviews"])),
             "max": int(np.max(model_args["n_reviews"])),

@@ -635,26 +635,6 @@ def stage_evaluate(
     raise typer.Exit(code=exit_code)
 
 
-@stage_app.command("predict")
-def stage_predict(
-    seed: int = typer.Option(42, "--seed", help="Random seed"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable DEBUG logging"),
-) -> None:
-    """Run next-album prediction stage only.
-
-    Generates predictions for known and new artists under multiple scenarios.
-    """
-    from aoty_pred.pipelines.orchestrator import PipelineConfig, run_pipeline
-
-    config = PipelineConfig(
-        seed=seed,
-        stages=["predict"],
-        verbose=verbose,
-    )
-    exit_code = run_pipeline(config)
-    raise typer.Exit(code=exit_code)
-
-
 @stage_app.command("report")
 def stage_report(
     seed: int = typer.Option(42, "--seed", help="Random seed"),

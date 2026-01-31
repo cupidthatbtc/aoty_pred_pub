@@ -177,34 +177,6 @@ def generate_publication_artifacts(ctx: StageContext) -> dict:
     except Exception:  # Broad catch: best-effort artifact generation
         log.exception("metrics_table_failed")
 
-    # Prediction summary table
-    try:
-        known_csv = Path("outputs/predictions/next_album_known_artists.csv")
-        if known_csv.exists():
-            known_df = pd.read_csv(known_csv)
-            # Create scenario comparison table
-            scenario_stats = (
-                known_df.groupby("scenario")
-                .agg(
-                    mean_pred=("pred_mean", "mean"),
-                    std_pred=("pred_mean", "std"),
-                    n_artists=("artist", "nunique"),
-                )
-                .round(2)
-            )
-
-            pred_table_path = tables_dir / "prediction_scenarios"
-            export_table(
-                scenario_stats,
-                str(pred_table_path),
-                caption="Next-album prediction scenarios (known artists)",
-            )
-            artifacts["tables"].append(str(pred_table_path) + ".csv")
-            artifacts["tables"].append(str(pred_table_path) + ".tex")
-            log.info("prediction_table_saved", path=str(pred_table_path))
-    except Exception:  # Broad catch: best-effort artifact generation
-        log.exception("prediction_table_failed")
-
     # =========================================================================
     # Generate Figures
     # =========================================================================
