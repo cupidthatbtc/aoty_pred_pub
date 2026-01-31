@@ -79,6 +79,13 @@ def setup_pipeline_logging(
     )
     root.addHandler(console_handler)
 
+    # Suppress JAX/jaxlib internal DEBUG spam (cache-key hashing, dispatch tracing).
+    # These use stdlib logging and inherit from root (which is set to DEBUG).
+    # Even when console is INFO-only, the root DEBUG level causes JAX to format
+    # expensive debug messages. Set them to WARNING unconditionally.
+    logging.getLogger("jax").setLevel(logging.WARNING)
+    logging.getLogger("jaxlib").setLevel(logging.WARNING)
+
     # File handler (optional): JSON output
     if log_file is not None:
         log_file = Path(log_file)
