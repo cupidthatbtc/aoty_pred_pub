@@ -232,10 +232,14 @@ def fit_model(
     )
     start_time = time.perf_counter()
 
+    # Separate metadata-only keys from actual model parameters
+    _metadata_keys = {"n_ref_method"}
+    run_args = {k: v for k, v in model_args.items() if k not in _metadata_keys}
+
     mcmc.run(
         rng_key,
         extra_fields=("diverging", "num_steps"),
-        **model_args,
+        **run_args,
     )
 
     runtime_seconds = time.perf_counter() - start_time
