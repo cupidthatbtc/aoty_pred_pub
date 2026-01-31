@@ -373,6 +373,10 @@ def make_score_model(score_type: str) -> Callable:
         use_sigma_ref = (n_ref is not None) and heteroscedastic_requested
 
         if use_sigma_ref:
+            if n_ref <= 0:
+                raise ValueError(
+                    f"n_ref must be positive for sigma-ref parameterization, got {n_ref}"
+                )
             # SIGMA-REF PARAMETERIZATION: sample noise at reference review count
             # This breaks the multiplicative funnel between sigma_obs and n_exponent
             sigma_ref = numpyro.sample(

@@ -390,7 +390,7 @@ def fit_model(
             np.float64(model_args["n_ref"]),
         )
         constant_data_ds["n_ref_method"] = xr.DataArray(
-            np.array("median", dtype="U"),
+            np.array(model_args.get("n_ref_method", "median"), dtype="U"),
         )
 
     # Add groups only if they don't already exist

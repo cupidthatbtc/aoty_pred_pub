@@ -338,11 +338,12 @@ def train_models(
     # Guard against constant features (std=0): leave them unscaled
     X_std_safe = np.where(X_std == 0.0, 1.0, X_std)
     model_args["X"] = ((X_raw - X_mean) / X_std_safe).astype(np.float32)
+    std_range_val = [float(X_std.min()), float(X_std.max())] if len(X_std) > 0 else []
     log.info(
         "features_standardized",
         n_features=len(X_mean),
         n_constant=int((X_std == 0.0).sum()),
-        std_range=[float(X_std.min()), float(X_std.max())],
+        std_range=std_range_val,
     )
     # Store scaler params for prediction-time use
     feature_scaler = {
@@ -367,6 +368,7 @@ def train_models(
 
     # Add n_ref for sigma-ref reparameterization (model accepts n_ref=None for homoscedastic)
     model_args["n_ref"] = n_ref if (ctx.learn_n_exponent or ctx.n_exponent != 0.0) else None
+    model_args["n_ref_method"] = "median"
 
     # Log heteroscedastic mode
     if ctx.learn_n_exponent:
