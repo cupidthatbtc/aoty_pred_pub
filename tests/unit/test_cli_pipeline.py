@@ -111,7 +111,7 @@ class TestStageCommands:
 
     @pytest.mark.parametrize(
         "stage_name",
-        ["data", "splits", "features", "train", "evaluate", "report"],
+        ["data", "splits", "features", "train", "evaluate", "predict", "report"],
     )
     def test_stage_command_exists(self, stage_name):
         """Each stage command exists and shows help."""
@@ -123,6 +123,14 @@ class TestStageCommands:
         result = runner.invoke(app, ["stage", "train", "--help"])
         assert result.exit_code == 0
         assert "--strict" in strip_ansi(result.stdout)
+
+    def test_stage_predict_help_has_options(self):
+        """Predict stage help shows expected options."""
+        result = runner.invoke(app, ["stage", "predict", "--help"])
+        assert result.exit_code == 0
+        output = strip_ansi(result.stdout)
+        assert "--seed" in output
+        assert "--verbose" in output
 
 
 class TestPackageExports:

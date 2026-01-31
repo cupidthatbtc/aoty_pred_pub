@@ -310,6 +310,13 @@ def _run_evaluate_stage(ctx: StageContext) -> None:
     evaluate_models(ctx)
 
 
+def _run_predict_stage(ctx: StageContext) -> None:
+    """Run next-album prediction stage."""
+    from aoty_pred.pipelines.predict_next import predict_next_albums
+
+    predict_next_albums(ctx)
+
+
 def _run_report_stage(ctx: StageContext) -> None:
     """Run publication artifact generation stage."""
     from aoty_pred.pipelines.publication import generate_publication_artifacts
@@ -415,6 +422,27 @@ def make_stage_evaluate() -> PipelineStage:
     )
 
 
+def make_stage_predict() -> PipelineStage:
+    """Create next-album prediction stage."""
+    return PipelineStage(
+        name="predict",
+        description="Generate next-album predictions for known and new artists",
+        run_fn=_run_predict_stage,
+        input_paths=[
+            Path("models/manifest.json"),
+            Path("models/training_summary.json"),
+            Path("data/splits/within_artist_temporal/train.parquet"),
+            Path("data/features/train_features.parquet"),
+        ],
+        output_paths=[
+            Path("outputs/predictions/next_album_known_artists.csv"),
+            Path("outputs/predictions/next_album_new_artist.csv"),
+            Path("outputs/predictions/prediction_summary.json"),
+        ],
+        depends_on=["evaluate"],
+    )
+
+
 def make_stage_report() -> PipelineStage:
     """Create publication artifacts stage."""
     return PipelineStage(
@@ -424,12 +452,13 @@ def make_stage_report() -> PipelineStage:
         input_paths=[
             Path("outputs/evaluation/metrics.json"),
             Path("outputs/evaluation/diagnostics.json"),
+            Path("outputs/predictions/prediction_summary.json"),
         ],
         output_paths=[
             Path("reports/figures/"),
             Path("reports/tables/"),
         ],
-        depends_on=["evaluate"],
+        depends_on=["predict"],
     )
 
 
@@ -449,6 +478,7 @@ def build_pipeline_stages(min_ratings: int = 10) -> list[PipelineStage]:
         make_stage_features(),
         make_stage_train(),
         make_stage_evaluate(),
+        make_stage_predict(),
         make_stage_report(),
     ]
 
