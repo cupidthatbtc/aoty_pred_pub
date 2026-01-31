@@ -22,6 +22,7 @@ import pandas as pd
 
 from aoty_pred.visualization.charts import (
     create_forest_plot,
+    create_next_album_chart,
     create_predictions_plot,
     create_reliability_plot,
     create_trace_plot,
@@ -211,6 +212,15 @@ def create_dashboard_figures(
                 include_plotlyjs=first_figure,
             )
             first_figure = False
+
+    # Next-album prediction chart
+    if data.known_predictions is not None and "pred_q50" in data.known_predictions.columns:
+        fig = create_next_album_chart(data.known_predictions, template=theme)
+        figures["next_albums"] = fig.to_html(
+            full_html=False,
+            include_plotlyjs=first_figure,
+        )
+        first_figure = False
 
     return figures
 
